@@ -1,0 +1,17 @@
+# Flutter
+studium_mobile/.dart_tool/
+studium_mobile/build/
+studium_mobile/.flutter-plugins
+studium_mobile/.flutter-plugins-dependencies
+studium_mobile/.env
+
+# React
+studium-dashboard/node_modules/
+studium-dashboard/dist/
+studium-dashboard/.env
+
+# General
+.DS_Store
+*.log
+*.iml
+.idea/
