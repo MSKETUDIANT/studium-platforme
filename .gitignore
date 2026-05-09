@@ -1,17 +1,24 @@
 # Flutter
 studium_mobile/.dart_tool/
 studium_mobile/build/
+studium_mobile/android/build/
+studium_mobile/android/.gradle/
+studium_mobile/ios/Pods/
+studium_mobile/ios/.symlinks/
 studium_mobile/.flutter-plugins
 studium_mobile/.flutter-plugins-dependencies
 studium_mobile/.env
+studium_mobile/devtools_options.yaml
 
 # React
 studium-dashboard/node_modules/
 studium-dashboard/dist/
 studium-dashboard/.env
+studium-dashboard/.vite/
 
 # General
 .DS_Store
 *.log
 *.iml
 .idea/
+*.orig

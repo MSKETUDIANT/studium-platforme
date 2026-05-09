@@ -1,0 +1,25 @@
+/* ─── Reset global — à ajouter dans index.css ou src/index.css ──────────────
+   Garantit que la page de login (et toute l'app) occupe bien 100% du viewport
+   sans marges ou espacements parasites du navigateur.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

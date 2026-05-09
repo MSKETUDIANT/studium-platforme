@@ -1,0 +1,15 @@
+/* App.css — Studium Dashboard
+   Le reset global est dans index.css.
+   Ce fichier ne contient que les styles globaux de l'application. */
+
+/* Scrollbar personnalisée (Webkit) */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(11,24,82,0.18); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(11,24,82,0.32); }
+
+/* Sélection de texte */
+::selection { background: rgba(37,70,204,0.18); color: #0b1852; }
+
+/* Transitions de page globales */
+* { box-sizing: border-box; }

@@ -1,0 +1,80 @@
+name: studium_mobile
+description: "Plateforme de gestion des candidatures académiques Studium"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  google_sign_in: ^6.2.1
+  app_links: ^6.0.0
+  fpdart: ^1.1.0
+  country_picker: ^2.0.26
+  intl_phone_field: ^3.2.0
+  flutter_typeahead: ^5.2.0
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Backend
+  supabase_flutter: ^2.3.0
+
+  # Navigation
+  go_router: ^14.2.0
+
+  # State management
+  flutter_riverpod: ^2.5.0
+  riverpod_annotation: ^2.3.0
+
+  # Stockage local sécurisé
+  flutter_secure_storage: ^9.0.0
+
+  # Internationalisation
+  intl: 0.20.2
+
+  # Fichiers
+  file_picker: ^8.0.0
+  image_picker: ^1.0.7
+  open_filex: ^4.4.0
+  url_launcher: ^6.3.0
+
+  # PDF
+  flutter_pdfview: ^1.3.2
+
+  # UI
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  flutter_animate: ^4.5.0
+
+  # Réseau
+  dio: ^5.4.0
+  connectivity_plus: ^6.0.3
+
+  # Dates
+  timeago: ^3.6.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  riverpod_generator: ^2.3.0
+  build_runner: ^2.4.0
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/fonts/
+
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-VariableFont_wght.ttf
+
+
+        
