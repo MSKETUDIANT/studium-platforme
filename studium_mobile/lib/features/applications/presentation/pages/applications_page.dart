@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,11 +19,10 @@ class ApplicationsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final applicationsAsync = ref.watch(myApplicationsProvider);
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        backgroundColor: _kBg,
-        body: applicationsAsync.when(
+    return Scaffold(
+      backgroundColor: _kBg,
+      body: SafeArea(
+        child: applicationsAsync.when(
           loading: () => const Center(
               child: CircularProgressIndicator(color: _kBlue)),
           error: (e, _) => Center(
@@ -36,12 +34,16 @@ class ApplicationsPage extends ConsumerWidget {
           ),
           data: (apps) => CustomScrollView(
             slivers: [
-              _buildSliverHeader(apps),
+              SliverToBoxAdapter(
+                child: _buildHeader(apps)
+                    .animate()
+                    .fadeIn(duration: 400.ms)
+                    .slideY(begin: -0.06),
+              ),
               apps.isEmpty
                   ? SliverFillRemaining(child: _buildEmptyState(context))
                   : SliverPadding(
-                      padding:
-                          const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (ctx, i) => _ApplicationCard(app: apps[i])
@@ -51,9 +53,8 @@ class ApplicationsPage extends ConsumerWidget {
                                 duration: const Duration(milliseconds: 260),
                               )
                               .slideY(
-                                begin: .06,
-                                duration:
-                                    const Duration(milliseconds: 260),
+                                begin: .05,
+                                duration: const Duration(milliseconds: 260),
                                 curve: Curves.easeOut,
                               ),
                           childCount: apps.length,
@@ -63,88 +64,122 @@ class ApplicationsPage extends ConsumerWidget {
             ],
           ),
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => context.push('/applications/new'),
-          label: const Text('Nouvelle candidature',
-              style: TextStyle(fontWeight: FontWeight.w700)),
-          icon: const Icon(Icons.add),
-          backgroundColor: _kBlue,
-          foregroundColor: Colors.white,
-          elevation: 4,
-        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/applications/new'),
+        label: const Text('Nouvelle candidature',
+            style: TextStyle(fontWeight: FontWeight.w700)),
+        icon: const Icon(Icons.add),
+        backgroundColor: _kBlue,
+        foregroundColor: Colors.white,
+        elevation: 4,
       ),
     );
   }
 
-  // ─── Sliver header ──────────────────────────────────────────────────────────
+  // ─── Header card (même pattern que ProgramsPage) ──────────────────────────
 
-  Widget _buildSliverHeader(List<Application> apps) {
+  Widget _buildHeader(List<Application> apps) {
     final total     = apps.length;
     final enCours   = apps.where((a) => a.isActive).length;
     final acceptees =
         apps.where((a) => a.status == ApplicationStatus.accepted).length;
 
-    return SliverToBoxAdapter(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF0D1F42),
+              Color(0xFF1565C0),
+              Color(0xFF1E5298),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF1A1D2E), Color(0xFF2D3150)],
           ),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0D1F42).withValues(alpha: 0.28),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-            child: Column(
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Cercles décoratifs
+            const Positioned(
+              right: -16, top: -16,
+              child: _DecorCircle(size: 110, opacity: 0.08),
+            ),
+            const Positioned(
+              right: 50, bottom: -20,
+              child: _DecorCircle(size: 70, opacity: 0.06),
+            ),
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                // Badge icône + label
+                Row(children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.send_rounded,
+                        color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Dossiers',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 14),
+                const Text(
                   'Mes candidatures',
                   style: TextStyle(
+                    color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -.3,
+                    height: 1.15,
                   ),
-                ).animate().fadeIn(duration: 300.ms),
-                const SizedBox(height: 4),
-                Text(
-                  total == 0
-                      ? 'Aucune candidature pour l\'instant'
-                      : '$total candidature${total > 1 ? 's' : ''} au total',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.65),
-                  ),
-                ).animate().fadeIn(delay: 60.ms, duration: 300.ms),
-                const SizedBox(height: 20),
-                Row(children: [
-                  _StatChip(
-                    value: total,
-                    label: 'Total',
-                    color: Colors.white,
-                    bg:    Colors.white.withValues(alpha: 0.12),
-                  ).animate().fadeIn(delay: 100.ms),
-                  const SizedBox(width: 10),
-                  _StatChip(
-                    value: enCours,
-                    label: 'En cours',
-                    color: const Color(0xFFFBBF24),
-                    bg:    const Color(0xFFFBBF24).withValues(alpha: 0.15),
-                  ).animate().fadeIn(delay: 140.ms),
-                  const SizedBox(width: 10),
-                  _StatChip(
-                    value: acceptees,
-                    label: 'Acceptées',
-                    color: const Color(0xFF34D399),
-                    bg:    const Color(0xFF34D399).withValues(alpha: 0.15),
-                  ).animate().fadeIn(delay: 180.ms),
-                ]),
+                ),
+                const SizedBox(height: 16),
+                // Stats pills
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _StatPill(
+                      icon: Icons.send_outlined,
+                      label: '$total dossier${total > 1 ? 's' : ''}',
+                    ),
+                    _StatPill(
+                      icon: Icons.schedule_outlined,
+                      label: '$enCours en cours',
+                    ),
+                    _StatPill(
+                      icon: Icons.check_circle_outline,
+                      label:
+                          '$acceptees acceptée${acceptees > 1 ? 's' : ''}',
+                    ),
+                  ],
+                ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -188,48 +223,6 @@ class ApplicationsPage extends ConsumerWidget {
   }
 }
 
-// ─── Stat chip ────────────────────────────────────────────────────────────────
-
-class _StatChip extends StatelessWidget {
-  final int    value;
-  final String label;
-  final Color  color;
-  final Color  bg;
-  const _StatChip({
-    required this.value,
-    required this.label,
-    required this.color,
-    required this.bg,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.20)),
-        ),
-        child: Column(children: [
-          Text(
-            '$value',
-            style: TextStyle(
-                fontSize: 22, fontWeight: FontWeight.w800, color: color),
-          ),
-          const SizedBox(height: 2),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 11,
-                  color: color.withValues(alpha: 0.80),
-                  fontWeight: FontWeight.w600)),
-        ]),
-      ),
-    );
-  }
-}
-
 // ─── Application card ─────────────────────────────────────────────────────────
 
 class _ApplicationCard extends StatelessWidget {
@@ -266,7 +259,6 @@ class _ApplicationCard extends StatelessWidget {
           ],
         ),
         child: Column(children: [
-          // Colored accent bar
           Container(
             height: 3,
             decoration: BoxDecoration(
@@ -306,8 +298,8 @@ class _ApplicationCard extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         app.universityName ?? '',
-                        style:
-                            const TextStyle(fontSize: 12, color: _kGrey),
+                        style: const TextStyle(
+                            fontSize: 12, color: _kGrey),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -343,7 +335,7 @@ class _ApplicationCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Row(children: [
-                Icon(Icons.calendar_today_outlined,
+                const Icon(Icons.calendar_today_outlined,
                     size: 12, color: _kGrey),
                 const SizedBox(width: 4),
                 Text(
@@ -361,4 +353,55 @@ class _ApplicationCard extends StatelessWidget {
       '${dt.day.toString().padLeft(2, '0')}/'
       '${dt.month.toString().padLeft(2, '0')}/'
       '${dt.year}';
+}
+
+// ─── Header helpers (même que ProgramsPage) ───────────────────────────────────
+
+class _DecorCircle extends StatelessWidget {
+  final double size;
+  final double opacity;
+  const _DecorCircle({required this.size, required this.opacity});
+
+  @override
+  Widget build(BuildContext context) => Opacity(
+        opacity: opacity,
+        child: Container(
+          width: size, height: size,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+        ),
+      );
+}
+
+class _StatPill extends StatelessWidget {
+  final IconData icon;
+  final String   label;
+  const _StatPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: Colors.white70),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
 }
