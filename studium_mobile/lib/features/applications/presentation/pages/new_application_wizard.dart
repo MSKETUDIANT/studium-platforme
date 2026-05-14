@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -116,20 +117,21 @@ class _NewApplicationWizardState
     return Scaffold(
       backgroundColor: _kBg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: _kNavy,
         elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: _kNavy),
+          icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => context.pop(),
         ),
         title: const Text('Nouvelle candidature',
             style: TextStyle(
-                color: _kNavy,
+                color: Colors.white,
                 fontSize: 17,
                 fontWeight: FontWeight.w700)),
         centerTitle: true,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
+          preferredSize: const Size.fromHeight(60),
           child: _StepIndicator(
               current: _currentStep, labels: _steps),
         ),
