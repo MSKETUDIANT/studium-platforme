@@ -25,7 +25,6 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   @override
   void initState() {
     super.initState();
-    // ✅ Écouter tous les events auth
     Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       debugPrint('=== AUTH EVENT: ${data.event}');
       debugPrint('=== SESSION: ${data.session}');
@@ -43,7 +42,6 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
-      // ✅ Tenter directement sans vérification session
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(password: _passwordController.text),
       );

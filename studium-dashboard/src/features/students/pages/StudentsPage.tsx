@@ -32,12 +32,20 @@ const TYPE_LABELS: Record<string, string> = {
   recommendation: 'Lettre de recommandation', passport: 'Passeport', other: 'Autre',
 };
 
-const TYPE_COLOR: Record<string, { bg: string; color: string; icon: string }> = {
-  cv:             { bg: 'rgba(37,70,204,0.10)',  color: '#2546cc', icon: '📄' },
-  transcript:     { bg: 'rgba(124,58,237,0.10)', color: '#7c3aed', icon: '🎓' },
-  recommendation: { bg: 'rgba(22,163,74,0.10)',  color: '#16a34a', icon: '✉️' },
-  passport:       { bg: 'rgba(217,119,6,0.10)',  color: '#d97706', icon: '🪪' },
-  other:          { bg: 'rgba(107,122,158,0.10)', color: '#6b7a9e', icon: '📎' },
+const DOC_ICONS: Record<string, React.ReactElement> = {
+  cv:             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+  transcript:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>,
+  recommendation: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>,
+  passport:       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="12" cy="10" r="3"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/></svg>,
+  other:          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>,
+};
+
+const TYPE_COLOR: Record<string, { bg: string; color: string; icon: React.ReactElement }> = {
+  cv:             { bg: 'rgba(37,70,204,0.10)',  color: '#2546cc', icon: DOC_ICONS.cv             },
+  transcript:     { bg: 'rgba(124,58,237,0.10)', color: '#7c3aed', icon: DOC_ICONS.transcript     },
+  recommendation: { bg: 'rgba(22,163,74,0.10)',  color: '#16a34a', icon: DOC_ICONS.recommendation },
+  passport:       { bg: 'rgba(217,119,6,0.10)',  color: '#d97706', icon: DOC_ICONS.passport       },
+  other:          { bg: 'rgba(107,122,158,0.10)', color: '#6b7a9e', icon: DOC_ICONS.other         },
 };
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -417,7 +425,7 @@ export default function StudentsPage() {
             <div style={{ padding: 48, textAlign: 'center' }}><LoadingSpinner /></div>
           ) : filtered.length === 0 ? (
             <div className="sp-empty">
-              <span style={{ fontSize: 32 }}>🔍</span>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={colors.textMuted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               <span>Aucun étudiant trouvé</span>
             </div>
           ) : (
@@ -499,7 +507,7 @@ export default function StudentsPage() {
                     <div style={{ display: 'flex', gap: 10, marginTop: 4, alignItems: 'center' }}>
                       {selected.nationality && (
                         <span style={{ fontSize: 12, color: colors.textMuted }}>
-                          🌍 {selected.nationality}
+                          {selected.nationality}
                         </span>
                       )}
                       <span style={{
@@ -535,7 +543,7 @@ export default function StudentsPage() {
                 <div style={{ padding: 48, textAlign: 'center' }}><LoadingSpinner /></div>
               ) : docs.length === 0 ? (
                 <div className="sp-empty">
-                  <span style={{ fontSize: 28 }}>📭</span>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={colors.textMuted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   <span>Aucun document uploadé</span>
                 </div>
               ) : (
@@ -552,8 +560,9 @@ export default function StudentsPage() {
                           {/* Icône type */}
                           <div style={{
                             width: 42, height: 42, borderRadius: 11,
-                            background: tc.bg, display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', fontSize: 20, flexShrink: 0,
+                            background: tc.bg, color: tc.color,
+                            display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', flexShrink: 0,
                           }}>
                             {tc.icon}
                           </div>

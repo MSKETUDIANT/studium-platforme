@@ -284,7 +284,7 @@ export default function AppLayout() {
   const pathname  = window.location.pathname;
   const pageTitle = PAGE_TITLES[pathname] ?? 'Dashboard';
 
-  // ✅ Filtrer le menu selon le rôle
+  // Filtrer le menu selon le rôle
   const navItems = ALL_NAV_ITEMS.map(section => ({
     ...section,
     items: section.items.filter(item =>
@@ -292,7 +292,7 @@ export default function AppLayout() {
     ),
   })).filter(section => section.items.length > 0);
 
-  // ✅ Initiales de l'email
+  // Initiales de l'email
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? 'AD';
   const roleLabel = ROLE_LABELS[role ?? ''] ?? 'Équipe Studium';
 
@@ -351,7 +351,7 @@ export default function AppLayout() {
           {collapsed ? <IconExpand /> : <IconCollapse />}
         </button>
 
-        {/* ✅ User zone avec vrai email et rôle */}
+        {/* User zone */}
         <div className="sl-user">
           <div className="sl-avatar">{initials}</div>
           <div className="sl-user-info">

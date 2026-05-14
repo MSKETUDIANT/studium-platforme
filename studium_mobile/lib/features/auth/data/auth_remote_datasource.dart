@@ -36,7 +36,7 @@ class AuthRemoteDatasource {
         password: password,
       );
     } on AuthException catch (e) {
-      // ✅ Intercepter email non confirmé AVANT que Supabase retourne un user
+      // Intercepter email non confirmé avant que Supabase retourne un user
       if (e.code == 'email_not_confirmed' ||
           e.message.contains('email_not_confirmed') ||
           e.message.contains('Email not confirmed')) {

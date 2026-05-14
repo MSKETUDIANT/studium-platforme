@@ -92,7 +92,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  // ✅ Renvoyer l'email de confirmation
   Future<void> _resendConfirmationEmail() async {
     final email = _emailCtrl.text.trim();
     if (email.isEmpty) {
@@ -332,14 +331,8 @@ class _LoginForm extends StatelessWidget {
 
         const SizedBox(height: 20),
 
-        ElevatedButton(
+        _GradientButton(
           onPressed: (isLoading || cooldownSecs > 0) ? null : onSignIn,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: cooldownSecs > 0 ? AppColors.textMuted : AppColors.navy,
-            foregroundColor: Colors.white,
-            elevation:       (isLoading || cooldownSecs > 0) ? 0 : 2,
-            shadowColor:     AppColors.navy.withValues(alpha: 0.3),
-          ),
           child: isLoading
             ? const SizedBox(height: 20, width: 20,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -347,25 +340,24 @@ class _LoginForm extends StatelessWidget {
               ? Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.timer_outlined, size: 18),
+                    const Icon(Icons.timer_outlined, size: 18, color: Colors.white),
                     const SizedBox(width: 8),
                     Text(
                       'Réessayer dans ${cooldownSecs}s',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
                     ),
                   ],
                 )
               : const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Se connecter', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    Text('Se connecter', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
                     SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 18),
+                    Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
                   ],
                 ),
         ).animate().fadeIn(duration: 400.ms, delay: 240.ms).slideY(begin: 0.25, end: 0),
 
-        // ✅ Bouton renvoyer email — visible uniquement après erreur email_not_confirmed
         if (showResendBtn) ...[
           const SizedBox(height: 12),
           OutlinedButton.icon(
@@ -397,27 +389,58 @@ class _LoginForm extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        SizedBox(
+        Container(
           width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: isLoading ? null : onGoogleSignIn,
-            icon: Container(
-              width: 20, height: 20,
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(3)),
-              child: const Center(
-                child: Text('G', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF4285F4))),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderInput),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: isLoading ? null : onGoogleSignIn,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 22, height: 22,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F3FF),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Center(
+                        child: Text('G',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF4285F4),
+                          )),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text('Continuer avec Google',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      )),
+                  ],
+                ),
               ),
             ),
-            label: const Text('Continuer avec Google',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.textPrimary,
-              side: const BorderSide(color: AppColors.borderInput),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ).animate().fadeIn(duration: 400.ms, delay: 280.ms).slideY(begin: 0.25, end: 0),
-        ),
+          ),
+        ).animate().fadeIn(duration: 400.ms, delay: 280.ms).slideY(begin: 0.25, end: 0),
 
         const SizedBox(height: 16),
 
@@ -440,6 +463,47 @@ class _LoginForm extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _GradientButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final Widget child;
+  const _GradientButton({required this.onPressed, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onPressed == null;
+    return Container(
+      width: double.infinity,
+      height: 52,
+      decoration: BoxDecoration(
+        gradient: disabled
+            ? null
+            : const LinearGradient(
+                colors: [AppColors.navyLight, AppColors.blue],
+              ),
+        color: disabled ? AppColors.textMuted : null,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: disabled
+            ? null
+            : [
+                BoxShadow(
+                  color: AppColors.navy.withValues(alpha: 0.35),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onPressed,
+          child: Center(child: child),
+        ),
+      ),
+    );
+  }
 }
 
 class _FieldLabel extends StatelessWidget {
@@ -489,22 +553,47 @@ class _LeftPanel extends StatelessWidget {
 class _MobileHeader extends StatelessWidget {
   const _MobileHeader();
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    color: AppColors.navy,
-    child: Stack(children: [
-      Positioned.fill(child: CustomPaint(painter: _GridPainter())),
-      Positioned(top: -40, right: -40, child: _Orb(size: 180, opacity: 0.18)),
-      SafeArea(bottom: false, child: Center(child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Flexible(child: Image.asset('assets/images/stlogo.png', width: 110, color: Colors.white)
-            .animate().fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0)),
-          const SizedBox(height: 8),
-          Container(width: 28, height: 2, color: Colors.white24),
-        ]),
-      ))),
-    ]),
+  Widget build(BuildContext context) => ClipPath(
+    clipper: _BottomWaveClipper(),
+    child: Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.navy, Color(0xFF162270)],
+        ),
+      ),
+      child: Stack(children: [
+        Positioned.fill(child: CustomPaint(painter: _GridPainter())),
+        Positioned(top: -40, right: -40, child: _Orb(size: 200, opacity: 0.20)),
+        Positioned(bottom: 20, left: -30, child: _Orb(size: 120, opacity: 0.12)),
+        SafeArea(bottom: false, child: Center(child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Flexible(child: Image.asset('assets/images/stlogo.png', width: 120, color: Colors.white)
+              .animate().fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0)),
+            const SizedBox(height: 10),
+            Container(width: 32, height: 2,
+              decoration: BoxDecoration(
+                color: Colors.white38,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Étudiez sans frontières',
+              style: TextStyle(
+                fontSize: 11.5,
+                color: Colors.white54,
+                letterSpacing: 1.8,
+                fontWeight: FontWeight.w500,
+              ),
+            ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+          ]),
+        ))),
+      ]),
+    ),
   );
 }
 
@@ -538,4 +627,22 @@ class _GridPainter extends CustomPainter {
   }
   @override
   bool shouldRepaint(_) => false;
+}
+
+class _BottomWaveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path()
+      ..lineTo(0, size.height - 28)
+      ..quadraticBezierTo(
+        size.width / 2, size.height + 28,
+        size.width, size.height - 28,
+      )
+      ..lineTo(size.width, 0)
+      ..close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(_) => false;
 }

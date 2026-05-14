@@ -204,7 +204,7 @@ class _Header extends ConsumerWidget {
 
                 // ── Greeting ──
                 Text(
-                  'Bonjour, ${firstName?.isNotEmpty == true ? firstName : 'Étudiant'} 👋',
+                  'Bonjour, ${firstName?.isNotEmpty == true ? firstName : 'Étudiant'}',
                   style: const TextStyle(
                     fontSize: 26, fontWeight: FontWeight.w800,
                     color: Colors.white, height: 1.2,
@@ -621,7 +621,7 @@ class _ProfileCompletionCard extends StatelessWidget {
                 ? 'Bon travail, encore un effort.'
                 : safe < 100
                     ? 'Presque terminé, continuez.'
-                    : 'Profil complet — félicitations 🎉';
+                    : 'Profil complet.';
 
     return Container(
       padding: const EdgeInsets.all(20),

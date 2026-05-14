@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { supabase }       from '../../../shared/services/supabase';
 import { Badge }          from '../../../shared/components/Badge';
 import { Button }         from '../../../shared/components/Button';
 import { EmptyState }     from '../../../shared/components/EmptyState';
@@ -20,19 +21,17 @@ interface Application {
   score:      number;
 }
 
-/* ─── Données mock ───────────────────────────────────────────────────────── */
-const MOCK_DATA: Application[] = [
-  { id:'APP-001', student:'Amir Benali',    email:'amir.benali@gmail.com',    university:'HEC Paris',              country:'France',   program:'Master Finance',           date:'2025-01-15', status:'Validé',     score:88 },
-  { id:'APP-002', student:'Sana Khelifi',   email:'sana.khelifi@yahoo.fr',    university:'Université de Montréal', country:'Canada',   program:'MBA International',        date:'2025-01-18', status:'En attente', score:74 },
-  { id:'APP-003', student:'Youssef Tazi',   email:'youssef.tazi@gmail.com',   university:'Sciences Po Paris',      country:'France',   program:'Relations Internationales', date:'2025-01-20', status:'Urgent',     score:81 },
-  { id:'APP-004', student:'Rim Ouali',      email:'rim.ouali@outlook.com',    university:'Polytechnique Montréal', country:'Canada',   program:'Génie Civil',              date:'2025-01-22', status:'Validé',     score:91 },
-  { id:'APP-005', student:'Karim Mansouri', email:'karim.mansouri@gmail.com', university:'Université de Bordeaux', country:'France',   program:'Master Droit',             date:'2025-01-25', status:'Refusé',     score:58 },
-  { id:'APP-006', student:'Nadia Hamdi',    email:'nadia.hamdi@gmail.com',    university:'ESSEC Business School',  country:'France',   program:'Grande École',             date:'2025-01-28', status:'En attente', score:77 },
-  { id:'APP-007', student:'Omar Ziani',     email:'omar.ziani@yahoo.com',     university:'McGill University',      country:'Canada',   program:'MSc Computer Science',     date:'2025-02-01', status:'Urgent',     score:85 },
-  { id:'APP-008', student:'Fatima Larbi',   email:'fatima.larbi@gmail.com',   university:'Sorbonne Université',    country:'France',   program:'Master Lettres',           date:'2025-02-03', status:'Validé',     score:82 },
-  { id:'APP-009', student:'Bilal Chouikh',  email:'bilal.chouikh@gmail.com',  university:'Université Laval',       country:'Canada',   program:'Master Économie',          date:'2025-02-05', status:'En attente', score:70 },
-  { id:'APP-010', student:'Meriem Saadi',   email:'meriem.saadi@gmail.com',   university:'INSA Lyon',              country:'France',   program:'Ingénierie Industrielle',  date:'2025-02-08', status:'Validé',     score:89 },
-];
+const STATUS_MAP: Record<string, Status> = {
+  draft:            'En attente',
+  submitted:        'En attente',
+  needsfix:         'Urgent',
+  verified:         'Validé',
+  sent:             'Validé',
+  accepted:         'Validé',
+  rejected:         'Refusé',
+  pending_decision: 'En attente',
+  archived:         'Refusé',
+};
 
 /* ─── CSS ────────────────────────────────────────────────────────────────── */
 const CSS = `
@@ -220,17 +219,51 @@ function StatCard({ label, value, sub, accent, iconBg, iconColor, icon }: {
    ApplicationsPage
    ═══════════════════════════════════════════════════════════════════════════ */
 export default function ApplicationsPage() {
+  const [apps,    setApps]    = useState<Application[]>([]);
   const [search,  setSearch]  = useState('');
   const [filter,  setFilter]  = useState<'Tous' | Status>('Tous');
-  const [loading, _]          = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const total     = MOCK_DATA.length;
-  const validated = MOCK_DATA.filter(a => a.status === 'Validé').length;
-  const pending   = MOCK_DATA.filter(a => a.status === 'En attente').length;
-  const urgent    = MOCK_DATA.filter(a => a.status === 'Urgent').length;
+  useEffect(() => {
+    async function load() {
+      try {
+        const { data, error } = await supabase
+          .from('applications')
+          .select(`
+            id, status, submitted_at,
+            student_profiles!student_id ( first_name, last_name, email, completeness_score ),
+            programs!program_id ( program_name, university_name, country )
+          `)
+          .order('submitted_at', { ascending: false });
+        if (error) throw error;
+        const mapped: Application[] = (data ?? []).map((a: any) => ({
+          id:         a.id,
+          student:    `${a.student_profiles?.first_name ?? ''} ${a.student_profiles?.last_name ?? ''}`.trim() || 'Inconnu',
+          email:      a.student_profiles?.email ?? '',
+          university: a.programs?.university_name ?? '—',
+          country:    a.programs?.country ?? '—',
+          program:    a.programs?.program_name ?? '—',
+          date:       a.submitted_at ?? '',
+          status:     STATUS_MAP[a.status] ?? 'En attente',
+          score:      a.student_profiles?.completeness_score ?? 0,
+        }));
+        setApps(mapped);
+      } catch {
+        setApps([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const total     = apps.length;
+  const validated = apps.filter(a => a.status === 'Validé').length;
+  const pending   = apps.filter(a => a.status === 'En attente').length;
+  const urgent    = apps.filter(a => a.status === 'Urgent').length;
 
   const filtered = useMemo(() => {
-    let d = MOCK_DATA;
+    let d = apps;
     if (filter !== 'Tous') d = d.filter(a => a.status === filter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -243,7 +276,7 @@ export default function ApplicationsPage() {
       );
     }
     return d;
-  }, [search, filter]);
+  }, [apps, search, filter]);
 
   if (loading) return <LoadingSpinner fullPage />;
 
@@ -406,7 +439,7 @@ export default function ApplicationsPage() {
 
                       <td>
                         <span style={{ fontSize: 13, color: colors.textSecondary }}>
-                          {app.country === 'France' ? '🇫🇷' : '🇨🇦'} {app.country}
+                          {app.country}
                         </span>
                       </td>
 

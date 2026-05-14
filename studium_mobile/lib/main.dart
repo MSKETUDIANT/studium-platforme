@@ -33,38 +33,24 @@ class _StudiumAppState extends ConsumerState<StudiumApp> {
     _appLinks = AppLinks();
 
     _appLinks.uriLinkStream.listen((uri) async {
-      // ✅ DEBUG complet
-      debugPrint('=== URI COMPLÈTE: $uri');
-      debugPrint('=== SCHEME: ${uri.scheme}');
-      debugPrint('=== HOST: ${uri.host}');
-      debugPrint('=== TOUS LES PARAMS: ${uri.queryParameters}');
-      debugPrint('=== FRAGMENT: ${uri.fragment}');
-      debugPrint('=== PATH: ${uri.path}');
-
-      // ✅ Chercher token dans params ET fragment
       final params = uri.queryParameters;
       final fragment = uri.fragment;
 
-      // Parser le fragment si token dedans (implicit flow)
       Map<String, String> fragmentParams = {};
       if (fragment.isNotEmpty) {
         fragmentParams = Uri.splitQueryString(fragment);
-        debugPrint('=== FRAGMENT PARAMS: $fragmentParams');
       }
 
       final token = params['token'] ?? params['code'] ??
                     fragmentParams['access_token'] ?? fragmentParams['token'];
-
-      debugPrint('=== TOKEN TROUVÉ: $token');
 
       if (uri.scheme == 'studium' && uri.host == 'reset-password' && token != null) {
         ref.read(isResettingPasswordProvider.notifier).state = true;
 
         try {
           await Supabase.instance.client.auth.getSessionFromUrl(uri);
-          debugPrint('✅ getSessionFromUrl SUCCESS');
         } catch (e) {
-          debugPrint('❌ getSessionFromUrl error: $e');
+          debugPrint('getSessionFromUrl error: $e');
         }
 
         WidgetsBinding.instance.addPostFrameCallback((_) {

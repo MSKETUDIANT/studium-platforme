@@ -573,7 +573,7 @@ function ProgramDetailModal({ program, onClose, onEdit }: {
             <h2 style={{ margin: '6px 0 4px', fontSize: 20, fontWeight: 800, fontFamily: fonts.display, color: colors.textPrimary, lineHeight: 1.3 }}>
               {program.program_name}
             </h2>
-            <div style={{ fontSize: 14, color: colors.textSecondary }}>🏛 {program.university_name}</div>
+            <div style={{ fontSize: 14, color: colors.textSecondary }}>{program.university_name}</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: colors.textMuted, flexShrink: 0 }}>✕</button>
         </div>
@@ -621,7 +621,7 @@ function ProgramDetailModal({ program, onClose, onEdit }: {
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>
           <Button variant="secondary" onClick={onClose}>Fermer</Button>
-          <Button onClick={onEdit}>✏️ Modifier</Button>
+          <Button onClick={onEdit}>Modifier</Button>
         </div>
       </div>
     </div>
@@ -807,7 +807,7 @@ function ProgramModal({
 
         {error && (
           <div style={{ marginTop: 16, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: radius.md, fontSize: 13, color: colors.danger }}>
-            ⚠️ {error}
+            {error}
           </div>
         )}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
@@ -979,7 +979,7 @@ export default function ProgramsPage() {
       <div className="pp-toolbar-card">
       <div className="pp-toolbar">
         <div className="pp-search-wrap">
-          <span className="pp-search-icon">🔍</span>
+          <span className="pp-search-icon" style={{ display:'flex' }}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
           <input
             className="pp-search"
             placeholder="Rechercher programme, université, pays…"
@@ -1018,7 +1018,7 @@ export default function ProgramsPage() {
       {/* Table */}
       {filtered.length === 0 ? (
         <EmptyState
-          icon="🎓"
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>}
           title="Aucun programme trouvé"
           description={search || filterLevel ? 'Essayez d\'autres filtres.' : 'Créez votre premier programme.'}
           action={!search && !filterLevel ? <Button onClick={() => setModal({ open: true, program: null })}>+ Nouveau programme</Button> : undefined}
@@ -1062,7 +1062,7 @@ export default function ProgramsPage() {
                           <button className="pp-prog-name" onClick={() => setDetailProgram(p)}>
                             {p.program_name}
                           </button>
-                          <span className="pp-univ-name">🏛 {p.university_name}</span>
+                          <span className="pp-univ-name">{p.university_name}</span>
                         </div>
                       </div>
                     </td>
@@ -1075,21 +1075,21 @@ export default function ProgramsPage() {
                     </td>
                     <td>
                       <div style={{ fontSize: 13, color: colors.textSecondary }}>
-                        {p.country && <span>🌍 {p.country}</span>}
+                        {p.country && <span>{p.country}</span>}
                       </div>
                       <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
                         {p.language ?? ''}
                       </div>
                     </td>
                     <td style={{ color: colors.textSecondary, fontSize: 13 }}>
-                      {p.duration ? `⏱ ${p.duration}` : '—'}
+                      {p.duration ?? '—'}
                     </td>
                     <td>
                       <span style={{
                         fontSize: 13, fontWeight: 600,
                         color: p.cost === 0 ? colors.success : p.cost ? colors.textPrimary : colors.textMuted,
                       }}>
-                        {p.cost === 0 ? '🆓 Gratuit' : p.cost
+                        {p.cost === 0 ? 'Gratuit' : p.cost
                           ? `${new Intl.NumberFormat('fr-FR').format(p.cost)} €`
                           : '—'}
                       </span>
@@ -1097,7 +1097,7 @@ export default function ProgramsPage() {
                     <td>
                       {p.deadline ? (
                         <span style={{ fontSize: 13, color: deadlineColor, fontWeight: deadlineSoon ? 600 : 400 }}>
-                          {deadlinePast ? '⚠️ ' : deadlineSoon ? '🔔 ' : ''}{fmtDate(p.deadline)}
+                          {fmtDate(p.deadline)}
                         </span>
                       ) : <span style={{ color: colors.textMuted }}>—</span>}
                     </td>
@@ -1230,7 +1230,10 @@ export default function ProgramsPage() {
       {/* Toast */}
       {toast && (
         <div className={`pp-toast pp-toast-${toast.type}`}>
-          <span>{toast.type === 'success' ? '✅' : '⚠️'}</span>
+          <span style={{ display:'flex' }}>{toast.type === 'success'
+            ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          }</span>
           {toast.message}
         </div>
       )}

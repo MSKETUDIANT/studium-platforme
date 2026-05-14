@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../domain/entities/program.dart';
 
-const _kBlue   = Color(0xFF4880FF);
 const _kBg     = Color(0xFFF4F6FB);
 const _kText   = Color(0xFF1A1D2E);
 const _kGrey   = Color(0xFF9CA3AF);
@@ -11,247 +11,329 @@ class ProgramDetailPage extends StatelessWidget {
   final Program program;
   const ProgramDetailPage({super.key, required this.program});
 
-  Color get _levelColor => switch (program.level) {
+  Color get _accentColor => switch (program.level) {
         'bachelor' => const Color(0xFF4880FF),
         'master'   => const Color(0xFF7C3AED),
         'phd'      => const Color(0xFF059669),
-        _          => _kGrey,
+        _          => const Color(0xFF4880FF),
+      };
+
+  Color get _accentDark => switch (program.level) {
+        'bachelor' => const Color(0xFF2563EB),
+        'master'   => const Color(0xFF5B21B6),
+        'phd'      => const Color(0xFF047857),
+        _          => const Color(0xFF2563EB),
       };
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _kBg,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: _kText),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Détail du programme',
-          style: TextStyle(
-              color: _kText, fontWeight: FontWeight.w700, fontSize: 16),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ─── Header Card ───────────────────────────────────────────
-            _Card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (program.level != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
-                        color: _levelColor.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        program.levelLabel,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: _levelColor,
-                        ),
-                      ),
-                    ),
-                  Text(
-                    program.programName,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: _kText,
+    final bottomPad = MediaQuery.of(context).padding.bottom + 72;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: _kBg,
+        body: CustomScrollView(
+          slivers: [
+            // ─── Gradient header ──────────────────────────────────────────
+            SliverAppBar(
+              expandedHeight: 210,
+              pinned: true,
+              backgroundColor: _accentColor,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+              systemOverlayStyle: SystemUiOverlayStyle.light,
+              flexibleSpace: FlexibleSpaceBar(
+                collapseMode: CollapseMode.pin,
+                background: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [_accentColor, _accentDark],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.account_balance_outlined,
-                          size: 16, color: _kGrey),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          program.universityName,
-                          style: const TextStyle(
-                              fontSize: 14,
-                              color: _kGrey,
-                              fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ─── Infos rapides ─────────────────────────────────────────
-            _Card(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _SectionTitle('Informations générales'),
-                  const SizedBox(height: 12),
-                  _InfoRow(
-                    icon: Icons.location_on_outlined,
-                    label: 'Pays',
-                    value: program.country,
-                  ),
-                  _InfoRow(
-                    icon: Icons.translate_outlined,
-                    label: 'Langue',
-                    value: program.language,
-                  ),
-                  _InfoRow(
-                    icon: Icons.access_time_outlined,
-                    label: 'Durée',
-                    value: program.duration,
-                  ),
-                  _InfoRow(
-                    icon: Icons.euro_outlined,
-                    label: 'Coût',
-                    value: program.costLabel,
-                    valueColor: program.cost == null
-                        ? null
-                        : const Color(0xFF059669),
-                  ),
-                  _InfoRow(
-                    icon: Icons.calendar_today_outlined,
-                    label: 'Deadline',
-                    value: program.deadlineLabel,
-                    isLast: true,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ─── Description ───────────────────────────────────────────
-            if (program.description != null &&
-                program.description!.trim().isNotEmpty) ...[
-              _Card(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _SectionTitle('Description'),
-                    const SizedBox(height: 10),
-                    Text(
-                      program.description!,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: _kText,
-                        height: 1.6,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // ─── Exigences ─────────────────────────────────────────────
-            if (program.requirements != null &&
-                program.requirements!.isNotEmpty) ...[
-              _Card(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _SectionTitle('Documents requis'),
-                    const SizedBox(height: 12),
-                    ...program.requirements!.map(
-                      (req) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              margin: const EdgeInsets.only(top: 5, right: 10),
-                              decoration: const BoxDecoration(
-                                color: _kBlue,
-                                shape: BoxShape.circle,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 56, 20, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.20),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.30),
                               ),
                             ),
-                            Expanded(
-                              child: Text(
-                                req,
-                                style: const TextStyle(
-                                    fontSize: 14, color: _kText, height: 1.5),
+                            child: Text(
+                              program.levelLabel,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // ─── Contact ───────────────────────────────────────────────
-            if (program.contactEmail != null &&
-                program.contactEmail!.trim().isNotEmpty) ...[
-              _Card(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _SectionTitle('Contact'),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Icon(Icons.email_outlined,
-                            size: 16, color: _kGrey),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            program.contactEmail!,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: _kBlue,
-                              fontWeight: FontWeight.w500,
                             ),
                           ),
+                          const SizedBox(height: 10),
+                          Text(
+                            program.programName,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.account_balance_outlined,
+                                  size: 14,
+                                  color: Colors.white70),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  program.universityName,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ─── Content ──────────────────────────────────────────────────
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPad),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  // Quick-stats row
+                  _QuickStats(program: program, accent: _accentColor),
+                  const SizedBox(height: 16),
+
+                  // Informations générales
+                  _Card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _SectionTitle(
+                            'Informations générales', _accentColor),
+                        const SizedBox(height: 12),
+                        _InfoRow(
+                          icon: Icons.location_on_outlined,
+                          label: 'Pays',
+                          value: program.country,
+                        ),
+                        _InfoRow(
+                          icon: Icons.translate_outlined,
+                          label: 'Langue',
+                          value: program.language,
+                        ),
+                        _InfoRow(
+                          icon: Icons.access_time_outlined,
+                          label: 'Durée',
+                          value: program.duration,
+                        ),
+                        _InfoRow(
+                          icon: Icons.euro_outlined,
+                          label: 'Coût',
+                          value: program.costLabel,
+                          valueColor: program.cost == null
+                              ? null
+                              : const Color(0xFF059669),
+                        ),
+                        _InfoRow(
+                          icon: Icons.calendar_today_outlined,
+                          label: 'Deadline',
+                          value: program.deadlineLabel,
+                          isLast: true,
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // ─── Bouton candidater ─────────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _showComingSoon(context),
-                icon: const Icon(Icons.send_outlined, size: 18),
-                label: const Text(
-                  'Soumettre une candidature',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kBlue,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
                   ),
-                ),
+
+                  // Description
+                  if (program.description != null &&
+                      program.description!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _Card(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SectionTitle('Description', _accentColor),
+                          const SizedBox(height: 10),
+                          Text(
+                            program.description!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: _kText,
+                              height: 1.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // Documents requis
+                  if (program.requirements != null &&
+                      program.requirements!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _Card(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SectionTitle('Documents requis', _accentColor),
+                          const SizedBox(height: 12),
+                          ...program.requirements!.map(
+                            (req) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    margin: const EdgeInsets.only(right: 10),
+                                    decoration: BoxDecoration(
+                                      color: _accentColor
+                                          .withValues(alpha: 0.10),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(Icons.check,
+                                        size: 11, color: _accentColor),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      req,
+                                      style: const TextStyle(
+                                          fontSize: 14,
+                                          color: _kText,
+                                          height: 1.5),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // Contact
+                  if (program.contactEmail != null &&
+                      program.contactEmail!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _Card(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: _accentColor.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.email_outlined,
+                                size: 18, color: _accentColor),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Contact',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: _kGrey,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  program.contactEmail!,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _accentColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+
+                  // Bouton candidater
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [_accentColor, _accentDark],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _accentColor.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => _showComingSoon(context),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.send_outlined,
+                                  size: 18, color: Colors.white),
+                              SizedBox(width: 10),
+                              Text(
+                                'Soumettre une candidature',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ]),
               ),
             ),
-            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -266,7 +348,7 @@ class ProgramDetailPage extends StatelessWidget {
           SizedBox(width: 10),
           Text('Candidatures disponibles prochainement'),
         ]),
-        backgroundColor: _kBlue,
+        backgroundColor: Color(0xFF4880FF),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 3),
@@ -276,6 +358,70 @@ class ProgramDetailPage extends StatelessWidget {
 }
 
 /* ─── Widgets helpers ─────────────────────────────────────────────────────── */
+
+class _QuickStats extends StatelessWidget {
+  final Program program;
+  final Color accent;
+  const _QuickStats({required this.program, required this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <_StatItem>[
+      _StatItem(Icons.location_on_outlined, program.country ?? '—'),
+      _StatItem(Icons.translate_outlined, program.language ?? '—'),
+      _StatItem(Icons.access_time_outlined, program.duration ?? '—'),
+    ];
+
+    return Row(
+      children: items
+          .map(
+            (s) => Expanded(
+              child: Container(
+                margin: EdgeInsets.only(
+                    right: s == items.last ? 0 : 8),
+                padding: const EdgeInsets.symmetric(
+                    vertical: 12, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Icon(s.icon, size: 18, color: accent),
+                    const SizedBox(height: 6),
+                    Text(
+                      s.value,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _kText,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _StatItem {
+  final IconData icon;
+  final String value;
+  _StatItem(this.icon, this.value);
+}
 
 class _Card extends StatelessWidget {
   final Widget child;
@@ -302,7 +448,8 @@ class _Card extends StatelessWidget {
 
 class _SectionTitle extends StatelessWidget {
   final String text;
-  const _SectionTitle(this.text);
+  final Color accent;
+  const _SectionTitle(this.text, this.accent);
 
   @override
   Widget build(BuildContext context) => Row(
@@ -311,7 +458,7 @@ class _SectionTitle extends StatelessWidget {
             width: 3,
             height: 16,
             decoration: BoxDecoration(
-              color: _kBlue,
+              color: accent,
               borderRadius: BorderRadius.circular(2),
             ),
           ),

@@ -49,11 +49,11 @@ class AuthRepositoryImpl {
 
     if (response.user == null) throw Exception('Échec de la connexion Google');
 
-    // ✅ Vérifier le rôle via datasource (même logique que login)
+    // Vérifier le rôle via datasource
     final user = await _datasource.getCurrentUser();
     if (user == null) throw Exception('Utilisateur introuvable');
 
-    // ✅ Accès mobile réservé aux étudiants et ambassadeurs
+    // Accès mobile réservé aux étudiants et ambassadeurs
     const mobileRoles = ['student', 'ambassador'];
     if (!mobileRoles.contains(user.role)) {
       await logout();

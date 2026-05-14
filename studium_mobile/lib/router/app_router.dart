@@ -125,18 +125,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             GoRoute(
               path: '/profile',
               builder: (_, __) => const ProfilePage(),
-              routes: [
-                GoRoute(
-                  path: 'edit',
-                  builder: (_, __) => const EditProfilePage(),
-                ),
-              ],
             ),
           ]),
         ],
       ),
 
-      // ─── Routes hors shell ───────────────────────────────────────────────
+      // ─── Routes hors shell (plein écran, sans bottom nav) ───────────────
+      GoRoute(
+        path: '/profile/edit',
+        parentNavigatorKey: navigatorKey,
+        builder: (_, __) => const EditProfilePage(),
+      ),
       GoRoute(
         path: '/documents',
         builder: (_, __) => const DocumentsPage(),

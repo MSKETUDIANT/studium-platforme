@@ -43,7 +43,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<StudiumUser?>> {
         try {
           final user = await _repository.getCurrentUser();
 
-          // ✅ Vérifier le rôle avant d'autoriser l'accès
+          // Vérifier le rôle avant d'autoriser l'accès
           const mobileRoles = ['student', 'ambassador'];
           if (user != null && !mobileRoles.contains(user.role)) {
             await _repository.logout();

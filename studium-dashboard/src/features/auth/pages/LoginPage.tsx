@@ -41,7 +41,7 @@ const CSS = `
   .stl-left  {
     flex: 0 0 44%;
     min-height: 100vh;
-    background: #0b1852;
+    background: linear-gradient(145deg, #0b1852 0%, #162270 60%, #0f1a6e 100%);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     padding: 60px 52px;
@@ -50,8 +50,8 @@ const CSS = `
   .stl-left::before {
     content:''; position:absolute; inset:0; pointer-events:none;
     background-image:
-      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
     background-size: 56px 56px;
   }
 
@@ -84,16 +84,18 @@ const CSS = `
   .stl-btn {
     width: 100%; min-height: 52px;
     padding: 14px 20px;
-    background: #0b1852; color: #fff; border: none; border-radius: 11px;
+    background: linear-gradient(135deg, #1a2f8a 0%, #2546cc 100%);
+    box-shadow: 0 6px 22px rgba(11,24,82,0.32);
+    color: #fff; border: none; border-radius: 11px;
     font-family: 'Bricolage Grotesque', sans-serif;
     font-size: 16px; font-weight: 700; letter-spacing: -.1px;
     cursor: pointer; display:flex; align-items:center; justify-content:center; gap:10px;
-    transition: background .18s, box-shadow .2s, transform .1s;
+    transition: box-shadow .2s, transform .1s, filter .18s;
     -webkit-tap-highlight-color: transparent;
   }
-  .stl-btn:not(:disabled):hover  { background:#16298f; box-shadow:0 8px 28px rgba(11,24,82,0.28); }
+  .stl-btn:not(:disabled):hover  { filter:brightness(1.1); box-shadow:0 10px 32px rgba(11,24,82,0.42); }
   .stl-btn:not(:disabled):active { transform:scale(0.987); }
-  .stl-btn:disabled               { background:#7a9bd4; cursor:not-allowed; }
+  .stl-btn:disabled               { background:linear-gradient(135deg,#7a9bd4,#9bb5e0); box-shadow:none; cursor:not-allowed; }
   .stl-btn:focus-visible          { outline:3px solid #4d7aff; outline-offset:3px; }
 
   /* Toggle mot de passe — zone 50×100% Fitts */
@@ -213,6 +215,35 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
   return              { score, label: 'Fort',    color: '#34d399' };
 }
 
+/* ─── Feature chips (panel gauche) ──────────────────────────────────────── */
+const IconDossiers = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+    stroke="rgba(255,255,255,0.80)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+  </svg>
+);
+const IconSuivi = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+    stroke="rgba(255,255,255,0.80)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+  </svg>
+);
+const IconEquipe = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+    stroke="rgba(255,255,255,0.80)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+);
+
+const FEATURES = [
+  { label: 'Dossiers',    Icon: IconDossiers },
+  { label: 'Suivi',       Icon: IconSuivi    },
+  { label: 'Équipe',      Icon: IconEquipe   },
+];
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Component
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -322,6 +353,24 @@ export default function LoginPage() {
           </strong>
           {' '}— gestion et suivi des dossiers académiques internationaux.
         </p>
+
+        {/* Feature chips */}
+        <div style={{
+          ...anim(260), zIndex:1,
+          display:'flex', gap:10, marginTop:32, flexWrap:'wrap', justifyContent:'center',
+        }}>
+          {FEATURES.map(f => (
+            <div key={f.label} style={{
+              display:'flex', flexDirection:'column', alignItems:'center',
+              background:'rgba(255,255,255,0.07)',
+              border:'1px solid rgba(255,255,255,0.12)',
+              borderRadius:12, padding:'12px 18px', minWidth:80, gap:6,
+            }}>
+              <f.Icon />
+              <span style={{ fontSize:11.5, color:'rgba(255,255,255,0.70)', letterSpacing:'0.4px', fontWeight:500 }}>{f.label}</span>
+            </div>
+          ))}
+        </div>
       </aside>
 
       {/* ══════════ PANEL DROIT ══════════ */}
@@ -330,13 +379,38 @@ export default function LoginPage() {
 
           <main className="stl-card" style={{
             ...anim(260),
-            background:'#fff', borderRadius:20, padding:'48px 44px',
+            background:'#fff', borderRadius:20, padding:'0',
             border:'1px solid rgba(11,24,82,0.08)',
             boxShadow:'0 1px 4px rgba(11,24,82,0.04), 0 8px 24px rgba(11,24,82,0.07), 0 28px 60px rgba(11,24,82,0.08)',
+            overflow:'hidden',
           }}>
+
+            {/* Accent bar */}
+            <div style={{
+              height:4,
+              background:'linear-gradient(90deg, #0b1852 0%, #2546cc 60%, #4d7aff 100%)',
+            }} />
+
+            <div style={{ padding:'40px 44px' }}>
 
             {/* En-tête */}
             <div style={{ marginBottom:32, paddingBottom:24, borderBottom:'1px solid #eceef6' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+                <div style={{
+                  width:32, height:32, borderRadius:8,
+                  background:'linear-gradient(135deg,#0b1852,#2546cc)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                    stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </div>
+                <span style={{ fontSize:11.5, fontWeight:700, letterSpacing:'1px', color:'#9ba3bc', textTransform:'uppercase' }}>
+                  Accès sécurisé
+                </span>
+              </div>
               <h1 style={{
                 fontFamily:"'Bricolage Grotesque', sans-serif",
                 fontWeight:800, fontSize:26, color:'#0b1852',
@@ -454,6 +528,7 @@ export default function LoginPage() {
               </button>
 
             </form>
+            </div>
           </main>
 
           <p style={{ ...anim(340), textAlign:'center', marginTop:24, fontSize:12, color:'#aab2cc', lineHeight:1.6 }}>

@@ -13,7 +13,7 @@ import 'add_academic_page.dart';
 import 'add_experience_page.dart';
 
 // ─────────────────────────────────────────────
-// 🗓️  _fmt — top-level concise date helper
+// _fmt — top-level concise date helper
 // ─────────────────────────────────────────────
 String _fmt(DateTime? date) {
   if (date == null) return '';
@@ -32,7 +32,7 @@ String _fmtFull(DateTime? date) {
 }
 
 // ─────────────────────────────────────────────
-// 🔔  Stylized floating SnackBar helper
+// Stylized floating SnackBar helper
 // ─────────────────────────────────────────────
 void _showFloatingSnackBar(
   BuildContext context,
@@ -82,7 +82,7 @@ void _showFloatingSnackBar(
 }
 
 // ─────────────────────────────────────────────
-// 🏫  ProfilePage
+// ProfilePage
 // ─────────────────────────────────────────────
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -101,7 +101,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   void _goNext({required bool hasAcademics}) {
     if (_currentStep == 1 && !hasAcademics) {
-      // ✅ Stylized floating SnackBar
       _showFloatingSnackBar(
         context,
         'Ajoutez au moins une formation pour continuer.',
@@ -153,7 +152,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       data: (profile) {
         final score        = profile?.completenessScore ?? 0;
         final hasAcademics = academicsAsync.valueOrNull?.isNotEmpty ?? false;
-
         return Scaffold(
           backgroundColor: _AppColors.background,
           appBar: AppBar(
@@ -180,7 +178,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 16),
-                // ✅ Avatar cliquable → /profile/edit
                 child: GestureDetector(
                   onTap: () => context.push('/profile/edit'),
                   child: CircleAvatar(
@@ -208,7 +205,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     _goToStep(step, hasAcademics: hasAcademics),
               ),
               Expanded(
-                // ✅ AnimatedSwitcher — fade entre les steps
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 250),
                   switchInCurve: Curves.easeOut,
@@ -233,7 +229,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ),
                 ),
               ),
-              // ✅ _BottomNav — nom court
               _BottomNav(
                 currentStep: _currentStep,
                 onPrevious: _goPrevious,
@@ -407,7 +402,6 @@ class _ProfileHeader extends StatelessWidget {
 
 // ─── Bottom Nav ───────────────────────────────────────────────────────────────
 
-// ✅ _BottomNav — nom court (was _BottomNavigationBarSection)
 class _BottomNav extends StatelessWidget {
   final int currentStep;
   final VoidCallback onPrevious;
@@ -563,19 +557,42 @@ class _StepIndicator extends StatelessWidget {
               child: locked
                   ? const Icon(Icons.lock_outline_rounded,
                       size: 14, color: _AppColors.textLight)
-                  : done && !isActive
-                      ? const Icon(Icons.check_rounded,
-                          size: 18, color: Colors.white)
-                      : Text(
+                  : Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        Text(
                           '${index + 1}',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
-                            color: isActive
-                                ? _AppColors.primary
-                                : _AppColors.textLight,
+                            color: done && !isActive
+                                ? Colors.white
+                                : isActive
+                                    ? _AppColors.primary
+                                    : _AppColors.textLight,
                           ),
                         ),
+                        if (done && !isActive)
+                          Positioned(
+                            right: -10,
+                            top: -10,
+                            child: Container(
+                              width: 14,
+                              height: 14,
+                              decoration: const BoxDecoration(
+                                color: _AppColors.success,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.check_rounded,
+                                size: 9,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
             ),
           ),
           const SizedBox(height: 6),
@@ -625,8 +642,9 @@ class _InfosStep extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final bottomPad = MediaQuery.of(context).padding.bottom + 72;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, bottomPad),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -718,7 +736,7 @@ class _InfosStep extends ConsumerWidget {
                         if (profile?.nationality != null) ...[
                           const SizedBox(height: 3),
                           Text(
-                            '🏳 ${profile!.nationality}',
+                            profile!.nationality!,
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.white.withValues(alpha: 0.65),
@@ -775,6 +793,19 @@ class _InfosStep extends ConsumerWidget {
               items: [
                 _InfoItem(Icons.description_outlined, null,
                     profile?.motivationLetter),
+              ],
+            ),
+          ],
+          if ((profile?.academicGoals ?? '').trim().isNotEmpty ||
+              (profile?.careerGoals ?? '').trim().isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _InfoSection(
+              title: 'Objectifs',
+              items: [
+                _InfoItem(Icons.school_outlined, 'Objectifs académiques',
+                    profile?.academicGoals),
+                _InfoItem(Icons.work_outline, 'Objectifs professionnels',
+                    profile?.careerGoals),
               ],
             ),
           ],
@@ -853,7 +884,8 @@ class _AcademicStep extends ConsumerWidget {
         ),
       ),
       data: (academics) => SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.fromLTRB(
+            20, 20, 20, MediaQuery.of(context).padding.bottom + 72),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -917,7 +949,8 @@ class _ExperienceStep extends ConsumerWidget {
         ),
       ),
       data: (experiences) => SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.fromLTRB(
+            20, 20, 20, MediaQuery.of(context).padding.bottom + 72),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -942,7 +975,6 @@ class _ExperienceStep extends ConsumerWidget {
               ...experiences.map(
                 (e) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  // ✅ _fmt top-level — plus besoin de la passer en paramètre
                   child: _ExperienceCard(e),
                 ),
               ),
@@ -1150,60 +1182,75 @@ class _AcademicCard extends ConsumerWidget {
   void _showDetails(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5E7EB),
-                  borderRadius: BorderRadius.circular(2),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.45,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: EdgeInsets.fromLTRB(
+                24, 20, 24, MediaQuery.of(ctx).padding.bottom + 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5E7EB),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 20),
+                Row(children: [
+                  const _LeadingIconBox(
+                      icon: Icons.school_outlined, color: _AppColors.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(academic.degree,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                color: _AppColors.textPrimary)),
+                        Text(academic.university,
+                            style: const TextStyle(
+                                fontSize: 13, color: _AppColors.textMuted)),
+                      ],
+                    ),
+                  ),
+                ]),
+                if (academic.year != null || academic.average != null) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  if (academic.year != null)
+                    _DetailRow(
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Année d\'obtention',
+                        value: '${academic.year}'),
+                  if (academic.average != null)
+                    _DetailRow(
+                        icon: Icons.grade_outlined,
+                        label: 'Moyenne',
+                        value: '${academic.average}'),
+                ],
+              ],
             ),
-            const SizedBox(height: 20),
-            Row(children: [
-              const _LeadingIconBox(
-                  icon: Icons.school_outlined, color: _AppColors.primary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(academic.degree,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: _AppColors.textPrimary)),
-                    Text(academic.university,
-                        style: const TextStyle(
-                            fontSize: 13, color: _AppColors.textMuted)),
-                  ],
-                ),
-              ),
-            ]),
-            if (academic.year != null || academic.average != null) ...[
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 12),
-              if (academic.year != null)
-                _DetailRow(
-                    icon: Icons.calendar_today_outlined,
-                    label: 'Année d\'obtention',
-                    value: '${academic.year}'),
-              if (academic.average != null)
-                _DetailRow(
-                    icon: Icons.grade_outlined,
-                    label: 'Moyenne',
-                    value: '${academic.average}'),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -1346,81 +1393,115 @@ class _ExperienceCard extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5E7EB),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(children: [
-              const _LeadingIconBox(
-                  icon: Icons.work_outline, color: _AppColors.primaryDark),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(experience.position,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: _AppColors.textPrimary)),
-                    Text(experience.company,
-                        style: const TextStyle(
-                            fontSize: 13, color: _AppColors.textMuted)),
-                  ],
-                ),
-              ),
-              if (experience.isCurrent)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _AppColors.success.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(8),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.35,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: EdgeInsets.fromLTRB(
+                24, 20, 24, MediaQuery.of(ctx).padding.bottom + 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE5E7EB),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                  child: const Text('En cours',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: _AppColors.success,
-                          fontWeight: FontWeight.w700)),
                 ),
-            ]),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 12),
-            if (start.isNotEmpty)
-              _DetailRow(
-                  icon: Icons.calendar_today_outlined,
-                  label: 'Période',
-                  value: '$start → $end'),
-            if (experience.description != null &&
-                experience.description!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Text('Description',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _AppColors.textMuted)),
-              const SizedBox(height: 6),
-              Text(experience.description!,
-                  style: const TextStyle(
-                      fontSize: 14, color: _AppColors.textPrimary,
-                      height: 1.5)),
-            ],
-          ],
+                const SizedBox(height: 20),
+                Row(children: [
+                  const _LeadingIconBox(
+                      icon: Icons.work_outline, color: _AppColors.primaryDark),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(experience.position,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                color: _AppColors.textPrimary)),
+                        Text(experience.company,
+                            style: const TextStyle(
+                                fontSize: 13, color: _AppColors.textMuted)),
+                      ],
+                    ),
+                  ),
+                  if (experience.isCurrent)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _AppColors.success.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('En cours',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: _AppColors.success,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                ]),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 12),
+                if (start.isNotEmpty)
+                  _DetailRow(
+                      icon: Icons.calendar_today_outlined,
+                      label: 'Période',
+                      value: '$start → $end'),
+                if (experience.description != null &&
+                    experience.description!.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Row(children: [
+                    Container(
+                      width: 3, height: 16,
+                      decoration: BoxDecoration(
+                        color: _AppColors.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Description',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: _AppColors.textPrimary)),
+                  ]),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE8ECF8)),
+                    ),
+                    child: Text(experience.description!,
+                        style: const TextStyle(
+                            fontSize: 14,
+                            color: _AppColors.textPrimary,
+                            height: 1.6)),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1524,6 +1605,21 @@ class _ExperienceCard extends ConsumerWidget {
                             ),
                           ),
                       ],
+                    ),
+                  ),
+                if (experience.description != null &&
+                    experience.description!.trim().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      experience.description!.trim(),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: _AppColors.textMuted,
+                        height: 1.5,
+                      ),
                     ),
                   ),
               ],

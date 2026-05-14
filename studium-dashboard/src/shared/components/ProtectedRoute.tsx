@@ -16,7 +16,7 @@ export default function ProtectedRoute() {
     );
   }
 
-  // ✅ Si l'URL contient un token d'invitation, laisser passer vers /reset-password
+  // Si l'URL contient un token d'invitation, laisser passer vers /reset-password
   const hash = window.location.hash;
   if (hash.includes('type=invite') || hash.includes('type=recovery') || location.pathname === '/reset-password') {
     return <Navigate to="/reset-password" replace />;
@@ -42,7 +42,10 @@ export default function ProtectedRoute() {
   if (isInactive) {
     return (
       <div style={{ display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', height:'100vh', gap:16 }}>
-        <div style={{ fontSize:48 }}>🔒</div>
+        <svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#ff4d4f" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
         <h2 style={{ color:'#ff4d4f', margin:0 }}>Compte désactivé</h2>
         <p style={{ color:'#666', textAlign:'center', maxWidth:360 }}>
           Votre compte a été désactivé par l'administrateur.<br />

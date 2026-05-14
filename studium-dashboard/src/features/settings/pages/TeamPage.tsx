@@ -303,7 +303,12 @@ export default function TeamPage() {
   if (!isAdmin) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
       <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '20px 32px', textAlign: 'center' }}>
-        <p style={{ color: '#dc2626', fontWeight: 600 }}>🔒 Accès réservé à l'administrateur</p>
+        <p style={{ color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          Accès réservé à l'administrateur
+        </p>
       </div>
     </div>
   );
@@ -402,13 +407,23 @@ export default function TeamPage() {
       {/* ── Alerts ── */}
       {success && (
         <div className="tp-alert tp-alert--success">
-          <span>✅ {success}</span>
+          <span style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            {success}
+          </span>
           <button onClick={() => setSuccess('')}>✕</button>
         </div>
       )}
       {error && (
         <div className="tp-alert tp-alert--error">
-          <span>⚠️ {error}</span>
+          <span style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            {error}
+          </span>
           <button onClick={() => setError('')}>✕</button>
         </div>
       )}

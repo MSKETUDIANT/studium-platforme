@@ -160,7 +160,7 @@ class _AddExperiencePageState extends ConsumerState<AddExperiencePage> {
       if (!mounted) return;
       Navigator.pop(context);
     } catch (e, st) {
-      debugPrint('❌ save error: $e\n$st');
+      debugPrint('save error: $e\n$st');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
