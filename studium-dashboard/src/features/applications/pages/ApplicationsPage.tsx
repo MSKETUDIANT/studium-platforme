@@ -4,7 +4,7 @@ import { Button }         from '../../../shared/components/Button';
 import { EmptyState }     from '../../../shared/components/EmptyState';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
-import { Application }                    from '../types/application';
+import type { Application }              from '../types/application';
 import { fetchApplications }              from '../services/applications_service';
 import ApplicationDetailModal             from '../components/ApplicationDetailModal';
 import ApplicationKanban                  from '../components/ApplicationKanban';

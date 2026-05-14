@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
-import { Application, KANBAN_COLUMNS, RawStatus } from '../types/application';
+import { KANBAN_COLUMNS }            from '../types/application';
+import type { Application, RawStatus } from '../types/application';
 import { updateApplicationStatus }               from '../services/applications_service';
 
 interface Props {

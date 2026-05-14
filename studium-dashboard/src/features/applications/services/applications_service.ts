@@ -1,5 +1,6 @@
-import { supabase }                    from '../../../shared/services/supabase';
-import { Application, STATUS_MAP, RawStatus } from '../types/application';
+import { supabase }    from '../../../shared/services/supabase';
+import { STATUS_MAP }  from '../types/application';
+import type { Application, RawStatus } from '../types/application';
 
 const SELECT = `
   id, status, submitted_at, motivation_text, notes,

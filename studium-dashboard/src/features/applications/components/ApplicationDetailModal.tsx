@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
-import { Application, RawStatus, RAW_STATUS_LABELS } from '../types/application';
+import { RAW_STATUS_LABELS } from '../types/application';
+import type { Application, RawStatus } from '../types/application';
 import { updateApplicationStatus, updateApplicationNotes } from '../services/applications_service';
 
 const AVAILABLE_STATUSES: RawStatus[] = [
