@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import '../../domain/entities/program.dart';
 
 const _kBg     = Color(0xFFF4F6FB);
@@ -308,7 +309,7 @@ class ProgramDetailPage extends StatelessWidget {
                       color: Colors.transparent,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
-                        onTap: () => _showComingSoon(context),
+                        onTap: () => context.push('/applications/new', extra: program),
                         child: const Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),
                           child: Row(
@@ -340,21 +341,6 @@ class ProgramDetailPage extends StatelessWidget {
     );
   }
 
-  void _showComingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(children: [
-          Icon(Icons.info_outline, color: Colors.white, size: 18),
-          SizedBox(width: 10),
-          Text('Candidatures disponibles prochainement'),
-        ]),
-        backgroundColor: Color(0xFF4880FF),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
 }
 
 /* ─── Widgets helpers ─────────────────────────────────────────────────────── */

@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:studium_mobile/features/dashboard/presentation/pages/dashboard_page.dart';
+import '../features/applications/domain/entities/application.dart';
+import '../features/applications/presentation/pages/applications_page.dart';
+import '../features/applications/presentation/pages/application_detail_page.dart';
+import '../features/applications/presentation/pages/new_application_wizard.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
@@ -10,9 +14,10 @@ import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/profile/presentation/pages/profile_page.dart';
 import '../features/profile/presentation/pages/edit_profile_page.dart';
 import '../features/documents/presentation/pages/documents_page.dart';
-import '../shared/widgets/placeholder_screen.dart';
+import '../features/programs/domain/entities/program.dart';
 import '../features/programs/presentation/pages/programs_page.dart';
 import '../shared/widgets/main_shell.dart';
+import '../shared/widgets/placeholder_screen.dart';
 import '../main.dart';
 
 final isResettingPasswordProvider = StateProvider<bool>((ref) => false);
@@ -108,7 +113,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/applications',
-              builder: (_, __) => const ApplicationsScreen(),
+              builder: (_, __) => const ApplicationsPage(),
             ),
           ]),
 
@@ -138,7 +143,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/documents',
+        parentNavigatorKey: navigatorKey,
         builder: (_, __) => const DocumentsPage(),
+      ),
+      GoRoute(
+        path: '/applications/new',
+        parentNavigatorKey: navigatorKey,
+        builder: (context, state) {
+          final program = state.extra as Program?;
+          return NewApplicationWizard(program: program);
+        },
+      ),
+      GoRoute(
+        path: '/applications/:id',
+        parentNavigatorKey: navigatorKey,
+        builder: (context, state) {
+          final app = state.extra as Application;
+          return ApplicationDetailPage(app: app);
+        },
       ),
     ],
   );
