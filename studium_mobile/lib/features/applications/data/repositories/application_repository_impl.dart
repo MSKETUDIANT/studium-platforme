@@ -5,17 +5,15 @@ class ApplicationRepositoryImpl {
   final ApplicationRemoteDatasource _datasource;
   const ApplicationRepositoryImpl(this._datasource);
 
-  Future<List<Application>> fetchMyApplications(String studentId) =>
-      _datasource.fetchMyApplications(studentId);
+  Future<List<Application>> fetchMyApplications(String studentProfileId) =>
+      _datasource.fetchMyApplications(studentProfileId);
 
   Future<Application> createApplication({
-    required String studentId,
+    required String studentProfileId,
     required String programId,
-    String? motivationText,
   }) =>
       _datasource.createApplication(
-        studentId:      studentId,
-        programId:      programId,
-        motivationText: motivationText,
+        studentProfileId: studentProfileId,
+        programId:        programId,
       );
 }

@@ -33,18 +33,14 @@ class MyApplicationsNotifier
         .fetchMyApplications(userId);
   }
 
-  Future<Application?> submit({
-    required String programId,
-    String? motivationText,
-  }) async {
+  Future<Application?> submit({required String programId}) async {
     final userId = ref.read(currentUserIdProvider);
     if (userId == null) return null;
     final app = await ref
         .read(applicationRepositoryProvider)
         .createApplication(
-          studentId:      userId,
-          programId:      programId,
-          motivationText: motivationText,
+          studentProfileId: userId,
+          programId:        programId,
         );
     ref.invalidateSelf();
     return app;

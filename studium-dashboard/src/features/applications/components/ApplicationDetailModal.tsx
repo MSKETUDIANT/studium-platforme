@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 import { RAW_STATUS_LABELS } from '../types/application';
 import type { Application, RawStatus } from '../types/application';
-import { updateApplicationStatus, updateApplicationNotes } from '../services/applications_service';
+import { updateApplicationStatus } from '../services/applications_service';
 
 const AVAILABLE_STATUSES: RawStatus[] = [
   'submitted', 'needsfix', 'verified', 'sent', 'accepted', 'rejected', 'archived',
@@ -34,32 +34,24 @@ interface Props {
 }
 
 export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props) {
-  const [status, setStatus]     = useState<RawStatus>(app.rawStatus);
-  const [notes,  setNotes]      = useState(app.notes ?? '');
-  const [saving, setSaving]     = useState(false);
-  const [saved,  setSaved]      = useState(false);
+  const [status, setStatus] = useState<RawStatus>(app.rawStatus);
+  const [saving, setSaving] = useState(false);
+  const [saved,  setSaved]  = useState(false);
 
   useEffect(() => {
     setStatus(app.rawStatus);
-    setNotes(app.notes ?? '');
     setSaved(false);
   }, [app]);
 
   async function handleSave() {
     setSaving(true);
     try {
-      const promises: Promise<void>[] = [];
       if (status !== app.rawStatus) {
-        promises.push(updateApplicationStatus(app.id, status));
+        await updateApplicationStatus(app.id, status);
       }
-      if (notes !== (app.notes ?? '')) {
-        promises.push(updateApplicationNotes(app.id, notes));
-      }
-      await Promise.all(promises);
       onUpdate(app.id, {
         rawStatus: status,
         status:    STATUS_MAP_UI[status],
-        notes:     notes || undefined,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -69,7 +61,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   }
 
   const sc = STATUS_COLORS[status];
-  const isDirty = status !== app.rawStatus || notes !== (app.notes ?? '');
+  const isDirty = status !== app.rawStatus;
 
   return (
     <div
@@ -222,35 +214,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
             </div>
           </Section>
 
-          {/* Motivation */}
-          {app.motivationText && (
-            <Section label="Message de motivation">
-              <div style={{
-                background: colors.inputBg, borderRadius: radius.md,
-                padding: '12px 16px', fontSize: 13.5, color: colors.textPrimary,
-                lineHeight: 1.65, whiteSpace: 'pre-wrap',
-              }}>
-                {app.motivationText}
-              </div>
-            </Section>
-          )}
 
-          {/* Notes admin */}
-          <Section label="Notes internes (équipe)">
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={3}
-              placeholder="Ajouter une note interne…"
-              style={{
-                width: '100%', padding: '10px 14px', borderRadius: radius.md,
-                border: `1.5px solid ${colors.borderInput}`,
-                background: colors.inputBg, fontFamily: fonts.body,
-                fontSize: 13.5, color: colors.textPrimary,
-                resize: 'vertical', outline: 'none', boxSizing: 'border-box',
-              }}
-            />
-          </Section>
 
         </div>
 

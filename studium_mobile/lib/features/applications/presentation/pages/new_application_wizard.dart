@@ -78,10 +78,7 @@ class _NewApplicationWizardState
     setState(() => _submitting = true);
     try {
       await ref.read(myApplicationsProvider.notifier).submit(
-            programId:      _selectedProgram!.id,
-            motivationText: _motivationCtrl.text.trim().isEmpty
-                ? null
-                : _motivationCtrl.text.trim(),
+            programId: _selectedProgram!.id,
           );
       if (mounted) {
         context.pop();

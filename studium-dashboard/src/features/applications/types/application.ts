@@ -49,8 +49,6 @@ export interface Application {
   level:         string;
   date:          string;
   score:         number;
-  motivationText?: string;
-  notes?:        string;
 }
 
 // Kanban column definitions
