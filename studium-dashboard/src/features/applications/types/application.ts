@@ -36,20 +36,21 @@ export const RAW_STATUS_LABELS: Record<RawStatus, string> = {
 };
 
 export interface Application {
-  id:            string;
-  studentId:     string;
-  programId:     string;
-  rawStatus:     RawStatus;
-  status:        UIStatus;
-  student:       string;
-  email:         string;
-  university:    string;
-  program:       string;
-  country:       string;
-  level:         string;
-  date:          string;
-  score:         number;
-  notes?:        string;
+  id:             string;
+  studentId:      string;
+  programId:      string;
+  rawStatus:      RawStatus;
+  status:         UIStatus;
+  student:        string;
+  email:          string;
+  university:     string;
+  program:        string;
+  country:        string;
+  level:          string;
+  date:           string;
+  score:          number;
+  notes?:         string;
+  contactEmail?:  string;
 }
 
 // Kanban column definitions
