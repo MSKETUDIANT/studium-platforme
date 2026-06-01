@@ -20,12 +20,12 @@ Nous restons disponibles pour tout complément d'information.
 Cordialement,
 L'équipe Studium Admissions`;
 
-const SCOPES = ['application_email', 'followup_email', 'correction_email'];
+const SCOPES = ['global', 'program', 'followup', 'correction'];
 const LANGUAGES = [{ value: 'fr', label: 'Français' }, { value: 'en', label: 'English' }];
 
 const EMPTY_FORM = {
   id:              undefined as string | undefined,
-  scope:           'application_email',
+  scope:           'global',
   language:        'fr',
   programId:       null as string | null,
   subjectTemplate: DEFAULT_SUBJECT,
@@ -77,13 +77,20 @@ export default function SettingsPage() {
     setSaving(true);
     setError(null);
     try {
+      const isNew = !form.id;
       await upsertEmailTemplate(form);
       const updated = await fetchEmailTemplates();
       setTemplates(updated);
+      if (isNew) {
+        const created = updated.find(
+          t => t.scope === form.scope && t.language === form.language && !t.programId
+        );
+        if (created) setForm(f => ({ ...f, id: created.id }));
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur lors de la sauvegarde');
+    } catch (e: any) {
+      setError(e?.message ?? e?.error_description ?? JSON.stringify(e) ?? 'Erreur inconnue');
     } finally {
       setSaving(false);
     }

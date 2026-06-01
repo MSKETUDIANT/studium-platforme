@@ -1,9 +1,10 @@
+// @ts-nocheck — Deno Edge Function (erreurs IDE normales, pas de compilation Node)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const RESEND_API_KEY  = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL    = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const FROM_EMAIL      = 'noreply@studium.app';
+const FROM_EMAIL      = 'onboarding@resend.dev'; // TODO: remplacer par noreply@studium.app après vérification domaine
 const FROM_NAME       = 'Studium Admissions';
 
 interface Payload {
@@ -53,14 +54,23 @@ Deno.serve(async (req) => {
       ? new Date(app.submitted_at).toLocaleDateString('fr-FR') : '—';
 
     // Fetch template from DB (program-specific first, then global, then fallback)
-    const { data: templates } = await supabase
+    // Try program-specific template first, then global fallback
+    const { data: programTpl } = await supabase
       .from('email_templates')
-      .select('subject_template, body_template, program_id')
-      .eq('scope', 'application_email')
+      .select('subject_template, body_template')
+      .eq('scope', 'program')
       .eq('language', 'fr')
-      .in('program_id', [app.program_id, null])
-      .order('program_id', { ascending: false }) // program-specific first
+      .eq('program_id', app.program_id)
       .limit(1);
+
+    const { data: globalTpl } = programTpl?.length ? { data: null } : await supabase
+      .from('email_templates')
+      .select('subject_template, body_template')
+      .eq('scope', 'global')
+      .eq('language', 'fr')
+      .limit(1);
+
+    const templates = programTpl?.length ? programTpl : (globalTpl ?? []);
 
     const tpl     = templates?.[0];
     const vars    = { studentName, programName, univName, country, submittedAt };

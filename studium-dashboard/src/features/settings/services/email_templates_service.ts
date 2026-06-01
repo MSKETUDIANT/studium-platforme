@@ -19,9 +19,10 @@ export const TEMPLATE_VARIABLES = [
 ];
 
 export const SCOPE_LABELS: Record<string, string> = {
-  application_email: 'Email candidature université',
-  followup_email:    'Email relance',
-  correction_email:  'Email correction étudiant',
+  global:     'Email candidature (tous les programmes)',
+  program:    'Email candidature (programme spécifique)',
+  followup:   'Email relance (J+7 / J+14)',
+  correction: 'Email correction (étudiant)',
 };
 
 function mapRow(e: any): EmailTemplate {
@@ -49,18 +50,35 @@ export async function fetchEmailTemplates(): Promise<EmailTemplate[]> {
 export async function upsertEmailTemplate(
   template: Omit<EmailTemplate, 'id' | 'updatedAt'> & { id?: string },
 ): Promise<void> {
-  const payload: any = {
-    scope:            template.scope,
-    program_id:       template.programId ?? null,
-    language:         template.language,
-    subject_template: template.subjectTemplate,
-    body_template:    template.bodyTemplate,
-    updated_at:       new Date().toISOString(),
-  };
-  if (template.id) payload.id = template.id;
+  const now = new Date().toISOString();
 
-  const { error } = await supabase.from('email_templates').upsert(payload);
-  if (error) throw error;
+  if (template.id) {
+    const { error } = await supabase
+      .from('email_templates')
+      .update({
+        scope:            template.scope,
+        program_id:       template.programId ?? null,
+        language:         template.language,
+        subject_template: template.subjectTemplate,
+        body_template:    template.bodyTemplate,
+        updated_at:       now,
+      })
+      .eq('id', template.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('email_templates')
+      .insert({
+        scope:            template.scope,
+        program_id:       template.programId ?? null,
+        language:         template.language,
+        subject_template: template.subjectTemplate,
+        body_template:    template.bodyTemplate,
+        created_at:       now,
+        updated_at:       now,
+      });
+    if (error) throw error;
+  }
 }
 
 export async function deleteEmailTemplate(id: string): Promise<void> {
