@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,9 +12,7 @@ import '../providers/profile_providers.dart';
 import 'add_academic_page.dart';
 import 'add_experience_page.dart';
 
-// ─────────────────────────────────────────────
-// _fmt — top-level concise date helper
-// ─────────────────────────────────────────────
+// ─── Date helpers ────────────────────────────────────────────────────────────
 String _fmt(DateTime? date) {
   if (date == null) return '';
   const months = [
@@ -33,56 +31,7 @@ String _fmtFull(DateTime? date) {
 
 // ─────────────────────────────────────────────
 // Stylized floating SnackBar helper
-// ─────────────────────────────────────────────
-void _showFloatingSnackBar(
-  BuildContext context,
-  String message, {
-  IconData icon = Icons.info_outline_rounded,
-  Color color = _AppColors.primaryDark,
-}) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      duration: const Duration(seconds: 3),
-      content: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.30),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-// ─────────────────────────────────────────────
-// ProfilePage
+// ─── ProfilePage ─────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -99,29 +48,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     setState(() => _currentStep = step);
   }
 
-  void _goNext({required bool hasAcademics}) {
-    if (_currentStep == 1 && !hasAcademics) {
-      _showFloatingSnackBar(
-        context,
-        'Ajoutez au moins une formation pour continuer.',
-        icon: Icons.school_outlined,
-      );
-      return;
-    }
-    if (_currentStep < 2) {
-      setState(() => _currentStep++);
-      HapticFeedback.selectionClick();
-    } else {
-      context.go('/home');
-    }
-  }
-
-  void _goPrevious() {
-    if (_currentStep > 0) {
-      setState(() => _currentStep--);
-      HapticFeedback.selectionClick();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -152,89 +78,46 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       data: (profile) {
         final score        = profile?.completenessScore ?? 0;
         final hasAcademics = academicsAsync.valueOrNull?.isNotEmpty ?? false;
-        return Scaffold(
-          backgroundColor: _AppColors.background,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: _AppColors.textPrimary,
-                size: 18,
-              ),
-              onPressed: () => context.go('/home'),
-            ),
-            title: const Text(
-              'Profil Étudiant',
-              style: TextStyle(
-                color: _AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-                fontSize: 17,
-              ),
-            ),
-            centerTitle: true,
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: GestureDetector(
-                  onTap: () => context.push('/profile/edit'),
-                  child: CircleAvatar(
-                    radius: 17,
-                    backgroundImage: profile?.photoUrl != null
-                        ? NetworkImage(profile!.photoUrl!)
-                        : null,
-                    backgroundColor: _AppColors.primaryDark,
-                    child: profile?.photoUrl == null
-                        ? const Icon(Icons.person,
-                            color: Colors.white, size: 16)
-                        : null,
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.light,
+          child: Scaffold(
+            backgroundColor: _AppColors.background,
+            body: Column(
+              children: [
+                _GradientProfileBanner(
+                  profile:     profile,
+                  score:       score,
+                  currentStep: _currentStep,
+                  hasAcademics: hasAcademics,
+                  onStepTap:   (step) =>
+                      _goToStep(step, hasAcademics: hasAcademics),
+                ),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation, child: child,
+                    ),
+                    child: IndexedStack(
+                      key: ValueKey(_currentStep),
+                      index: _currentStep,
+                      children: [
+                        _InfosStep(profile: profile),
+                        const _AcademicStep(),
+                        hasAcademics
+                            ? const _ExperienceStep()
+                            : const _LockedStep(
+                                message:
+                                    'Terminez la section académique\npour débloquer les expériences.',
+                              ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          body: Column(
-            children: [
-              _ProfileHeader(
-                currentStep: _currentStep,
-                score: score,
-                hasAcademics: hasAcademics,
-                onStepTap: (step) =>
-                    _goToStep(step, hasAcademics: hasAcademics),
-              ),
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  switchInCurve: Curves.easeOut,
-                  switchOutCurve: Curves.easeIn,
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  ),
-                  child: IndexedStack(
-                    key: ValueKey(_currentStep),
-                    index: _currentStep,
-                    children: [
-                      _InfosStep(profile: profile),
-                      const _AcademicStep(),
-                      hasAcademics
-                          ? const _ExperienceStep()
-                          : const _LockedStep(
-                              message:
-                                  'Terminez la section académique\npour débloquer les expériences.',
-                            ),
-                    ],
-                  ),
-                ),
-              ),
-              _BottomNav(
-                currentStep: _currentStep,
-                onPrevious: _goPrevious,
-                onNext: () => _goNext(hasAcademics: hasAcademics),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -242,17 +125,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 }
 
-// ─── Profile Header ───────────────────────────────────────────────────────────
+// ─── Gradient Profile Banner ─────────────────────────────────────────────────
 
-class _ProfileHeader extends StatelessWidget {
-  final int currentStep;
+class _GradientProfileBanner extends StatelessWidget {
+  final StudentProfile? profile;
   final int score;
+  final int currentStep;
   final bool hasAcademics;
   final ValueChanged<int> onStepTap;
 
-  const _ProfileHeader({
-    required this.currentStep,
+  const _GradientProfileBanner({
+    required this.profile,
     required this.score,
+    required this.currentStep,
     required this.hasAcademics,
     required this.onStepTap,
   });
@@ -260,258 +145,230 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = score >= 80 ? _AppColors.success : _AppColors.primary;
-
     return Container(
-      color: Colors.white,
-      child: Column(
-        children: [
-          // barre gradient top
-          Container(
-            height: 3,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF0D1F42), Color(0xFF4880FF)],
-              ),
-            ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0B1A3D), Color(0xFF1250A8), Color(0xFF1A4FA0)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x440B1A3D),
+            blurRadius: 20,
+            offset: Offset(0, 8),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            // Cercles décoratifs fond
+            Positioned(right: -30, top: -30,
+              child: _DecorCircle(size: 130, opacity: 0.07)),
+            Positioned(right: 60, bottom: 30,
+              child: _DecorCircle(size: 80, opacity: 0.05)),
+            Positioned(left: -20, bottom: 10,
+              child: _DecorCircle(size: 90, opacity: 0.04)),
+
+            Column(
               children: [
-                // score + ring
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Étape ${currentStep + 1} sur 3',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: _AppColors.textMuted,
+                // ── Avatar + nom + score ──
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Avatar
+                      GestureDetector(
+                        onTap: () => context.push('/profile/edit'),
+                        child: Stack(children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.35),
+                                  width: 2.5),
+                            ),
+                            child: CircleAvatar(
+                              radius: 32,
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.15),
+                              backgroundImage: profile?.photoUrl != null
+                                  ? NetworkImage(profile!.photoUrl!)
+                                  : null,
+                              child: profile?.photoUrl == null
+                                  ? const Icon(Icons.person,
+                                      color: Colors.white, size: 30)
+                                  : null,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          TweenAnimationBuilder<int>(
-                            tween: IntTween(begin: 0, end: score),
-                            duration: const Duration(milliseconds: 700),
-                            curve: Curves.easeOutCubic,
-                            builder: (_, v, __) => Text(
-                              '$v% complété',
-                              style: TextStyle(
-                                fontSize: 22,
+                          Positioned(
+                            right: 0, bottom: 0,
+                            child: Container(
+                              width: 22, height: 22,
+                              decoration: BoxDecoration(
+                                color: _AppColors.primary,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const Icon(Icons.camera_alt_rounded,
+                                  color: Colors.white, size: 12),
+                            ),
+                          ),
+                        ]),
+                      ),
+                      const SizedBox(width: 14),
+
+                      // Nom + barre de progression
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              profile?.fullName.isNotEmpty == true
+                                  ? profile!.fullName
+                                  : 'Profil Étudiant',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w800,
-                                color: accent,
-                                height: 1.1,
+                                height: 1.2,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            // Mini progress bar
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(99),
+                              child: TweenAnimationBuilder<double>(
+                                tween: Tween(begin: 0, end: score / 100),
+                                duration: const Duration(milliseconds: 900),
+                                curve: Curves.easeOutCubic,
+                                builder: (_, v, __) =>
+                                    LinearProgressIndicator(
+                                  value: v,
+                                  minHeight: 5,
+                                  backgroundColor:
+                                      Colors.white.withValues(alpha: 0.18),
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(accent),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      width: 54,
-                      height: 54,
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0, end: score / 100),
-                        duration: const Duration(milliseconds: 800),
-                        curve: Curves.easeOutCubic,
-                        builder: (_, v, __) => Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CircularProgressIndicator(
-                              value: v,
-                              strokeWidth: 5,
-                              backgroundColor: _AppColors.border,
-                              valueColor: AlwaysStoppedAnimation<Color>(accent),
-                            ),
-                            Center(
-                              child: Text(
-                                '${(v * 100).round()}%',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: _AppColors.textPrimary,
-                                ),
+                            const SizedBox(height: 5),
+                            Text(
+                              score >= 80
+                                  ? '✓ Profil complet'
+                                  : '$score% complété',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.70),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                      const SizedBox(width: 14),
 
-                // barre de progression
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: score / 100),
-                  duration: const Duration(milliseconds: 700),
-                  curve: Curves.easeOutCubic,
-                  builder: (_, v, __) => ClipRRect(
-                    borderRadius: BorderRadius.circular(99),
-                    child: LinearProgressIndicator(
-                      value: v,
-                      minHeight: 7,
-                      backgroundColor: _AppColors.border,
-                      valueColor: AlwaysStoppedAnimation<Color>(accent),
-                    ),
+                      // Score ring
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: score / 100),
+                        duration: const Duration(milliseconds: 900),
+                        curve: Curves.easeOutCubic,
+                        builder: (_, v, __) => SizedBox(
+                          width: 58, height: 58,
+                          child: Stack(fit: StackFit.expand, children: [
+                            CircularProgressIndicator(
+                              value: v,
+                              strokeWidth: 5,
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.18),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(accent),
+                              strokeCap: StrokeCap.round,
+                            ),
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${(v * 100).round()}%',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ]),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
 
-                // étapes
-                Row(children: [
-                  _StepIndicator(
-                    label: 'Infos',
-                    index: 0,
-                    current: currentStep,
-                    done: score > 0,
-                    onTap: () => onStepTap(0),
+                // ── Tab bar ──
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.10),
+                          width: 1),
+                    ),
                   ),
-                  const _StepConnector(done: true),
-                  _StepIndicator(
-                    label: 'Parcours',
-                    index: 1,
-                    current: currentStep,
-                    done: hasAcademics,
-                    onTap: () => onStepTap(1),
+                  child: Row(
+                    children: [
+                      _StepTab(
+                        label: 'Infos',
+                        index: 0,
+                        current: currentStep,
+                        onTap: () => onStepTap(0),
+                      ),
+                      _StepTab(
+                        label: 'Parcours',
+                        index: 1,
+                        current: currentStep,
+                        onTap: () => onStepTap(1),
+                      ),
+                      _StepTab(
+                        label: 'Expériences',
+                        index: 2,
+                        current: currentStep,
+                        locked: !hasAcademics,
+                        onTap: hasAcademics ? () => onStepTap(2) : null,
+                      ),
+                    ],
                   ),
-                  _StepConnector(done: hasAcademics),
-                  _StepIndicator(
-                    label: 'Expériences',
-                    index: 2,
-                    current: currentStep,
-                    done: false,
-                    locked: !hasAcademics,
-                    onTap: hasAcademics ? () => onStepTap(2) : null,
-                  ),
-                ]),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Bottom Nav ───────────────────────────────────────────────────────────────
-
-class _BottomNav extends StatelessWidget {
-  final int currentStep;
-  final VoidCallback onPrevious;
-  final VoidCallback onNext;
-
-  const _BottomNav({
-    required this.currentStep,
-    required this.onPrevious,
-    required this.onNext,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          if (currentStep > 0) ...[
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: onPrevious,
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  size: 16,
-                  color: _AppColors.textMuted,
-                ),
-                label: const Text(
-                  'Précédent',
-                  style: TextStyle(
-                    color: _AppColors.textMuted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  side: const BorderSide(color: _AppColors.border),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
           ],
-          Expanded(
-            flex: currentStep > 0 ? 2 : 1,
-            child: ElevatedButton(
-              onPressed: onNext,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shadowColor: _AppColors.primary.withValues(alpha: 0.4),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    currentStep < 2 ? 'Continuer' : 'Terminer',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    currentStep < 2
-                        ? Icons.arrow_forward_rounded
-                        : Icons.check_rounded,
-                    size: 18,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-// ─── Step Indicator ───────────────────────────────────────────────────────────
-
-class _StepIndicator extends StatelessWidget {
+class _StepTab extends StatelessWidget {
   final String label;
   final int index;
   final int current;
-  final bool done;
   final bool locked;
   final VoidCallback? onTap;
 
-  const _StepIndicator({
+  const _StepTab({
     required this.label,
     required this.index,
     required this.current,
-    required this.done,
     this.locked = false,
     this.onTap,
   });
@@ -519,115 +376,44 @@ class _StepIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isActive = index == current;
-
-    final Color bg = locked
-        ? const Color(0xFFF3F4F6)
-        : done && !isActive
-            ? _AppColors.primary
-            : isActive
-                ? Colors.white
-                : const Color(0xFFF3F4F6);
-
-    final Color borderColor = locked
-        ? _AppColors.border
-        : (done || isActive)
-            ? _AppColors.primary
-            : _AppColors.border;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: bg,
-              shape: BoxShape.circle,
-              border: Border.all(color: borderColor, width: 2.2),
-              boxShadow: isActive
-                  ? [BoxShadow(
-                      color: _AppColors.primary.withValues(alpha: 0.22),
-                      blurRadius: 12, spreadRadius: 2,
-                    )]
-                  : [],
-            ),
-            child: Center(
-              child: locked
-                  ? const Icon(Icons.lock_outline_rounded,
-                      size: 14, color: _AppColors.textLight)
-                  : Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.center,
-                      children: [
-                        Text(
-                          '${index + 1}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: done && !isActive
-                                ? Colors.white
-                                : isActive
-                                    ? _AppColors.primary
-                                    : _AppColors.textLight,
-                          ),
-                        ),
-                        if (done && !isActive)
-                          Positioned(
-                            right: -10,
-                            top: -10,
-                            child: Container(
-                              width: 14,
-                              height: 14,
-                              decoration: const BoxDecoration(
-                                color: _AppColors.success,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.check_rounded,
-                                size: 9,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: isActive
-                  ? _AppColors.primary
-                  : done
-                      ? _AppColors.textMuted
-                      : _AppColors.textLight,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StepConnector extends StatelessWidget {
-  final bool done;
-  const _StepConnector({required this.done});
-
-  @override
-  Widget build(BuildContext context) {
     return Expanded(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        height: 2.5,
-        margin: const EdgeInsets.only(bottom: 22),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(2),
-          color: done ? _AppColors.primary : _AppColors.border,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: isActive ? Colors.white : Colors.transparent,
+                width: 2.5,
+              ),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (locked)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Icon(Icons.lock_outline_rounded,
+                      size: 10,
+                      color: Colors.white.withValues(alpha: 0.40)),
+                ),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight:
+                      isActive ? FontWeight.w700 : FontWeight.w500,
+                  color: isActive
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.50),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -648,122 +434,8 @@ class _InfosStep extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Carte héro profil ──
-          GestureDetector(
-            onTap: () => context.push('/profile/edit'),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF0D1F42), Color(0xFF1E5298)],
-                ),
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1A3C6E).withValues(alpha: 0.22),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // avatar
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 34,
-                        backgroundColor: Colors.white.withValues(alpha: 0.15),
-                        backgroundImage: profile?.photoUrl != null
-                            ? NetworkImage(profile!.photoUrl!)
-                            : null,
-                        child: profile?.photoUrl == null
-                            ? const Icon(Icons.person, color: Colors.white, size: 32)
-                            : null,
-                      ),
-                      Positioned(
-                        right: 0, bottom: 0,
-                        child: Container(
-                          width: 22, height: 22,
-                          decoration: BoxDecoration(
-                            color: _AppColors.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 1.5),
-                          ),
-                          child: const Icon(Icons.camera_alt_outlined,
-                              color: Colors.white, size: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 16),
-
-                  // infos
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          profile?.fullName.isNotEmpty == true
-                              ? profile!.fullName
-                              : 'Étudiant',
-                          style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (profile?.email != null) ...[
-                          const SizedBox(height: 3),
-                          Row(children: [
-                            const Icon(Icons.verified_rounded,
-                                size: 12, color: Color(0xFF10B981)),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                profile!.email!,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white.withValues(alpha: 0.72),
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ]),
-                        ],
-                        if (profile?.nationality != null) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            profile!.nationality!,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.white.withValues(alpha: 0.65),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  // flèche modifier
-                  Container(
-                    width: 32, height: 32,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.edit_outlined,
-                        color: Colors.white, size: 16),
-                  ),
-                ],
-              ),
-            ),
-          ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.06, end: 0),
-          const SizedBox(height: 22),
-
-          const _StepTitle('Informations personnelles'),
+          const _StepTitle('Informations personnelles')
+              .animate().fadeIn(delay: 60.ms).slideY(begin: .04),
           const SizedBox(height: 16),
 
           _InfoSection(
@@ -773,7 +445,7 @@ class _InfosStep extends ConsumerWidget {
               _InfoItem(Icons.cake_outlined, 'Date de naissance',
                   _fmtFull(profile?.birthDate)),
             ],
-          ),
+          ).animate().fadeIn(delay: 100.ms).slideY(begin: .04),
           const SizedBox(height: 14),
           _InfoSection(
             title: 'Localisation & origine',
@@ -785,7 +457,7 @@ class _InfosStep extends ConsumerWidget {
               _InfoItem(Icons.location_on_outlined, 'Adresse',
                   profile?.address),
             ],
-          ),
+          ).animate().fadeIn(delay: 150.ms).slideY(begin: .04),
           if ((profile?.motivationLetter ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 14),
             _InfoSection(
@@ -794,7 +466,7 @@ class _InfosStep extends ConsumerWidget {
                 _InfoItem(Icons.description_outlined, null,
                     profile?.motivationLetter),
               ],
-            ),
+            ).animate().fadeIn(delay: 200.ms).slideY(begin: .04),
           ],
           if ((profile?.academicGoals ?? '').trim().isNotEmpty ||
               (profile?.careerGoals ?? '').trim().isNotEmpty) ...[
@@ -807,7 +479,7 @@ class _InfosStep extends ConsumerWidget {
                 _InfoItem(Icons.work_outline, 'Objectifs professionnels',
                     profile?.careerGoals),
               ],
-            ),
+            ).animate().fadeIn(delay: 240.ms).slideY(begin: .04),
           ],
           const SizedBox(height: 20),
 
@@ -830,7 +502,7 @@ class _InfosStep extends ConsumerWidget {
                 side: const BorderSide(color: _AppColors.primary),
               ),
             ),
-          ),
+          ).animate().fadeIn(delay: 280.ms).slideY(begin: .04),
           const SizedBox(height: 10),
 
           // ── Bouton déconnexion ──
@@ -857,7 +529,7 @@ class _InfosStep extends ConsumerWidget {
                 ),
               ),
             );
-          }),
+          }).animate().fadeIn(delay: 320.ms).slideY(begin: .04),
           const SizedBox(height: 8),
         ],
       ),
@@ -889,14 +561,15 @@ class _AcademicStep extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _StepTitle('Parcours académique'),
+            const _StepTitle('Parcours académique')
+                .animate().fadeIn(delay: 60.ms).slideY(begin: .04),
             const SizedBox(height: 6),
             Text(
               '${academics.length} diplôme${academics.length > 1 ? 's' : ''} '
               'ajouté${academics.length > 1 ? 's' : ''}',
               style: const TextStyle(
                   fontSize: 12, color: _AppColors.textLight),
-            ),
+            ).animate().fadeIn(delay: 90.ms),
             const SizedBox(height: 18),
             if (academics.isEmpty)
               const _EmptyStateCard(
@@ -904,12 +577,15 @@ class _AcademicStep extends ConsumerWidget {
                 title: 'Aucune formation ajoutée',
                 subtitle:
                     'Ajoutez votre parcours académique pour compléter votre profil.',
-              )
+              ).animate().fadeIn(delay: 120.ms).slideY(begin: .04)
             else
-              ...academics.map(
-                (a) => Padding(
+              ...academics.asMap().entries.map(
+                (entry) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _AcademicCard(a),
+                  child: _AcademicCard(entry.value)
+                      .animate()
+                      .fadeIn(delay: Duration(milliseconds: 120 + entry.key * 60))
+                      .slideY(begin: .04),
                 ),
               ),
             const SizedBox(height: 4),
@@ -922,7 +598,7 @@ class _AcademicStep extends ConsumerWidget {
                     builder: (_) => const AddAcademicPage()),
               ).then(
                   (_) => ref.invalidate(academicBackgroundsProvider)),
-            ),
+            ).animate().fadeIn(delay: 200.ms).slideY(begin: .04),
           ],
         ),
       ),
@@ -954,7 +630,8 @@ class _ExperienceStep extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _StepTitle('Expériences professionnelles'),
+            const _StepTitle('Expériences professionnelles')
+                .animate().fadeIn(delay: 60.ms).slideY(begin: .04),
             const SizedBox(height: 6),
             Text(
               '${experiences.length} expérience'
@@ -962,7 +639,7 @@ class _ExperienceStep extends ConsumerWidget {
               'ajoutée${experiences.length > 1 ? 's' : ''}',
               style: const TextStyle(
                   fontSize: 12, color: _AppColors.textLight),
-            ),
+            ).animate().fadeIn(delay: 90.ms),
             const SizedBox(height: 18),
             if (experiences.isEmpty)
               const _EmptyStateCard(
@@ -970,12 +647,15 @@ class _ExperienceStep extends ConsumerWidget {
                 title: 'Aucune expérience ajoutée',
                 subtitle:
                     'Ajoutez un stage, un job ou une mission pour enrichir votre profil.',
-              )
+              ).animate().fadeIn(delay: 120.ms).slideY(begin: .04)
             else
-              ...experiences.map(
-                (e) => Padding(
+              ...experiences.asMap().entries.map(
+                (entry) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _ExperienceCard(e),
+                  child: _ExperienceCard(entry.value)
+                      .animate()
+                      .fadeIn(delay: Duration(milliseconds: 120 + entry.key * 60))
+                      .slideY(begin: .04),
                 ),
               ),
             const SizedBox(height: 4),
@@ -987,7 +667,7 @@ class _ExperienceStep extends ConsumerWidget {
                 MaterialPageRoute(
                     builder: (_) => const AddExperiencePage()),
               ).then((_) => ref.invalidate(experiencesProvider)),
-            ),
+            ).animate().fadeIn(delay: 200.ms).slideY(begin: .04),
           ],
         ),
       ),
@@ -1855,6 +1535,26 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
+// ─── Shared decorative helpers ───────────────────────────────────────────────
+
+class _DecorCircle extends StatelessWidget {
+  final double size;
+  final double opacity;
+  const _DecorCircle({required this.size, required this.opacity});
+
+  @override
+  Widget build(BuildContext context) => Opacity(
+        opacity: opacity,
+        child: Container(
+          width: size, height: size,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+        ),
+      );
+}
+
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
 class _AppColors {
@@ -1865,5 +1565,4 @@ class _AppColors {
   static const Color textPrimary = Color(0xFF1A1D2E);
   static const Color textMuted   = Color(0xFF6B7280);
   static const Color textLight   = Color(0xFF9CA3AF);
-  static const Color border      = Color(0xFFE5E7EB);
 }

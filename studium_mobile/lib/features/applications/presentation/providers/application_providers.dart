@@ -5,6 +5,15 @@ import '../../data/repositories/application_repository_impl.dart';
 import '../../domain/entities/application.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 
+// ─── Status History ───────────────────────────────────────────────────────────
+
+final statusHistoryProvider = FutureProvider.autoDispose
+    .family<List<StatusHistoryEntry>, String>((ref, applicationId) {
+  return ref
+      .read(applicationDatasourceProvider)
+      .fetchStatusHistory(applicationId);
+});
+
 // ─── Infrastructure ───────────────────────────────────────────────────────────
 
 final applicationDatasourceProvider = Provider<ApplicationRemoteDatasource>(
@@ -38,11 +47,23 @@ class MyApplicationsNotifier
     if (userId == null) return null;
     final app = await ref
         .read(applicationRepositoryProvider)
-        .createApplication(
-          studentProfileId: userId,
-          programId:        programId,
-        );
+        .createApplication(studentProfileId: userId, programId: programId);
     ref.invalidateSelf();
     return app;
+  }
+
+  Future<Application?> saveDraft({required String programId}) async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return null;
+    final app = await ref
+        .read(applicationRepositoryProvider)
+        .createApplication(studentProfileId: userId, programId: programId, draft: true);
+    ref.invalidateSelf();
+    return app;
+  }
+
+  Future<void> submitDraft(String applicationId) async {
+    await ref.read(applicationRepositoryProvider).submitDraft(applicationId);
+    ref.invalidateSelf();
   }
 }

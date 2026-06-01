@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/experience.dart';
@@ -215,174 +217,245 @@ class _AddExperiencePageState extends ConsumerState<AddExperiencePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A1D2E)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          _isEdit ? 'Modifier l\u2019expérience' : 'Ajouter une expérience',
-          style: const TextStyle(
-            color: Color(0xFF1A1D2E),
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _SectionHeader('Informations'),
-                const SizedBox(height: 12),
-                _FormCard(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F6FB),
+        body: Column(children: [
+          _buildHeader(),
+          Expanded(child: SafeArea(
+            top: false,
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _StyledField(
-                      controller: _companyCtrl,
-                      label: 'Entreprise',
-                      hint: 'Ex : Talan Tunisia',
-                      icon: Icons.business_outlined,
-                      required: true,
-                    ),
+                    const _SectionHeader('Informations')
+                        .animate().fadeIn(delay: 60.ms).slideY(begin: .04),
                     const SizedBox(height: 12),
-                    _StyledField(
-                      controller: _positionCtrl,
-                      label: 'Poste',
-                      hint: 'Ex : Stagiaire développeur',
-                      icon: Icons.work_outline,
-                      required: true,
-                    ),
-                    const SizedBox(height: 12),
-                    _StyledField(
-                      controller: _descriptionCtrl,
-                      label: 'Description',
-                      hint: 'Décrivez vos missions, outils utilisés et responsabilités...',
-                      maxLines: 5,
-                      textInputAction: TextInputAction.newline,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                const _SectionHeader('Période'),
-                const SizedBox(height: 12),
-                _FormCard(
-                  children: [
-                    _DateField(
-                      label: 'Date de début',
-                      value: _formatDate(_startDate),
-                      hint: 'Non définie',
-                      onTap: () => _pickDate(isStart: true),
-                      onClear: _startDate == null
-                          ? null
-                          : () => setState(() => _startDate = null),
-                    ),
-                    const SizedBox(height: 12),
-                    _DateField(
-                      label: 'Date de fin',
-                      value: _formatDate(_endDate),
-                      hint: 'Laisser vide si en cours',
-                      onTap: () => _pickDate(isStart: false),
-                      onClear: _endDate == null
-                          ? null
-                          : () => setState(() => _endDate = null),
-                    ),
-                    if (_startDate != null && _endDate == null) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(8),
+                    _FormCard(
+                      children: [
+                        _StyledField(
+                          controller: _companyCtrl,
+                          label: 'Entreprise',
+                          hint: 'Ex : Talan Tunisia',
+                          icon: Icons.business_outlined,
+                          required: true,
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.circle, size: 8, color: Color(0xFF10B981)),
-                            SizedBox(width: 6),
-                            Text(
-                              'Poste actuel',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF10B981),
-                                fontWeight: FontWeight.w600,
-                              ),
+                        const SizedBox(height: 12),
+                        _StyledField(
+                          controller: _positionCtrl,
+                          label: 'Poste',
+                          hint: 'Ex : Stagiaire développeur',
+                          icon: Icons.work_outline,
+                          required: true,
+                        ),
+                        const SizedBox(height: 12),
+                        _StyledField(
+                          controller: _descriptionCtrl,
+                          label: 'Description',
+                          hint: 'Décrivez vos missions...',
+                          maxLines: 5,
+                          textInputAction: TextInputAction.newline,
+                        ),
+                      ],
+                    ).animate().fadeIn(delay: 100.ms).slideY(begin: .04),
+                    const SizedBox(height: 24),
+                    const _SectionHeader('Période')
+                        .animate().fadeIn(delay: 140.ms).slideY(begin: .04),
+                    const SizedBox(height: 12),
+                    _FormCard(
+                      children: [
+                        _DateField(
+                          label: 'Date de début',
+                          value: _formatDate(_startDate),
+                          hint: 'Non définie',
+                          onTap: () => _pickDate(isStart: true),
+                          onClear: _startDate == null
+                              ? null
+                              : () => setState(() => _startDate = null),
+                        ),
+                        const SizedBox(height: 12),
+                        _DateField(
+                          label: 'Date de fin',
+                          value: _formatDate(_endDate),
+                          hint: 'Laisser vide si en cours',
+                          onTap: () => _pickDate(isStart: false),
+                          onClear: _endDate == null
+                              ? null
+                              : () => setState(() => _endDate = null),
+                        ),
+                        if (_startDate != null && _endDate == null) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ],
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.circle,
+                                    size: 8, color: Color(0xFF10B981)),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Poste actuel',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF10B981),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ).animate().fadeIn(delay: 180.ms).slideY(begin: .04),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: (_loading || !_canSave) ? null : _save,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4880FF),
+                          disabledBackgroundColor:
+                              const Color(0xFF4880FF).withValues(alpha: 0.40),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: _loading
+                            ? const SizedBox(
+                                width: 20, height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(_isEdit ? Icons.check : Icons.add,
+                                      size: 18),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _isEdit
+                                        ? "Modifier l'expérience"
+                                        : "Ajouter l'expérience",
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 15),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ).animate().fadeIn(delay: 220.ms).slideY(begin: .04),
+                    if (!_canSave) ...[
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          "Renseignez l'entreprise et le poste pour continuer",
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 11, color: Color(0xFF9CA3AF)),
                         ),
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (_loading || !_canSave) ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4880FF),
-                      disabledBackgroundColor:
-                          const Color(0xFF4880FF).withValues(alpha: 0.40),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: _loading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(_isEdit ? Icons.check : Icons.add, size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                _isEdit
-                                    ? 'Modifier l\u2019expérience'
-                                    : 'Ajouter l\u2019expérience',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ],
-                          ),
+              ),
+            ),
+          )),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0D1F42), Color(0xFF1565C0), Color(0xFF1E5298)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned(right: -20, top: -20,
+                child: _DecorCircle(size: 100, opacity: 0.07)),
+            Positioned(right: 40, bottom: -10,
+                child: _DecorCircle(size: 60, opacity: 0.05)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 16, 18),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white, size: 20),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                ),
-                if (!_canSave) ...[
-                  const SizedBox(height: 8),
-                  const Center(
-                    child: Text(
-                      'Renseignez l\u2019entreprise et le poste pour continuer',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
-                    ),
+                  const SizedBox(width: 4),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isEdit
+                            ? "Expérience professionnelle"
+                            : "Nouvelle expérience",
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      Text(
+                        _isEdit
+                            ? "Modifier l'expérience"
+                            : "Ajouter une expérience",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ],
+              ).animate().fadeIn(duration: 350.ms).slideY(begin: -0.05),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _DecorCircle extends StatelessWidget {
+  final double size;
+  final double opacity;
+  const _DecorCircle({required this.size, required this.opacity});
+
+  @override
+  Widget build(BuildContext context) => Opacity(
+        opacity: opacity,
+        child: Container(
+          width: size, height: size,
+          decoration: const BoxDecoration(
+            color: Colors.white, shape: BoxShape.circle,
+          ),
+        ),
+      );
 }
 
 // ─── Section Header ───────────────────────────────────────────────────────────
@@ -480,8 +553,7 @@ class _StyledField extends StatelessWidget {
         prefixIcon: icon == null
             ? null
             : Icon(icon, size: 18, color: const Color(0xFF9CA3AF)),
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         filled: true,
         fillColor: const Color(0xFFFAFAFC),
         border: OutlineInputBorder(

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
+import { colors, fonts, radius } from '../../../shared/constants/theme';
 import { RAW_STATUS_LABELS } from '../types/application';
 import type { Application, RawStatus } from '../types/application';
-import { updateApplicationStatus } from '../services/applications_service';
+import { updateApplicationStatus, updateApplicationNotes, fetchStatusHistory } from '../services/applications_service';
+import type { StatusHistoryEntry } from '../services/applications_service';
 
 const AVAILABLE_STATUSES: RawStatus[] = [
   'submitted', 'needsfix', 'verified', 'sent', 'accepted', 'rejected', 'archived',
@@ -34,24 +35,30 @@ interface Props {
 }
 
 export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props) {
-  const [status, setStatus] = useState<RawStatus>(app.rawStatus);
-  const [saving, setSaving] = useState(false);
-  const [saved,  setSaved]  = useState(false);
+  const [status,  setStatus]  = useState<RawStatus>(app.rawStatus);
+  const [notes,   setNotes]   = useState(app.notes ?? '');
+  const [saving,  setSaving]  = useState(false);
+  const [saved,   setSaved]   = useState(false);
+  const [history, setHistory] = useState<StatusHistoryEntry[]>([]);
 
   useEffect(() => {
     setStatus(app.rawStatus);
+    setNotes(app.notes ?? '');
     setSaved(false);
+    fetchStatusHistory(app.id).then(setHistory).catch(() => setHistory([]));
   }, [app]);
 
   async function handleSave() {
     setSaving(true);
     try {
-      if (status !== app.rawStatus) {
-        await updateApplicationStatus(app.id, status);
-      }
+      const ops: Promise<void>[] = [];
+      if (status !== app.rawStatus)       ops.push(updateApplicationStatus(app.id, status));
+      if (notes  !== (app.notes ?? ''))   ops.push(updateApplicationNotes(app.id, notes));
+      await Promise.all(ops);
       onUpdate(app.id, {
         rawStatus: status,
         status:    STATUS_MAP_UI[status],
+        notes:     notes || undefined,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -61,7 +68,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   }
 
   const sc = STATUS_COLORS[status];
-  const isDirty = status !== app.rawStatus;
+  const isDirty = status !== app.rawStatus || notes !== (app.notes ?? '');
 
   return (
     <div
@@ -98,7 +105,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
             <div style={{ fontSize: 18, fontWeight: 800, color: colors.navy, fontFamily: fonts.display }}>
               {app.student}
             </div>
-            <div style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>{app.email}</div>
+            {app.email && <div style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>{app.email}</div>}
           </div>
           <button onClick={onClose} style={{
             background: colors.inputBg, border: 'none', borderRadius: 8,
@@ -151,11 +158,16 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
             </div>
           </Section>
 
+          {/* Complétude du dossier */}
+          <Section label="Complétude du dossier">
+            <ChecklistSection app={app} />
+          </Section>
+
           {/* Timeline */}
           <Section label="Progression">
             <div style={{ display: 'flex', gap: 0 }}>
               {TIMELINE_STEPS.map((step, i) => {
-                const done = step.statuses.includes(app.rawStatus);
+                const done = step.statuses.includes(status);
                 const isLast = i === TIMELINE_STEPS.length - 1;
                 return (
                   <div key={step.label} style={{ display: 'flex', alignItems: 'center', flex: isLast ? 0 : 1 }}>
@@ -214,7 +226,70 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
             </div>
           </Section>
 
+          {/* Historique des changements */}
+          <Section label="Historique des changements">
+            {history.length === 0 ? (
+              <div style={{ fontSize: 13, color: colors.textMuted, fontStyle: 'italic' }}>
+                Aucun changement enregistré pour le moment.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {history.map((entry, i) => {
+                  const isLast = i === history.length - 1;
+                  const date = entry.createdAt
+                    ? new Date(entry.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                    : '';
+                  return (
+                    <div key={entry.id} style={{ display: 'flex', gap: 12 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                        <div style={{
+                          width: 10, height: 10, borderRadius: '50%',
+                          background: colors.blue, marginTop: 3, flexShrink: 0,
+                        }} />
+                        {!isLast && <div style={{ width: 2, flex: 1, background: colors.border, minHeight: 24 }} />}
+                      </div>
+                      <div style={{ paddingBottom: isLast ? 0 : 12, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          {entry.fromStatus && (
+                            <>
+                              <span style={{ fontSize: 12, color: colors.textMuted }}>{RAW_STATUS_LABELS[entry.fromStatus as RawStatus] ?? entry.fromStatus}</span>
+                              <span style={{ fontSize: 11, color: colors.textMuted }}>→</span>
+                            </>
+                          )}
+                          <span style={{ fontSize: 13, fontWeight: 700, color: colors.navy }}>
+                            {RAW_STATUS_LABELS[entry.toStatus as RawStatus] ?? entry.toStatus}
+                          </span>
+                          {date && <span style={{ fontSize: 11, color: colors.textMuted, marginLeft: 4 }}>{date}</span>}
+                        </div>
+                        {entry.note && (
+                          <div style={{ fontSize: 12, color: colors.textSecondary, fontStyle: 'italic', marginTop: 2 }}>
+                            {entry.note}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Section>
 
+          {/* Notes internes */}
+          <Section label="Notes internes (équipe)">
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={3}
+              placeholder="Ajouter une note interne visible uniquement par l'équipe…"
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: radius.md,
+                border: `1.5px solid ${colors.borderInput}`,
+                background: colors.inputBg, fontFamily: fonts.body,
+                fontSize: 13.5, color: colors.textPrimary,
+                resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </Section>
 
         </div>
 
@@ -302,5 +377,54 @@ function Tag({ children }: { children: React.ReactNode }) {
     }}>
       {children}
     </span>
+  );
+}
+
+function ChecklistSection({ app }: { app: Application }) {
+  const items = [
+    { label: 'Candidature soumise',   ok: app.rawStatus !== 'draft' },
+    { label: 'Programme sélectionné', ok: app.program !== '—' && app.program !== '' },
+    { label: 'Université renseignée', ok: app.university !== '—' && app.university !== '' },
+    { label: 'Pays de destination',   ok: app.country !== '—' && app.country !== '' },
+    { label: "Niveau d'études",       ok: !!app.level },
+    { label: 'Score profil ≥ 70%',    ok: app.score >= 70, extra: `${app.score}%` },
+  ];
+  const okCount = items.filter(i => i.ok).length;
+  const allOk = okCount === items.length;
+  const summaryColor = allOk ? colors.success : okCount >= 4 ? colors.warning : colors.danger;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ fontSize: 12, color: colors.textMuted }}>{okCount}/{items.length} critères remplis</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: summaryColor, padding: '2px 10px', borderRadius: 20, background: `${summaryColor}18` }}>
+          {allOk ? 'Dossier complet' : okCount >= 4 ? 'Presque complet' : 'Incomplet'}
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {items.map(item => (
+          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <div style={{
+              width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+              background: item.ok ? `${colors.success}18` : `${colors.danger}12`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {item.ok
+                ? <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke={colors.success} strokeWidth={3} strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                : <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke={colors.danger} strokeWidth={3} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              }
+            </div>
+            <span style={{ fontSize: 13, color: item.ok ? colors.textPrimary : colors.textMuted }}>
+              {item.label}
+              {'extra' in item && item.extra && (
+                <span style={{ marginLeft: 6, fontSize: 11.5, fontWeight: 700, color: item.ok ? colors.success : colors.danger }}>
+                  {item.extra}
+                </span>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,9 +20,11 @@ class ApplicationsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final applicationsAsync = ref.watch(myApplicationsProvider);
 
-    return Scaffold(
-      backgroundColor: _kBg,
-      body: SafeArea(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: _kBg,
+        body: SafeArea(
         child: applicationsAsync.when(
           loading: () => const Center(
               child: CircularProgressIndicator(color: _kBlue)),
@@ -40,16 +43,27 @@ class ApplicationsPage extends ConsumerWidget {
                     .fadeIn(duration: 400.ms)
                     .slideY(begin: -0.06),
               ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                  child: _NewCandidatureButton(
+                    onTap: () => context.push('/applications/new'),
+                  ),
+                ).animate().fadeIn(delay: 120.ms).slideY(begin: .04),
+              ),
               apps.isEmpty
-                  ? SliverFillRemaining(child: _buildEmptyState(context))
+                  ? SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _buildEmptyState(context),
+                    )
                   : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (ctx, i) => _ApplicationCard(app: apps[i])
                               .animate()
                               .fadeIn(
-                                delay: Duration(milliseconds: 60 + i * 50),
+                                delay: Duration(milliseconds: 80 + i * 55),
                                 duration: const Duration(milliseconds: 260),
                               )
                               .slideY(
@@ -65,16 +79,8 @@ class ApplicationsPage extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push('/applications/new'),
-        label: const Text('Nouvelle candidature',
-            style: TextStyle(fontWeight: FontWeight.w700)),
-        icon: const Icon(Icons.add),
-        backgroundColor: _kBlue,
-        foregroundColor: Colors.white,
-        elevation: 4,
-      ),
-    );
+    ),
+  );
   }
 
   // ─── Header card (même pattern que ProgramsPage) ──────────────────────────
@@ -190,7 +196,8 @@ class ApplicationsPage extends ConsumerWidget {
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(40),
+        padding: EdgeInsets.fromLTRB(
+            40, 24, 40, MediaQuery.of(context).padding.bottom + 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -373,6 +380,55 @@ class _DecorCircle extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _NewCandidatureButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _NewCandidatureButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF4880FF), Color(0xFF2563EB)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: _kBlue.withValues(alpha: 0.28),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_circle_outline, size: 18, color: Colors.white),
+                SizedBox(width: 8),
+                Text(
+                  'Nouvelle candidature',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _StatPill extends StatelessWidget {

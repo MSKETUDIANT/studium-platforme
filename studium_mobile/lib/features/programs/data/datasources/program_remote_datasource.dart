@@ -19,4 +19,25 @@ class ProgramRemoteDatasource {
       throw Exception(e.toString());
     }
   }
+
+  Future<Set<String>> fetchFavoriteIds(String studentProfileId) async {
+    final data = await _client
+        .from('program_favorites')
+        .select('program_id')
+        .eq('student_profile_id', studentProfileId);
+    return (data as List).map((e) => e['program_id'] as String).toSet();
+  }
+
+  Future<void> addFavorite(String studentProfileId, String programId) =>
+      _client.from('program_favorites').insert({
+        'student_profile_id': studentProfileId,
+        'program_id': programId,
+      });
+
+  Future<void> removeFavorite(String studentProfileId, String programId) =>
+      _client
+          .from('program_favorites')
+          .delete()
+          .eq('student_profile_id', studentProfileId)
+          .eq('program_id', programId);
 }

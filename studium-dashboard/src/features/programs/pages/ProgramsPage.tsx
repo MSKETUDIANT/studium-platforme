@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react
 import { supabase }       from '../../../shared/services/supabase';
 import { Button }         from '../../../shared/components/Button';
 import { PageHeader }     from '../../../shared/components/PageHeader';
+import { Pagination }     from '../../../shared/components/Pagination';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
 import { EmptyState }     from '../../../shared/components/EmptyState';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
@@ -197,18 +198,18 @@ const CSS = `
   }
   .pp-select:focus { border-color: ${colors.blue}; }
 
-  .pp-table-wrap {
-    overflow-x: auto;
+  .pp-table-wrap { overflow-x: auto; }
+
+  .pp-card {
     border-radius: ${radius.lg}px;
     box-shadow: ${shadows.card};
+    overflow: hidden;
   }
 
   .pp-table {
     width: 100%;
     border-collapse: collapse;
     background: white;
-    border-radius: ${radius.lg}px;
-    overflow: hidden;
     font-family: ${fonts.body};
   }
 
@@ -478,7 +479,16 @@ const CSS = `
     color: ${colors.textPrimary};
     white-space: pre-wrap;
   }
+
+  .pp-stat-grid > div:nth-child(1) { animation: ph-fade-up .35s .08s ease both; }
+  .pp-stat-grid > div:nth-child(2) { animation: ph-fade-up .35s .16s ease both; }
+  .pp-stat-grid > div:nth-child(3) { animation: ph-fade-up .35s .24s ease both; }
+  .pp-stat-grid > div:nth-child(4) { animation: ph-fade-up .35s .32s ease both; }
+  .pp-toolbar-card { animation: ph-fade-up .35s .40s ease both; }
+  .pp-card         { animation: ph-fade-up .35s .48s ease both; }
 `;
+
+const PAGE_SIZE = 10;
 
 function injectCSS() {
   if (typeof document === 'undefined') return;
@@ -833,6 +843,7 @@ export default function ProgramsPage() {
   const [filterLang,    setFilterLang]    = useState('');
   const [filterActive,  setFilterActive]  = useState<'all' | 'active' | 'inactive'>('all');
 
+  const [page,    setPage]  = useState(1);
   const [modal, setModal]   = useState<{ open: boolean; program: Program | null }>({ open: false, program: null });
   const [saving, setSaving] = useState(false);
 
@@ -886,6 +897,11 @@ export default function ProgramsPage() {
     const matchActive  = filterActive === 'all' ? true : filterActive === 'active' ? p.is_active : !p.is_active;
     return matchSearch && matchLevel && matchCountry && matchLang && matchActive;
   }), [programs, search, filterLevel, filterCountry, filterLang, filterActive]);
+
+  useEffect(() => setPage(1), [search, filterLevel, filterCountry, filterLang, filterActive]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   /* ─── Stats ─── */
   const total    = programs.length;
@@ -1024,7 +1040,8 @@ export default function ProgramsPage() {
           action={!search && !filterLevel ? <Button onClick={() => setModal({ open: true, program: null })}>+ Nouveau programme</Button> : undefined}
         />
       ) : (
-        <div className="pp-table-wrap">
+        <div className="pp-card">
+          <div className="pp-table-wrap">
           <table className="pp-table">
             <thead>
               <tr>
@@ -1039,7 +1056,7 @@ export default function ProgramsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(p => {
+              {paginated.map(p => {
                 const lvlCfg = p.level ? (LEVEL_CFG[p.level] ?? null) : null;
                 const accentColor = lvlCfg?.color ?? colors.textMuted;
                 const deadlineSoon = p.deadline
@@ -1154,6 +1171,15 @@ export default function ProgramsPage() {
               })}
             </tbody>
           </table>
+          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={filtered.length}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+            label="programmes"
+          />
         </div>
       )}
 

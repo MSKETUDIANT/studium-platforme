@@ -3,11 +3,17 @@ import { Badge }          from '../../../shared/components/Badge';
 import { Button }         from '../../../shared/components/Button';
 import { EmptyState }     from '../../../shared/components/EmptyState';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
+import { PageHeader }     from '../../../shared/components/PageHeader';
+import { Pagination }     from '../../../shared/components/Pagination';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 import type { Application }              from '../types/application';
+import { RAW_STATUS_LABELS }             from '../types/application';
 import { fetchApplications }              from '../services/applications_service';
 import ApplicationDetailModal             from '../components/ApplicationDetailModal';
 import ApplicationKanban                  from '../components/ApplicationKanban';
+
+/* ─── Constants ─────────────────────────────────────────────────────────── */
+const PAGE_SIZE = 10;
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 type UIStatus = Application['status'];
@@ -146,6 +152,12 @@ const CSS = `
     background: ${colors.navy}; color: white; border-color: ${colors.navy};
   }
   .ap-view-btn:hover:not(.ap-view-btn--active) { border-color: ${colors.blue}; color: ${colors.blue}; }
+
+  .ap-stat-grid .ap-stat:nth-child(1) { animation: ph-fade-up .35s .08s ease both; }
+  .ap-stat-grid .ap-stat:nth-child(2) { animation: ph-fade-up .35s .16s ease both; }
+  .ap-stat-grid .ap-stat:nth-child(3) { animation: ph-fade-up .35s .24s ease both; }
+  .ap-stat-grid .ap-stat:nth-child(4) { animation: ph-fade-up .35s .32s ease both; }
+  .ap-table-card { animation: ph-fade-up .35s .42s ease both; }
 `;
 
 if (!document.getElementById('ap-css')) {
@@ -154,11 +166,16 @@ if (!document.getElementById('ap-css')) {
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
-const STATUS_BADGE: Record<UIStatus, 'validated' | 'pending' | 'urgent' | 'default'> = {
-  'Validé':     'validated',
-  'En attente': 'pending',
-  'Urgent':     'urgent',
-  'Refusé':     'default',
+const STATUS_BADGE: Record<string, 'validated' | 'pending' | 'urgent' | 'info' | 'default'> = {
+  draft:            'default',
+  submitted:        'pending',
+  needsfix:         'urgent',
+  verified:         'info',
+  sent:             'info',
+  accepted:         'validated',
+  rejected:         'default',
+  pending_decision: 'pending',
+  archived:         'default',
 };
 
 const AVATAR_PALETTE = [
@@ -211,13 +228,15 @@ export default function ApplicationsPage() {
   const [search,      setSearch]      = useState('');
   const [filter,      setFilter]      = useState<'Tous' | UIStatus>('Tous');
   const [loading,     setLoading]     = useState(true);
+  const [fetchError,  setFetchError]  = useState<string | null>(null);
   const [view,        setView]        = useState<ViewMode>('table');
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  const [page,        setPage]        = useState(1);
 
   useEffect(() => {
     fetchApplications()
-      .then(setApps)
-      .catch(() => setApps([]))
+      .then(data => { setApps(data); setFetchError(null); })
+      .catch(err  => { console.error('fetchApplications:', err); setFetchError(err?.message ?? String(err)); setApps([]); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -246,40 +265,48 @@ export default function ApplicationsPage() {
     return d;
   }, [apps, search, filter]);
 
+  useEffect(() => setPage(1), [filter, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   if (loading) return <LoadingSpinner fullPage />;
 
   return (
     <div>
-      {/* ── En-tête ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: colors.navy, margin: 0, fontFamily: fonts.display }}>
-            Candidatures
-          </h2>
-          <p style={{ fontSize: 13.5, margin: '5px 0 0', color: colors.textMuted }}>
-            <span style={{ fontWeight: 600, color: colors.textSecondary }}>{total}</span> dossiers au total
-            {' · '}
-            <span style={{ fontWeight: 600, color: colors.warning }}>{pending}</span> en attente de traitement
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
-          {/* Toggle vue */}
-          <div style={{ display: 'flex', gap: 4, background: colors.inputBg, borderRadius: 10, padding: 4 }}>
-            <button
-              className={`ap-view-btn${view === 'table' ? ' ap-view-btn--active' : ''}`}
-              onClick={() => setView('table')}
-            >
-              <IconTable /> Tableau
-            </button>
-            <button
-              className={`ap-view-btn${view === 'kanban' ? ' ap-view-btn--active' : ''}`}
-              onClick={() => setView('kanban')}
-            >
-              <IconKanban /> Kanban
-            </button>
-          </div>
+      <PageHeader
+        title="Candidatures"
+        subtitle={`${total} dossier${total !== 1 ? 's' : ''} · ${pending} en attente de traitement`}
+      />
+
+      {/* ── Toggle vue ── */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20, marginTop: -12 }}>
+        <div style={{ display: 'flex', gap: 4, background: colors.inputBg, borderRadius: 10, padding: 4 }}>
+          <button
+            className={`ap-view-btn${view === 'table' ? ' ap-view-btn--active' : ''}`}
+            onClick={() => setView('table')}
+          >
+            <IconTable /> Tableau
+          </button>
+          <button
+            className={`ap-view-btn${view === 'kanban' ? ' ap-view-btn--active' : ''}`}
+            onClick={() => setView('kanban')}
+          >
+            <IconKanban /> Kanban
+          </button>
         </div>
       </div>
+
+      {/* ── Erreur fetch ── */}
+      {fetchError && (
+        <div style={{
+          marginBottom: 20, padding: '12px 16px',
+          background: '#fef2f2', border: '1.5px solid #fecaca',
+          borderRadius: 10, fontSize: 13, color: '#dc2626', fontFamily: fonts.body,
+        }}>
+          <strong>Erreur de chargement :</strong> {fetchError}
+        </div>
+      )}
 
       {/* ── Stats ── */}
       <div className="ap-stat-grid">
@@ -373,7 +400,7 @@ export default function ApplicationsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(app => {
+                  {paginated.map(app => {
                     const [fg, bg] = avatarColor(app.student);
                     return (
                       <tr key={app.id} onClick={() => setSelectedApp(app)}>
@@ -384,7 +411,7 @@ export default function ApplicationsPage() {
                             </div>
                             <div>
                               <div style={{ fontWeight: 600, fontSize: 13.5, color: colors.textPrimary }}>{app.student}</div>
-                              <div style={{ fontSize: 12, color: colors.textMuted }}>{app.email}</div>
+                              {app.email && <div style={{ fontSize: 12, color: colors.textMuted }}>{app.email}</div>}
                             </div>
                           </div>
                         </td>
@@ -409,7 +436,7 @@ export default function ApplicationsPage() {
                           </div>
                         </td>
                         <td>
-                          <Badge variant={STATUS_BADGE[app.status]} dot>{app.status}</Badge>
+                          <Badge variant={STATUS_BADGE[app.rawStatus] ?? 'default'} dot>{RAW_STATUS_LABELS[app.rawStatus]}</Badge>
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
@@ -426,13 +453,14 @@ export default function ApplicationsPage() {
             )}
           </div>
 
-          {filtered.length > 0 && (
-            <div className="ap-footer">
-              <span style={{ fontSize: 13, color: colors.textMuted }}>
-                {filtered.length} résultat{filtered.length > 1 ? 's' : ''} sur {total}
-              </span>
-            </div>
-          )}
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={filtered.length}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+            label="candidatures"
+          />
         </div>
       )}
 

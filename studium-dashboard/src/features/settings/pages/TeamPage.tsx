@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../../shared/services/supabase';
 import { useRole } from '../../auth/hooks/useRole';
+import { PageHeader }  from '../../../shared/components/PageHeader';
+import { Pagination }  from '../../../shared/components/Pagination';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 
 interface TeamMember {
@@ -12,7 +14,7 @@ interface TeamMember {
 }
 
 /* ─── Config ─────────────────────────────────────────────────────────────── */
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 
 const ROLE_CFG: Record<string, { bg: string; color: string; label: string }> = {
   admin:      { bg: '#ede9fe', color: '#7c3aed',  label: 'Admin'      },
@@ -148,37 +150,6 @@ const CSS = `
   }
   .tp-filter-btn:hover:not(.tp-filter-btn--active) { border-color: ${colors.blue}; color: ${colors.blue}; }
 
-  /* Pagination */
-  .tp-pagination {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 20px;
-    border-top: 1px solid ${colors.border};
-    background: #fafbff;
-  }
-  .tp-page-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 6px 12px; border-radius: 8px;
-    font-size: 12px; font-weight: 600;
-    border: 1.5px solid ${colors.borderInput};
-    background: white; color: ${colors.textSecondary};
-    cursor: pointer; transition: all .15s;
-    font-family: ${fonts.body};
-  }
-  .tp-page-btn:disabled { opacity: .4; cursor: not-allowed; }
-  .tp-page-btn:hover:not(:disabled) { border-color: ${colors.blue}; color: ${colors.blue}; }
-  .tp-page-num {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 30px; height: 30px; border-radius: 7px;
-    font-size: 12.5px; font-weight: 600;
-    border: 1.5px solid ${colors.borderInput};
-    background: white; color: ${colors.textSecondary};
-    cursor: pointer; transition: all .15s;
-    font-family: ${fonts.body};
-  }
-  .tp-page-num--active {
-    background: ${colors.blue}; color: white; border-color: ${colors.blue};
-  }
-  .tp-page-num:hover:not(.tp-page-num--active) { border-color: ${colors.blue}; color: ${colors.blue}; }
 
   /* Invite form */
   .tp-form-card {
@@ -220,6 +191,11 @@ const CSS = `
   .tp-alert--error   { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
   .tp-alert button   { background: none; border: none; cursor: pointer; font-size: 15px; color: inherit; opacity: .6; }
   .tp-alert button:hover { opacity: 1; }
+
+  .tp-stat-grid .tp-stat:nth-child(1) { animation: ph-fade-up .35s .08s ease both; }
+  .tp-stat-grid .tp-stat:nth-child(2) { animation: ph-fade-up .35s .16s ease both; }
+  .tp-stat-grid .tp-stat:nth-child(3) { animation: ph-fade-up .35s .24s ease both; }
+  .tp-table-wrap { animation: ph-fade-up .35s .36s ease both; }
 `;
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
@@ -317,39 +293,27 @@ export default function TeamPage() {
     <>
       <style>{CSS}</style>
 
-      {/* ── Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: colors.navy, margin: 0, fontFamily: fonts.display }}>
-            Membres de l'équipe
-          </h2>
-          <p style={{ fontSize: 13.5, margin: '5px 0 0', color: colors.textMuted }}>
-            <span style={{ color: colors.success, fontWeight: 700 }}>{activeCount} actif{activeCount !== 1 ? 's' : ''}</span>
-            {inactiveCount > 0 && (
-              <span style={{ color: '#dc2626', marginLeft: 8, fontWeight: 600 }}>
-                · {inactiveCount} inactif{inactiveCount !== 1 ? 's' : ''}
-              </span>
-            )}
-          </p>
-        </div>
-        <button
-          onClick={() => { setShowForm(v => !v); setError(''); setSuccess(''); }}
-          style={{
-            background: `linear-gradient(135deg, ${colors.navy} 0%, #1e40af 100%)`,
-            color: '#fff', border: 'none', borderRadius: 10,
-            padding: '10px 20px', fontWeight: 700, fontSize: 14,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-            fontFamily: fonts.body,
-            boxShadow: '0 4px 12px rgba(11,24,82,0.25)',
-            transition: 'transform .15s, box-shadow .15s',
-          }}
-        >
-          <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Inviter un membre
-        </button>
-      </div>
+      <PageHeader
+        title="Membres de l'équipe"
+        subtitle={`${activeCount} actif${activeCount !== 1 ? 's' : ''}${inactiveCount > 0 ? ` · ${inactiveCount} inactif${inactiveCount !== 1 ? 's' : ''}` : ''}`}
+        actions={
+          <button
+            onClick={() => { setShowForm(v => !v); setError(''); setSuccess(''); }}
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              color: '#fff', border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: 10,
+              padding: '10px 20px', fontWeight: 700, fontSize: 14,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+              fontFamily: fonts.body, transition: 'background .15s',
+            }}
+          >
+            <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Inviter un membre
+          </button>
+        }
+      />
 
       {/* ── Stats ── */}
       <div className="tp-stat-grid">
@@ -601,45 +565,14 @@ export default function TeamPage() {
           </tbody>
         </table>
 
-        {/* ── Pagination ── */}
-        {totalPages > 1 && (
-          <div className="tp-pagination">
-            <span style={{ fontSize: 13, color: colors.textMuted }}>
-              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredMembers.length)} sur {filteredMembers.length} membres
-            </span>
-            <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-              <button
-                className="tp-page-btn"
-                disabled={page === 1}
-                onClick={() => setPage(p => p - 1)}
-              >
-                <svg width={12} height={12} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <polyline points="15 18 9 12 15 6"/>
-                </svg>
-                Précédent
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button
-                  key={p}
-                  className={`tp-page-num${p === page ? ' tp-page-num--active' : ''}`}
-                  onClick={() => setPage(p)}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                className="tp-page-btn"
-                disabled={page === totalPages}
-                onClick={() => setPage(p => p + 1)}
-              >
-                Suivant
-                <svg width={12} height={12} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={filteredMembers.length}
+          pageSize={PAGE_SIZE}
+          onChange={setPage}
+          label="membres"
+        />
       </div>
     </>
   );

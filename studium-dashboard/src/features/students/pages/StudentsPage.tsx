@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase }       from '../../../shared/services/supabase';
 import { Button }         from '../../../shared/components/Button';
 import { PageHeader }     from '../../../shared/components/PageHeader';
+import { Pagination }     from '../../../shared/components/Pagination';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 
@@ -213,7 +214,15 @@ const CSS = `
   .sp-empty { display:flex; flex-direction:column; align-items:center;
     justify-content:center; min-height:280px; gap:10px;
     color:${colors.textMuted}; font-size:14px; text-align:center; }
+
+  .sp-grid .sp-stat:nth-child(1) { animation: ph-fade-up .35s .08s ease both; }
+  .sp-grid .sp-stat:nth-child(2) { animation: ph-fade-up .35s .16s ease both; }
+  .sp-grid .sp-stat:nth-child(3) { animation: ph-fade-up .35s .24s ease both; }
+  .sp-grid .sp-stat:nth-child(4) { animation: ph-fade-up .35s .32s ease both; }
+  .sp-layout { animation: ph-fade-up .35s .42s ease both; }
 `;
+
+const STUDENT_PAGE_SIZE = 10;
 
 /* ─── Composant ───────────────────────────────────────────────────────────── */
 export default function StudentsPage() {
@@ -227,6 +236,7 @@ export default function StudentsPage() {
   const [rejectTarget,  setRejectTarget]  = useState<{ id: string; fileName: string } | null>(null);
   const [rejectReason,  setRejectReason]  = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [studentPage,   setStudentPage]   = useState(1);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
 
   /* Charger étudiants */
@@ -286,6 +296,11 @@ export default function StudentsPage() {
     if (tab === 'pending')  list = list.filter(s => s.completeness_score < 80);
     return list;
   }, [students, search, tab]);
+
+  useEffect(() => setStudentPage(1), [search, tab]);
+
+  const studentTotalPages = Math.max(1, Math.ceil(filtered.length / STUDENT_PAGE_SIZE));
+  const paginatedStudents = filtered.slice((studentPage - 1) * STUDENT_PAGE_SIZE, studentPage * STUDENT_PAGE_SIZE);
 
   const avgScore = students.length
     ? Math.round(students.reduce((a, s) => a + s.completeness_score, 0) / students.length)
@@ -429,8 +444,9 @@ export default function StudentsPage() {
               <span>Aucun étudiant trouvé</span>
             </div>
           ) : (
-            <div style={{ overflowY: 'auto', maxHeight: 520 }}>
-              {filtered.map(student => {
+            <>
+              <div>
+                {paginatedStudents.map(student => {
                 const [fg, bg] = avatarColor(fullName(student));
                 const active = selected?.id === student.id;
                 return (
@@ -465,8 +481,17 @@ export default function StudentsPage() {
                     </div>
                   </div>
                 );
-              })}
-            </div>
+                })}
+              </div>
+              <Pagination
+                page={studentPage}
+                totalPages={studentTotalPages}
+                total={filtered.length}
+                pageSize={STUDENT_PAGE_SIZE}
+                onChange={setStudentPage}
+                label="étudiants"
+              />
+            </>
           )}
         </div>
 

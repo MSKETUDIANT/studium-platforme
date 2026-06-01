@@ -1,14 +1,17 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../domain/entities/program.dart';
+import '../providers/program_providers.dart';
 
 const _kBg     = Color(0xFFF4F6FB);
 const _kText   = Color(0xFF1A1D2E);
 const _kGrey   = Color(0xFF9CA3AF);
 const _kBorder = Color(0xFFE5E7EB);
 
-class ProgramDetailPage extends StatelessWidget {
+class ProgramDetailPage extends ConsumerWidget {
   final Program program;
   const ProgramDetailPage({super.key, required this.program});
 
@@ -27,8 +30,10 @@ class ProgramDetailPage extends StatelessWidget {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bottomPad = MediaQuery.of(context).padding.bottom + 72;
+    final favIds = ref.watch(favoriteProgramIdsProvider).valueOrNull ?? {};
+    final isFav  = favIds.contains(program.id);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -45,6 +50,17 @@ class ProgramDetailPage extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    isFav ? Icons.favorite_rounded : Icons.favorite_border,
+                    color: isFav ? const Color(0xFFFF6B6B) : Colors.white,
+                  ),
+                  onPressed: () => ref
+                      .read(favoriteProgramIdsProvider.notifier)
+                      .toggle(program.id),
+                ),
+              ],
               systemOverlayStyle: SystemUiOverlayStyle.light,
               flexibleSpace: FlexibleSpaceBar(
                 collapseMode: CollapseMode.pin,
@@ -128,7 +144,8 @@ class ProgramDetailPage extends StatelessWidget {
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   // Quick-stats row
-                  _QuickStats(program: program, accent: _accentColor),
+                  _QuickStats(program: program, accent: _accentColor)
+                      .animate().fadeIn(delay: 80.ms).slideY(begin: .04),
                   const SizedBox(height: 16),
 
                   // Informations générales
@@ -170,7 +187,7 @@ class ProgramDetailPage extends StatelessWidget {
                         ),
                       ],
                     ),
-                  ),
+                  ).animate().fadeIn(delay: 140.ms).slideY(begin: .04),
 
                   // Description
                   if (program.description != null &&
@@ -192,7 +209,7 @@ class ProgramDetailPage extends StatelessWidget {
                           ),
                         ],
                       ),
-                    ),
+                    ).animate().fadeIn(delay: 200.ms).slideY(begin: .04),
                   ],
 
                   // Documents requis
@@ -238,7 +255,7 @@ class ProgramDetailPage extends StatelessWidget {
                           ),
                         ],
                       ),
-                    ),
+                    ).animate().fadeIn(delay: 260.ms).slideY(begin: .04),
                   ],
 
                   // Contact
@@ -284,7 +301,7 @@ class ProgramDetailPage extends StatelessWidget {
                           ),
                         ],
                       ),
-                    ),
+                    ).animate().fadeIn(delay: 300.ms).slideY(begin: .04),
                   ],
 
                   const SizedBox(height: 24),
@@ -331,7 +348,7 @@ class ProgramDetailPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ),
+                  ).animate().fadeIn(delay: 340.ms).slideY(begin: .04),
                 ]),
               ),
             ),

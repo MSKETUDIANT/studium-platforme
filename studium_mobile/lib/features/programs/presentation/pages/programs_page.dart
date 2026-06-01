@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/program.dart';
 import '../providers/program_providers.dart';
 import 'program_detail_page.dart';
+import 'favorites_page.dart';
 
 // ─── Constantes design ─────────────────────────────────────────────────────
 
@@ -157,10 +159,12 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
   Widget build(BuildContext context) {
     final programsAsync = ref.watch(programsProvider);
 
-    return Scaffold(
-      backgroundColor: _kBg,
-      body: SafeArea(
-        child: programsAsync.when(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: _kBg,
+        body: SafeArea(
+          child: programsAsync.when(
           loading: () =>
               const Center(child: CircularProgressIndicator(color: _kBlue)),
           error: (e, _) => Center(
@@ -211,7 +215,8 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
           },
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildHeader(List<Program> programs) {
@@ -307,6 +312,39 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
                       label: '$languages langue${languages > 1 ? 's' : ''}',
                     ),
                   ],
+                ),
+                const SizedBox(height: 14),
+                // Bouton Mes Favoris
+                GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FavoritesPage()),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.favorite_rounded, size: 14, color: Color(0xFFFF6B6B)),
+                        SizedBox(width: 7),
+                        Text(
+                          'Mes Favoris',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(width: 5),
+                        Icon(Icons.arrow_forward_ios, size: 11, color: Colors.white70),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -693,7 +731,7 @@ class _DropBtn extends StatelessWidget {
 
 // ─── Programme Card ──────────────────────────────────────────────────────────
 
-class _ProgramCard extends StatelessWidget {
+class _ProgramCard extends ConsumerWidget {
   final Program program;
   final VoidCallback onTap;
   const _ProgramCard({required this.program, required this.onTap});
@@ -722,8 +760,10 @@ class _ProgramCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final deadlineText = _deadlineLabel();
+    final favIds = ref.watch(favoriteProgramIdsProvider).valueOrNull ?? {};
+    final isFav  = favIds.contains(program.id);
 
     return GestureDetector(
       onTap: onTap,
@@ -801,15 +841,23 @@ class _ProgramCard extends StatelessWidget {
                     ),
                     // Favori
                     Positioned(
-                      top: 12, right: 12,
-                      child: Container(
-                        width: 34, height: 34,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
+                      top: 8, right: 8,
+                      child: GestureDetector(
+                        onTap: () => ref
+                            .read(favoriteProgramIdsProvider.notifier)
+                            .toggle(program.id),
+                        child: Container(
+                          width: 34, height: 34,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.20),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFav ? Icons.favorite_rounded : Icons.favorite_border,
+                            size: 17,
+                            color: isFav ? const Color(0xFFFF6B6B) : Colors.white,
+                          ),
                         ),
-                        child: const Icon(Icons.favorite_border,
-                            size: 17, color: Colors.white),
                       ),
                     ),
                     // Bas : badge niveau + deadline

@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,10 +23,12 @@ class DashboardPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(profileNotifierProvider);
 
-    return Scaffold(
-      backgroundColor: _kBg,
-      body: SafeArea(
-        top: false,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: _kBg,
+        body: SafeArea(
+          top: false,
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 320),
           switchInCurve: Curves.easeOut,
@@ -88,7 +91,8 @@ class DashboardPage extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   List<Widget> _buildSpaces(BuildContext context, int docCount) => [

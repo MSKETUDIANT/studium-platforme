@@ -1,8 +1,9 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:country_picker/country_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
@@ -680,6 +681,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
       flexibleSpace: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(

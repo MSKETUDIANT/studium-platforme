@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/academic_background.dart';
@@ -70,7 +72,7 @@ class _AddAcademicPageState extends ConsumerState<AddAcademicPage> {
       firstDate: DateTime(1970),
       lastDate: DateTime(now.year + 5),
       initialDatePickerMode: DatePickerMode.year,
-      helpText: 'Sélectionner l’année',
+      helpText: "Sélectionner l'année",
       cancelText: 'Annuler',
       confirmText: 'Confirmer',
     );
@@ -118,166 +120,216 @@ class _AddAcademicPageState extends ConsumerState<AddAcademicPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6FB),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A1D2E)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          _isEdit ? 'Modifier la formation' : 'Ajouter une formation',
-          style: const TextStyle(
-            color: Color(0xFF1A1D2E),
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _SectionHeader('Diplôme'),
-                const SizedBox(height: 12),
-                _FormCard(
-                  children: [
-                    _StyledField(
-                      controller: _degreeCtrl,
-                      label: 'Intitulé du diplôme',
-                      hint: 'Ex : Licence Informatique / Bac scientifique',
-                      icon: Icons.school_outlined,
-                      required: true,
-                    ),
-                    const SizedBox(height: 12),
-                    _StyledField(
-                      controller: _universityCtrl,
-                      label: 'Établissement',
-                      hint: 'Ex : Université de Tunis El Manar',
-                      icon: Icons.account_balance_outlined,
-                      required: true,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                const _SectionHeader('Résultats'),
-                const SizedBox(height: 12),
-                _FormCard(
-                  children: [
-                    Row(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F6FB),
+        body: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: SafeArea(
+                top: false,
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _YearPickerField(
-                            year: _year,
-                            onPick: _pickYear,
-                            onClear: () => setState(() => _year = null),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _StyledField(
-                            controller: _averageCtrl,
-                            label: 'Moyenne',
-                            hint: 'Sur 20',
-                            icon: Icons.grade_outlined,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
+                        const _SectionHeader('Diplôme')
+                            .animate().fadeIn(delay: 60.ms).slideY(begin: .04),
+                        const SizedBox(height: 12),
+                        _FormCard(
+                          children: [
+                            _StyledField(
+                              controller: _degreeCtrl,
+                              label: 'Intitulé du diplôme',
+                              hint: 'Ex : Licence Informatique / Bac scientifique',
+                              icon: Icons.school_outlined,
+                              required: true,
                             ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return null;
-                              }
-
-                              final parsed = double.tryParse(
-                                value.trim().replaceAll(',', '.'),
-                              );
-
-                              if (parsed == null) return 'Valeur invalide';
-                              if (parsed < 0 || parsed > 20) {
-                                return 'Entre 0 et 20';
-                              }
-
-                              return null;
-                            },
+                            const SizedBox(height: 12),
+                            _StyledField(
+                              controller: _universityCtrl,
+                              label: 'Établissement',
+                              hint: 'Ex : Université de Tunis El Manar',
+                              icon: Icons.account_balance_outlined,
+                              required: true,
+                            ),
+                          ],
+                        ).animate().fadeIn(delay: 100.ms).slideY(begin: .04),
+                        const SizedBox(height: 24),
+                        const _SectionHeader('Résultats')
+                            .animate().fadeIn(delay: 140.ms).slideY(begin: .04),
+                        const SizedBox(height: 12),
+                        _FormCard(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _YearPickerField(
+                                    year: _year,
+                                    onPick: _pickYear,
+                                    onClear: () => setState(() => _year = null),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _StyledField(
+                                    controller: _averageCtrl,
+                                    label: 'Moyenne',
+                                    hint: 'Sur 20',
+                                    icon: Icons.grade_outlined,
+                                    keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                    validator: (value) {
+                                      if (value == null || value.trim().isEmpty) return null;
+                                      final parsed = double.tryParse(value.trim().replaceAll(',', '.'));
+                                      if (parsed == null) return 'Valeur invalide';
+                                      if (parsed < 0 || parsed > 20) return 'Entre 0 et 20';
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ).animate().fadeIn(delay: 180.ms).slideY(begin: .04),
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: (_loading || !_canSave) ? null : _save,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4880FF),
+                              disabledBackgroundColor:
+                                  const Color(0xFF4880FF).withValues(alpha: 0.4),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: _loading
+                                ? const SizedBox(
+                                    width: 20, height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(_isEdit ? Icons.check : Icons.add, size: 18),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _isEdit ? 'Modifier la formation' : 'Ajouter la formation',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700, fontSize: 15),
+                                      ),
+                                    ],
+                                  ),
                           ),
-                        ),
+                        ).animate().fadeIn(delay: 220.ms).slideY(begin: .04),
+                        if (!_canSave) ...[
+                          const SizedBox(height: 8),
+                          const Center(
+                            child: Text(
+                              "Renseignez le diplôme et l'établissement pour continuer",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (_loading || !_canSave) ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4880FF),
-                      disabledBackgroundColor:
-                          const Color(0xFF4880FF).withValues(alpha: 0.4),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: _loading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                _isEdit ? Icons.check : Icons.add,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _isEdit
-                                    ? 'Modifier la formation'
-                                    : 'Ajouter la formation',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ],
-                          ),
                   ),
                 ),
-                if (!_canSave) ...[
-                  const SizedBox(height: 8),
-                  const Center(
-                    child: Text(
-                      'Renseignez le diplôme et l’établissement pour continuer',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF9CA3AF),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
+
+  Widget _buildHeader() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0D1F42), Color(0xFF1565C0), Color(0xFF1E5298)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned(right: -20, top: -20,
+                child: _DecorCircle(size: 100, opacity: 0.07)),
+            Positioned(right: 40, bottom: -10,
+                child: _DecorCircle(size: 60, opacity: 0.05)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 16, 18),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 4),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isEdit ? 'Formation académique' : 'Nouvelle formation',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      Text(
+                        _isEdit ? 'Modifier la formation' : 'Ajouter une formation',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ).animate().fadeIn(duration: 350.ms).slideY(begin: -0.05),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DecorCircle extends StatelessWidget {
+  final double size;
+  final double opacity;
+  const _DecorCircle({required this.size, required this.opacity});
+
+  @override
+  Widget build(BuildContext context) => Opacity(
+        opacity: opacity,
+        child: Container(
+          width: size, height: size,
+          decoration: const BoxDecoration(
+            color: Colors.white, shape: BoxShape.circle,
+          ),
+        ),
+      );
 }
 
 class _SectionHeader extends StatelessWidget {

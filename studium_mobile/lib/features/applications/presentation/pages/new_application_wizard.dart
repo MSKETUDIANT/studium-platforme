@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemUiOverlayStyle;
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -31,7 +32,9 @@ class _NewApplicationWizardState
   Program? _selectedProgram;
   int _currentStep         = 0;
   bool _submitting         = false;
+  bool _savingDraft        = false;
   String? _programSearchQ;
+  final Set<String> _selectedDocIds = {};
 
   static const _steps = ['Programme', 'Dossier', 'Récapitulatif'];
 
@@ -71,6 +74,39 @@ class _NewApplicationWizardState
           curve: Curves.easeInOut);
     } else {
       context.pop();
+    }
+  }
+
+  Future<void> _saveDraft() async {
+    if (_selectedProgram == null) return;
+    setState(() => _savingDraft = true);
+    try {
+      await ref.read(myApplicationsProvider.notifier).saveDraft(
+            programId: _selectedProgram!.id,
+          );
+      if (mounted) {
+        context.pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(children: [
+              Icon(Icons.bookmark_outlined, color: Colors.white, size: 18),
+              SizedBox(width: 10),
+              Text('Brouillon enregistré'),
+            ]),
+            backgroundColor: const Color(0xFF6366F1),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _savingDraft = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -131,7 +167,7 @@ class _NewApplicationWizardState
                 fontWeight: FontWeight.w700)),
         centerTitle: true,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
+          preferredSize: const Size.fromHeight(68),
           child: _StepIndicator(
               current: _currentStep, labels: _steps),
         ),
@@ -148,10 +184,20 @@ class _NewApplicationWizardState
             onSelect: (p) =>
                 setState(() => _selectedProgram = p),
           ),
-          _StepDocuments(),
+          _StepDocuments(
+            selected: _selectedDocIds,
+            onToggle: (id) => setState(() {
+              if (_selectedDocIds.contains(id)) {
+                _selectedDocIds.remove(id);
+              } else {
+                _selectedDocIds.add(id);
+              }
+            }),
+          ),
           _StepRecap(
             program:        _selectedProgram,
             motivationCtrl: _motivationCtrl,
+            selectedDocIds: _selectedDocIds,
           ),
         ],
       ),
@@ -163,13 +209,14 @@ class _NewApplicationWizardState
 
   Widget _buildBottomBar() {
     final isLast = _currentStep == _steps.length - 1;
+    final busy   = _submitting || _savingDraft;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
         child: Row(children: [
           if (_currentStep > 0) ...[
             OutlinedButton(
-              onPressed: _back,
+              onPressed: busy ? null : _back,
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 20, vertical: 14),
@@ -182,15 +229,46 @@ class _NewApplicationWizardState
             ),
             const SizedBox(width: 12),
           ],
-          Expanded(
-            child: _GradientButton(
-              onTap: isLast ? (_submitting ? null : _submit) : _next,
-              label: isLast
-                  ? (_submitting ? 'Envoi en cours…' : 'Soumettre')
-                  : 'Suivant',
-              loading: _submitting,
+          // Sur le dernier step : bouton Brouillon + bouton Soumettre
+          if (isLast) ...[
+            OutlinedButton(
+              onPressed: busy ? null : _saveDraft,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 14),
+                side: const BorderSide(color: _kBorder),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _savingDraft
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: _kNavy))
+                  : const Row(children: [
+                      Icon(Icons.bookmark_outline,
+                          size: 16, color: _kNavy),
+                      SizedBox(width: 6),
+                      Text('Brouillon',
+                          style: TextStyle(color: _kNavy)),
+                    ]),
             ),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _GradientButton(
+                onTap: busy ? null : _submit,
+                label: _submitting ? 'Envoi en cours…' : 'Soumettre',
+                loading: _submitting,
+              ),
+            ),
+          ] else
+            Expanded(
+              child: _GradientButton(
+                onTap: busy ? null : _next,
+                label: 'Suivant',
+                loading: false,
+              ),
+            ),
         ]),
       ),
     );
@@ -204,69 +282,133 @@ class _StepIndicator extends StatelessWidget {
   final List<String> labels;
   const _StepIndicator({required this.current, required this.labels});
 
+  static const _gradientActive = LinearGradient(
+    colors: [Color(0xFF4880FF), Color(0xFF2563EB)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  static const _gradientDone = LinearGradient(
+    colors: [Color(0xFF10B981), Color(0xFF059669)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
-      child: Row(
-        children: List.generate(labels.length, (i) {
-          final done   = i < current;
-          final active = i == current;
-          final color  = done || active ? _kBlue : _kGrey;
-          return Expanded(
-            child: Row(children: [
-              if (i > 0) ...[
-                Expanded(
-                  child: Container(
-                    height: 2,
-                    color: done ? _kBlue : _kBorder,
-                  ),
-                ),
-                const SizedBox(width: 6),
-              ],
-              Column(children: [
-                Container(
-                  width: 28, height: 28,
-                  decoration: BoxDecoration(
-                    color: done || active
-                        ? _kBlue
-                        : Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: color, width: 2),
-                  ),
-                  child: done
-                      ? const Icon(Icons.check,
-                          color: Colors.white, size: 14)
-                      : Center(
-                          child: Text(
-                            '${i + 1}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: active
-                                  ? Colors.white
-                                  : _kGrey,
-                            ),
-                          ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
+          child: Row(
+            children: List.generate(labels.length, (i) {
+              final done   = i < current;
+              final active = i == current;
+              return Expanded(
+                child: Row(children: [
+                  if (i > 0) ...[
+                    Expanded(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 350),
+                        height: 2,
+                        decoration: BoxDecoration(
+                          gradient: done ? _gradientDone : null,
+                          color: done ? null : Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(1),
                         ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  labels[i],
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: active
-                        ? FontWeight.w700
-                        : FontWeight.w500,
-                    color: color,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 350),
+                        width: 30, height: 30,
+                        decoration: BoxDecoration(
+                          gradient: done
+                              ? _gradientDone
+                              : active
+                                  ? _gradientActive
+                                  : null,
+                          color: (done || active) ? null : Colors.transparent,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: (done || active)
+                                ? Colors.transparent
+                                : Colors.white.withValues(alpha: 0.30),
+                            width: 2,
+                          ),
+                          boxShadow: active
+                              ? [BoxShadow(
+                                  color: const Color(0xFF4880FF).withValues(alpha: 0.55),
+                                  blurRadius: 12,
+                                  spreadRadius: 0,
+                                  offset: const Offset(0, 2),
+                                )]
+                              : null,
+                        ),
+                        child: done
+                            ? const Icon(Icons.check, color: Colors.white, size: 15)
+                            : Center(
+                                child: Text(
+                                  '${i + 1}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: active
+                                        ? Colors.white
+                                        : Colors.white.withValues(alpha: 0.38),
+                                  ),
+                                ),
+                              ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        labels[i],
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                          color: done
+                              ? const Color(0xFF10B981)
+                              : active
+                                  ? Colors.white
+                                  : Colors.white.withValues(alpha: 0.38),
+                          letterSpacing: active ? 0.3 : 0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ]),
+              );
+            }),
+          ),
+        ),
+        // Barre de progression
+        Stack(
+          children: [
+            Container(
+              height: 2,
+              color: Colors.white.withValues(alpha: 0.10),
+            ),
+            AnimatedFractionallySizedBox(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+              widthFactor: (current + 1) / labels.length,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                height: 2,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF4880FF), Color(0xFF60A5FA)],
                   ),
                 ),
-              ]),
-              if (i < labels.length - 1) const SizedBox(width: 6),
-            ]),
-          );
-        }),
-      ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -368,7 +510,8 @@ class _StepProgram extends ConsumerWidget {
               style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: _kGrey)),
+                  color: _kGrey))
+              .animate().fadeIn(delay: 60.ms),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(16),
@@ -495,7 +638,9 @@ class _ProgramTile extends StatelessWidget {
 // ─── Step 2: Dossier documents ────────────────────────────────────────────────
 
 class _StepDocuments extends ConsumerWidget {
-  const _StepDocuments();
+  final Set<String> selected;
+  final ValueChanged<String> onToggle;
+  const _StepDocuments({required this.selected, required this.onToggle});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -518,10 +663,10 @@ class _StepDocuments extends ConsumerWidget {
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: _kNavy),
-              ),
+              ).animate().fadeIn(delay: 60.ms).slideY(begin: .04),
               const SizedBox(height: 6),
               const Text(
-                'Tous vos documents uploadés seront inclus dans votre candidature.',
+                'Sélectionnez les documents à joindre à votre candidature.',
                 style: TextStyle(
                     fontSize: 13, color: _kGrey, height: 1.5),
               ),
@@ -549,8 +694,35 @@ class _StepDocuments extends ConsumerWidget {
                     ),
                   ]),
                 )
-              else
-                ...docs.map((d) => _DocumentRow(doc: d)),
+              else ...[
+                ...docs.map((d) => _DocumentRow(
+                      doc: d,
+                      isSelected: selected.contains(d.id),
+                      onToggle: onToggle,
+                    )),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _kBlue.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _kBlue.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.info_outline, color: _kBlue, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${selected.length} document(s) sélectionné(s)',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            color: _kBlue,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ]),
+                ),
+              ],
             ],
           ),
         );
@@ -561,7 +733,13 @@ class _StepDocuments extends ConsumerWidget {
 
 class _DocumentRow extends StatelessWidget {
   final Document doc;
-  const _DocumentRow({required this.doc});
+  final bool isSelected;
+  final ValueChanged<String> onToggle;
+  const _DocumentRow({
+    required this.doc,
+    required this.isSelected,
+    required this.onToggle,
+  });
 
   IconData get _icon => switch (doc.type) {
     DocumentType.cv             => Icons.description_outlined,
@@ -580,50 +758,65 @@ class _DocumentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _kBorder),
+    return GestureDetector(
+      onTap: () => onToggle(doc.id),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? _kBlue.withValues(alpha: 0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? _kBlue : _kBorder,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(children: [
+          Icon(_icon, color: isSelected ? _kBlue : _kGrey, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(doc.typeLabel,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? _kNavy : _kNavy)),
+                Text(doc.fileName,
+                    style: const TextStyle(
+                        fontSize: 11, color: _kGrey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: _statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              doc.statusLabel,
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: _statusColor),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Checkbox(
+            value: isSelected,
+            onChanged: (_) => onToggle(doc.id),
+            activeColor: _kBlue,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4)),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ]),
       ),
-      child: Row(children: [
-        Icon(_icon, color: _kBlue, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(doc.typeLabel,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _kNavy)),
-              Text(doc.fileName,
-                  style: const TextStyle(
-                      fontSize: 11, color: _kGrey),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: _statusColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            doc.statusLabel,
-            style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: _statusColor),
-          ),
-        ),
-      ]),
     );
   }
 }
@@ -633,8 +826,12 @@ class _DocumentRow extends StatelessWidget {
 class _StepRecap extends StatelessWidget {
   final Program? program;
   final TextEditingController motivationCtrl;
-  const _StepRecap(
-      {required this.program, required this.motivationCtrl});
+  final Set<String> selectedDocIds;
+  const _StepRecap({
+    required this.program,
+    required this.motivationCtrl,
+    required this.selectedDocIds,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -647,7 +844,8 @@ class _StepRecap extends StatelessWidget {
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: _kNavy)),
+                  color: _kNavy))
+              .animate().fadeIn(delay: 60.ms).slideY(begin: .04),
           const SizedBox(height: 20),
 
           // Programme recap
@@ -683,6 +881,16 @@ class _StepRecap extends StatelessWidget {
             ),
             const SizedBox(height: 20),
           ],
+
+          // Checklist de complétude (US-5.4)
+          _SectionLabel('Checklist de complétude'),
+          _ChecklistCard(
+            program: program,
+            docCount: selectedDocIds.length,
+            hasMotivation: motivationCtrl.text.trim().isNotEmpty,
+            motivationCtrl: motivationCtrl,
+          ),
+          const SizedBox(height: 20),
 
           // Motivation optionnelle
           _SectionLabel('Message de motivation (optionnel)'),
@@ -746,6 +954,147 @@ class _StepRecap extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ChecklistCard extends StatefulWidget {
+  final Program? program;
+  final int docCount;
+  final bool hasMotivation;
+  final TextEditingController motivationCtrl;
+  const _ChecklistCard({
+    required this.program,
+    required this.docCount,
+    required this.hasMotivation,
+    required this.motivationCtrl,
+  });
+
+  @override
+  State<_ChecklistCard> createState() => _ChecklistCardState();
+}
+
+class _ChecklistCardState extends State<_ChecklistCard> {
+  @override
+  void initState() {
+    super.initState();
+    widget.motivationCtrl.addListener(_onMotivationChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.motivationCtrl.removeListener(_onMotivationChanged);
+    super.dispose();
+  }
+
+  void _onMotivationChanged() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasMotivation =
+        widget.motivationCtrl.text.trim().isNotEmpty;
+    final items = [
+      _CheckItem(
+        label: 'Programme sélectionné',
+        done: widget.program != null,
+        detail: widget.program?.programName,
+      ),
+      _CheckItem(
+        label: 'Documents joints',
+        done: widget.docCount > 0,
+        detail: widget.docCount > 0
+            ? '${widget.docCount} document(s) sélectionné(s)'
+            : 'Aucun document sélectionné',
+        optional: false,
+      ),
+      _CheckItem(
+        label: 'Message de motivation',
+        done: hasMotivation,
+        detail: hasMotivation ? 'Rédigé' : 'Non renseigné',
+        optional: true,
+      ),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(
+        children: items.map((item) {
+          final icon = item.done
+              ? Icons.check_circle_rounded
+              : item.optional
+                  ? Icons.radio_button_unchecked
+                  : Icons.cancel_rounded;
+          final iconColor = item.done
+              ? const Color(0xFF10B981)
+              : item.optional
+                  ? _kGrey
+                  : const Color(0xFFF59E0B);
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, size: 18, color: iconColor),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: item.done ? _kNavy : _kGrey,
+                          ),
+                        ),
+                        if (item.optional) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: _kGrey.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('optionnel',
+                                style: TextStyle(
+                                    fontSize: 9,
+                                    color: _kGrey,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ]),
+                      if (item.detail != null)
+                        Text(item.detail!,
+                            style: const TextStyle(
+                                fontSize: 11, color: _kGrey)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _CheckItem {
+  final String label;
+  final bool done;
+  final String? detail;
+  final bool optional;
+  const _CheckItem({
+    required this.label,
+    required this.done,
+    this.detail,
+    this.optional = false,
+  });
 }
 
 class _SectionLabel extends StatelessWidget {
