@@ -16,6 +16,7 @@ export const TEMPLATE_VARIABLES = [
   { key: '{{university_name}}', label: 'Université' },
   { key: '{{country}}',         label: 'Pays' },
   { key: '{{submitted_at}}',    label: 'Date soumission' },
+  { key: '{{documents_list}}',  label: 'Liste documents' },
 ];
 
 export const SCOPE_LABELS: Record<string, string> = {
