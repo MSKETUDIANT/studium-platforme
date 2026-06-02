@@ -51,6 +51,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   const [sending,        setSending]        = useState(false);
   const [sendError,      setSendError]      = useState<string | null>(null);
   const [sendSuccess,    setSendSuccess]    = useState(false);
+  const [saveError,      setSaveError]      = useState<string | null>(null);
 
   useEffect(() => {
     setStatus(app.rawStatus);
@@ -59,6 +60,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
     setSaved(false);
     setSendError(null);
     setSendSuccess(false);
+    setSaveError(null);
     setArchiveConfirm(false);
     setSendToEmail(app.contactEmail ?? '');
     fetchStatusHistory(app.id).then(setHistory).catch(() => setHistory([]));
@@ -67,6 +69,14 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
 
   async function handleSendEmail() {
     if (!sendToEmail.trim()) return;
+    if (app.rawStatus !== 'verified' && app.rawStatus !== 'sent') {
+      setSendError('Le dossier doit être au statut "Vérifiée" avant l\'envoi. Sauvegardez d\'abord.');
+      return;
+    }
+    if (app.score < 70) {
+      setSendError(`Score insuffisant (${app.score}% — minimum 70%). Demandez une correction à l'étudiant.`);
+      return;
+    }
     setSending(true);
     setSendError(null);
     setSendSuccess(false);
@@ -84,6 +94,11 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   }
 
   async function handleSave() {
+    if (status === 'verified' && app.score < 70) {
+      setSaveError(`Impossible de valider : score ${app.score}% insuffisant (minimum 70%). Demandez une correction.`);
+      return;
+    }
+    setSaveError(null);
     setSaving(true);
     try {
       const ops: Promise<void>[] = [];
@@ -134,6 +149,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   }
 
   const sc = STATUS_COLORS[status];
+  const canVerify = app.score >= 70;
   const isDirty = status !== app.rawStatus || notes !== (app.notes ?? '') || (status === 'needsfix' && correctionMsg.trim() !== '');
 
   return (
@@ -259,13 +275,24 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
 
           {/* Actions rapides */}
           {app.rawStatus === 'submitted' && status !== 'verified' && (
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {!canVerify && (
+                <div style={{ fontSize: 12.5, color: colors.danger, padding: '7px 12px', background: '#fef2f2', borderRadius: 7 }}>
+                  Validation impossible : score {app.score}% insuffisant (minimum 70%). Demandez une correction à l'étudiant.
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
               <button
-                onClick={() => setStatus('verified')}
+                onClick={() => canVerify && setStatus('verified')}
+                disabled={!canVerify}
                 style={{
                   flex: 1, padding: '10px 16px', borderRadius: 10, border: 'none',
-                  background: `linear-gradient(135deg, ${colors.success} 0%, #15803d 100%)`,
-                  color: 'white', fontWeight: 700, fontSize: 13.5, cursor: 'pointer',
+                  background: canVerify
+                    ? `linear-gradient(135deg, ${colors.success} 0%, #15803d 100%)`
+                    : colors.border,
+                  color: canVerify ? 'white' : colors.textMuted,
+                  fontWeight: 700, fontSize: 13.5,
+                  cursor: canVerify ? 'pointer' : 'not-allowed',
                   fontFamily: fonts.body, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
                 }}
               >
@@ -284,6 +311,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                 <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Demander correction
               </button>
+              </div>
             </div>
           )}
 
@@ -293,17 +321,22 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
               {AVAILABLE_STATUSES.map(s => {
                 const c = STATUS_COLORS[s];
                 const active = s === status;
+                const blocked = s === 'verified' && !canVerify;
                 return (
                   <button
                     key={s}
-                    onClick={() => setStatus(s)}
+                    onClick={() => !blocked && setStatus(s)}
+                    disabled={blocked}
+                    title={blocked ? `Score ${app.score}% insuffisant — minimum 70% requis` : undefined}
                     style={{
                       padding: '6px 14px', borderRadius: 20, fontSize: 12.5,
-                      fontWeight: 700, cursor: 'pointer', fontFamily: fonts.body,
+                      fontWeight: 700, fontFamily: fonts.body,
                       border: `2px solid ${active ? c.color : 'transparent'}`,
                       background: active ? c.bg : colors.inputBg,
                       color: active ? c.color : colors.textSecondary,
                       transition: 'all .15s',
+                      cursor: blocked ? 'not-allowed' : 'pointer',
+                      opacity: blocked ? 0.4 : 1,
                     }}
                   >
                     {RAW_STATUS_LABELS[s]}
@@ -562,7 +595,13 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                   Archiver
                 </button>
               </div>
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                {saveError && (
+                  <div style={{ fontSize: 12.5, color: colors.danger, padding: '6px 12px', background: '#fef2f2', borderRadius: 7, maxWidth: 340, textAlign: 'right' }}>
+                    {saveError}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={onClose} style={{
                   padding: '9px 20px', borderRadius: radius.md,
                   border: `1.5px solid ${colors.borderInput}`,
@@ -598,6 +637,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                   {saved ? 'Enregistré' : saving ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
               </div>
+            </div>
             </div>
           )}
         </div>

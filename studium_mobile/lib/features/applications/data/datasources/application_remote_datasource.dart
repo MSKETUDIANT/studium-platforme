@@ -53,6 +53,18 @@ class ApplicationRemoteDatasource {
     required String programId,
     bool draft = false,
   }) async {
+    final existing = await _client
+        .from(_kTable)
+        .select('id, status')
+        .eq('student_profile_id', studentProfileId)
+        .eq('program_id', programId)
+        .not('status', 'in', '(archived,rejected)')
+        .maybeSingle();
+
+    if (existing != null) {
+      throw Exception('Une candidature est déjà en cours pour ce programme.');
+    }
+
     final data = await _client
         .from(_kTable)
         .insert({
