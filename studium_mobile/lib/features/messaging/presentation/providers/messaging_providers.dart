@@ -10,6 +10,20 @@ final messagingDatasourceProvider = Provider<MessagingRemoteDatasource>(
   (ref) => MessagingRemoteDatasource(ref.watch(supabaseClientProvider)),
 );
 
+// ─── Badge non-lus étudiant (Realtime) ───────────────────────────────────────
+
+final unreadStudentProvider = StreamProvider.autoDispose<int>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return Stream.value(0);
+
+  final client = ref.watch(supabaseClientProvider);
+  return client
+      .from('conversations')
+      .stream(primaryKey: ['id'])
+      .eq('student_profile_id', userId)
+      .map((rows) => rows.isEmpty ? 0 : (rows[0]['unread_student'] as int? ?? 0));
+});
+
 // ─── Conversation ID ─────────────────────────────────────────────────────────
 
 final conversationIdProvider = FutureProvider.autoDispose<String?>((ref) async {
@@ -30,6 +44,14 @@ class MessagesNotifier extends AutoDisposeAsyncNotifier<List<MessageModel>> {
 
     final ds       = ref.read(messagingDatasourceProvider);
     final messages = await ds.fetchMessages(convId);
+
+    // Marquer les messages comme lus
+    ref.read(supabaseClientProvider)
+        .from('conversations')
+        .update({'unread_student': 0})
+        .eq('id', convId)
+        .then((_) {})
+        .catchError((_) {});
 
     // Abonnement Realtime
     _channel?.unsubscribe();

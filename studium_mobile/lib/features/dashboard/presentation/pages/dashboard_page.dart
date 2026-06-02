@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../profile/presentation/providers/profile_providers.dart';
+import '../../../messaging/presentation/providers/messaging_providers.dart';
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
 const _kNavy   = Color(0xFF0D1F42);
@@ -324,30 +325,47 @@ class _StatDivider extends StatelessWidget {
 }
 
 // ─── Notification bell ────────────────────────────────────────────────────────
-class _NotificationBell extends StatelessWidget {
+class _NotificationBell extends ConsumerWidget {
   const _NotificationBell();
 
   @override
-  Widget build(BuildContext context) => Stack(
-    clipBehavior: Clip.none,
-    children: [
-      IconButton(
-        onPressed: () {},
-        splashRadius: 22,
-        icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
-      ),
-      Positioned(
-        right: 10, top: 10,
-        child: Container(
-          width: 9, height: 9,
-          decoration: const BoxDecoration(
-            color: Color(0xFFFF4757),
-            shape: BoxShape.circle,
-          ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(unreadStudentProvider).valueOrNull ?? 0;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          onPressed: () => context.go('/messages'),
+          splashRadius: 22,
+          icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
         ),
-      ),
-    ],
-  );
+        if (unread > 0)
+          Positioned(
+            right: 8, top: 8,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 16),
+              height: 16,
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF4757),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Text(
+                  unread > 99 ? '99+' : '$unread',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 // ─── Section label ────────────────────────────────────────────────────────────
