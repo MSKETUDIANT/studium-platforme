@@ -135,6 +135,43 @@ export interface StatusHistoryEntry {
   createdAt:  string | null;
 }
 
+export async function sendCorrectionMessage(
+  studentProfileId: string,
+  message: string,
+): Promise<void> {
+  // Trouver ou créer la conversation de l'étudiant
+  const { data: existing } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('student_profile_id', studentProfileId)
+    .maybeSingle();
+
+  let convId: string;
+  if (existing) {
+    convId = existing.id;
+  } else {
+    const { data: created, error } = await supabase
+      .from('conversations')
+      .insert({ student_profile_id: studentProfileId })
+      .select('id')
+      .single();
+    if (error || !created) throw error;
+    convId = created.id;
+  }
+
+  // Envoyer le message comme staff
+  const { data: { session } } = await supabase.auth.getSession();
+  const { error } = await supabase
+    .from('messages')
+    .insert({
+      conversation_id: convId,
+      sender_type:     'staff',
+      sender_id:       session?.user?.id ?? null,
+      content:         message,
+    });
+  if (error) throw error;
+}
+
 export async function fetchStatusHistory(applicationId: string): Promise<StatusHistoryEntry[]> {
   const { data, error } = await supabase
     .from('application_status_history')

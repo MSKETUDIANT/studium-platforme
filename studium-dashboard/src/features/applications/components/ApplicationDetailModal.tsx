@@ -3,7 +3,7 @@ import { pdf } from '@react-pdf/renderer';
 import { colors, fonts, radius } from '../../../shared/constants/theme';
 import { RAW_STATUS_LABELS } from '../types/application';
 import type { Application, RawStatus } from '../types/application';
-import { updateApplicationStatus, updateApplicationNotes, fetchStatusHistory, sendApplicationEmail, fetchEmailLogs } from '../services/applications_service';
+import { updateApplicationStatus, updateApplicationNotes, fetchStatusHistory, sendApplicationEmail, fetchEmailLogs, sendCorrectionMessage } from '../services/applications_service';
 import type { StatusHistoryEntry, EmailLog } from '../services/applications_service';
 import ApplicationPDF from './ApplicationPDF';
 
@@ -105,6 +105,10 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
       if (status !== app.rawStatus) {
         const note = status === 'needsfix' && correctionMsg.trim() ? correctionMsg.trim() : undefined;
         ops.push(updateApplicationStatus(app.id, status, note));
+        // Envoyer le message de correction dans la messagerie étudiant
+        if (status === 'needsfix' && correctionMsg.trim()) {
+          ops.push(sendCorrectionMessage(app.studentId, correctionMsg.trim()));
+        }
       }
       if (notes !== (app.notes ?? '')) ops.push(updateApplicationNotes(app.id, notes));
       await Promise.all(ops);
@@ -371,8 +375,9 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                   resize: 'vertical', outline: 'none', boxSizing: 'border-box',
                 }}
               />
-              <div style={{ fontSize: 11.5, color: '#d97706', marginTop: 4 }}>
-                Ce message sera visible par l'étudiant dans son suivi de candidature.
+              <div style={{ fontSize: 11.5, color: '#d97706', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Ce message sera envoyé à l'étudiant via la messagerie et visible dans son suivi.
               </div>
             </Section>
           )}
