@@ -4,8 +4,9 @@
  * Navigation filtrée par rôle.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { supabase } from '../../shared/services/supabase';
 import stlogo from '../../assets/stlogo.png';
 import { authService } from '../../features/auth/services/authService';
 import { useRole } from '../../features/auth/hooks/useRole';
@@ -173,6 +174,56 @@ const CSS = `
   @media (min-width: 1400px) {
     .sl-sidebar:not(.collapsed) { width: 260px; }
   }
+
+  /* ── Badge messagerie sidebar ── */
+  .sl-badge {
+    min-width:18px; height:18px; border-radius:9px;
+    background:#ef4444; color:white;
+    font-size:10px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    padding:0 4px; margin-left:auto; flex-shrink:0;
+  }
+  .sl-sidebar.collapsed .sl-badge { margin-left:0; }
+
+  /* ── Cloche topbar ── */
+  .sl-notif-wrap { position:relative; }
+  .sl-notif-dot {
+    position:absolute; top:5px; right:5px;
+    width:8px; height:8px; border-radius:50%;
+    background:#ef4444; border:2px solid white;
+    pointer-events:none;
+  }
+
+  /* ── Dropdown notifications ── */
+  .sl-notif-drop {
+    position:absolute; top:calc(100% + 10px); right:0;
+    width:340px; background:white; border-radius:14px;
+    box-shadow:0 8px 32px rgba(11,24,82,0.18);
+    border:1px solid #e5e7eb; z-index:500; overflow:hidden;
+    animation: sl-drop-in .15s ease;
+  }
+  @keyframes sl-drop-in { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+  .sl-notif-head {
+    padding:14px 16px; border-bottom:1px solid #f1f5f9;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .sl-notif-item {
+    display:flex; gap:10px; padding:12px 16px;
+    border-bottom:1px solid #f9fafb;
+    cursor:pointer; transition:background .12s; align-items:flex-start;
+  }
+  .sl-notif-item:hover { background:#f8fafc; }
+  .sl-notif-item:last-child { border-bottom:none; }
+  .sl-notif-footer {
+    padding:10px 16px; text-align:center;
+    border-top:1px solid #f1f5f9;
+  }
+  .sl-mark-read {
+    background:none; border:none; font-size:11.5px; font-weight:600;
+    color:#6b7280; cursor:pointer; font-family:${fonts.body};
+    padding:0; transition:color .15s;
+  }
+  .sl-mark-read:hover { color:#111827; }
 `;
 
 if (!document.getElementById('sl-css')) {
@@ -181,6 +232,25 @@ if (!document.getElementById('sl-css')) {
   s.textContent = CSS;
   document.head.appendChild(s);
 }
+
+/* ─── Types notifications ────────────────────────────────────────────────── */
+interface NotifItem {
+  convId:    string;
+  student:   string;
+  preview:   string;
+  updatedAt: string;
+}
+
+const fmtNotifTime = (iso: string) => {
+  const d   = new Date(iso);
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - d.getTime()) / 60000);
+  if (diff < 1)  return 'À l\'instant';
+  if (diff < 60) return `il y a ${diff} min`;
+  const h = Math.floor(diff / 60);
+  if (h < 24) return `il y a ${h}h`;
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+};
 
 /* ─── Nav items avec contrôle par rôle ──────────────────────────────────── */
 type RoleKey = 'admin' | 'manager' | 'admissions' | 'support';
@@ -268,18 +338,84 @@ export default function AppLayout() {
   const { user }  = useAuth();
   const { role }  = useRole();
 
-  const [collapsed,  setCollapsed]  = useState(() => window.innerWidth <= 1100 && window.innerWidth > 768);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed,   setCollapsed]   = useState(() => window.innerWidth <= 1100 && window.innerWidth > 768);
+  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifItems,  setNotifItems]  = useState<NotifItem[]>([]);
+  const [notifOpen,   setNotifOpen]   = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onResize = () => {
-      if (window.innerWidth <= 768) {
-        setMobileOpen(false);
-      }
+      if (window.innerWidth <= 768) setMobileOpen(false);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  /* Fermer dropdown au clic extérieur */
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  /* Charger non-lus */
+  const loadUnread = useCallback(async () => {
+    const { data } = await supabase
+      .from('conversations')
+      .select(`
+        id, unread_staff, updated_at,
+        student_profiles!student_profile_id(first_name, last_name),
+        messages(content, created_at, sender_type)
+      `)
+      .gt('unread_staff', 0)
+      .order('updated_at', { ascending: false })
+      .limit(8);
+
+    if (!data) return;
+
+    const total = data.reduce((s: number, c: any) => s + (c.unread_staff ?? 0), 0);
+    setUnreadCount(total);
+
+    setNotifItems(data.map((c: any) => {
+      const msgs: any[] = (c.messages ?? []).filter((m: any) => m.sender_type === 'student');
+      const last = msgs.sort((a: any, b: any) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+      const sp = c.student_profiles;
+      return {
+        convId:    c.id,
+        student:   [sp?.first_name, sp?.last_name].filter(Boolean).join(' ') || 'Étudiant',
+        preview:   last?.content ?? '…',
+        updatedAt: c.updated_at,
+      };
+    }));
+  }, []);
+
+  useEffect(() => { loadUnread(); }, [loadUnread]);
+
+  /* Realtime — rafraîchir le badge à chaque changement de conversations */
+  useEffect(() => {
+    const channel = supabase
+      .channel('notif-conversations')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
+        loadUnread();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [loadUnread]);
+
+  /* Tout marquer comme lu */
+  const markAllRead = async () => {
+    await supabase.from('conversations').update({ unread_staff: 0 }).gt('unread_staff', 0);
+    setUnreadCount(0);
+    setNotifItems([]);
+    setNotifOpen(false);
+  };
 
   const pathname  = window.location.pathname;
   const pageTitle = PAGE_TITLES[pathname] ?? 'Dashboard';
@@ -337,6 +473,9 @@ export default function AppLayout() {
                 >
                   {icon}
                   <span className="sl-nav-label">{label}</span>
+                  {to === '/messaging' && unreadCount > 0 && (
+                    <span className="sl-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                  )}
                 </NavLink>
               ))}
             </div>
@@ -375,9 +514,77 @@ export default function AppLayout() {
           <h1 className="sl-page-title">{pageTitle}</h1>
 
           <div className="sl-topbar-right">
-            <button className="sl-topbar-btn" aria-label="Notifications">
-              <IconNotif />
-            </button>
+            <div className="sl-notif-wrap" ref={notifRef}>
+              <button
+                className="sl-topbar-btn"
+                aria-label="Notifications"
+                onClick={() => setNotifOpen(v => !v)}
+              >
+                <IconNotif />
+                {unreadCount > 0 && <span className="sl-notif-dot" />}
+              </button>
+
+              {notifOpen && (
+                <div className="sl-notif-drop">
+                  <div className="sl-notif-head">
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                      Notifications
+                      {unreadCount > 0 && (
+                        <span style={{ marginLeft: 8, padding: '1px 7px', borderRadius: 10, background: '#fef2f2', color: '#ef4444', fontSize: 11, fontWeight: 700 }}>
+                          {unreadCount}
+                        </span>
+                      )}
+                    </span>
+                    {unreadCount > 0 && (
+                      <button className="sl-mark-read" onClick={markAllRead}>
+                        Tout marquer lu
+                      </button>
+                    )}
+                  </div>
+
+                  {notifItems.length === 0 ? (
+                    <div style={{ padding: '28px 16px', textAlign: 'center', fontSize: 13, color: '#9ca3af' }}>
+                      Aucune notification
+                    </div>
+                  ) : (
+                    notifItems.map(n => (
+                      <div
+                        key={n.convId}
+                        className="sl-notif-item"
+                        onClick={() => { setNotifOpen(false); navigate('/messaging'); }}
+                      >
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                          background: 'rgba(37,70,204,0.10)', color: '#2546cc',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 12, fontWeight: 700,
+                        }}>
+                          {n.student.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#111827' }}>{n.student}</span>
+                            <span style={{ fontSize: 11, color: '#9ca3af', flexShrink: 0 }}>{fmtNotifTime(n.updatedAt)}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {n.preview}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+
+                  <div className="sl-notif-footer">
+                    <button
+                      onClick={() => { setNotifOpen(false); navigate('/messaging'); }}
+                      style={{ background: 'none', border: 'none', fontSize: 12.5, fontWeight: 600, color: '#2546cc', cursor: 'pointer', fontFamily: fonts.body }}
+                    >
+                      Voir la messagerie →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <div style={{
               width:34, height:34, borderRadius:9,
               background: colors.navy,
