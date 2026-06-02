@@ -18,6 +18,7 @@ import '../features/programs/domain/entities/program.dart';
 import '../features/programs/presentation/pages/programs_page.dart';
 import '../shared/widgets/main_shell.dart';
 import '../shared/widgets/placeholder_screen.dart';
+import '../features/messaging/presentation/pages/messages_page.dart';
 import '../main.dart';
 
 final isResettingPasswordProvider = StateProvider<bool>((ref) => false);
@@ -121,7 +122,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/messages',
-              builder: (_, __) => const MessagesScreen(),
+              builder: (_, __) => const MessagesPage(),
             ),
           ]),
 
