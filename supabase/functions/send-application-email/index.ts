@@ -1,11 +1,12 @@
 // @ts-nocheck — Deno Edge Function (erreurs IDE normales, pas de compilation Node)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const RESEND_API_KEY  = Deno.env.get('RESEND_API_KEY')!;
-const SUPABASE_URL    = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const FROM_EMAIL      = 'onboarding@resend.dev'; // TODO: remplacer par noreply@studium.app après vérification domaine
-const FROM_NAME       = 'Studium Admissions';
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const FROM_EMAIL     = 'onboarding@resend.dev'; // TODO: remplacer par noreply@studium.app après vérification domaine
+const FROM_NAME      = 'Studium Admissions';
+const MAX_ATTACH_MB  = 20; // Limite pièces jointes (Mo)
 
 interface Payload {
   application_id: string;
@@ -29,11 +30,11 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Fetch application details
+    // ── 1. Détails de la candidature ──────────────────────────────────────────
     const { data: app, error: appErr } = await supabase
       .from('applications')
       .select(`
-        id, status, submitted_at, notes,
+        id, status, submitted_at, notes, student_profile_id,
         student_profiles!student_profile_id (
           first_name, last_name, nationality, completeness_score
         ),
@@ -46,15 +47,77 @@ Deno.serve(async (req) => {
 
     if (appErr || !app) return jsonError('Application not found', 404);
 
-    const studentName = `${app.student_profiles?.first_name ?? ''} ${app.student_profiles?.last_name ?? ''}`.trim();
-    const programName = app.programs?.program_name  ?? '—';
-    const univName    = app.programs?.university_name ?? '—';
-    const country     = app.programs?.country         ?? '';
-    const submittedAt = app.submitted_at
+    const studentName  = `${app.student_profiles?.first_name ?? ''} ${app.student_profiles?.last_name ?? ''}`.trim();
+    const programName  = app.programs?.program_name   ?? '—';
+    const univName     = app.programs?.university_name ?? '—';
+    const country      = app.programs?.country          ?? '';
+    const submittedAt  = app.submitted_at
       ? new Date(app.submitted_at).toLocaleDateString('fr-FR') : '—';
 
-    // Fetch template from DB (program-specific first, then global, then fallback)
-    // Try program-specific template first, then global fallback
+    // ── 2. Documents approuvés de l'étudiant ──────────────────────────────────
+    const { data: docs } = await supabase
+      .from('documents')
+      .select('id, type, file_url, file_name, size_bytes, status')
+      .eq('student_profile_id', app.student_profile_id)
+      .eq('status', 'approved');
+
+    const approvedDocs   = docs ?? [];
+    const totalSizeBytes = approvedDocs.reduce((s: number, d: any) => s + (d.size_bytes ?? 0), 0);
+    const totalSizeMb    = totalSizeBytes / (1024 * 1024);
+
+    // ── 3. Mode attachments : < MAX_ATTACH_MB → joint, sinon liens signés ────
+    let attachments: Array<{ filename: string; content: string; type?: string }> = [];
+    let signedLinksHtml = '';
+    let signedLinksText = '';
+
+    if (approvedDocs.length > 0) {
+      if (totalSizeMb <= MAX_ATTACH_MB) {
+        // Mode 1 — Télécharger et attacher les fichiers
+        for (const doc of approvedDocs) {
+          try {
+            const res = await fetch(doc.file_url);
+            if (!res.ok) continue;
+            const buf     = await res.arrayBuffer();
+            const uint8   = new Uint8Array(buf);
+            let   binary  = '';
+            for (let i = 0; i < uint8.length; i++) {
+              binary += String.fromCharCode(uint8[i]);
+            }
+            const b64 = btoa(binary);
+            const filename = doc.file_name || `${doc.type}_${doc.id.slice(0, 8)}.pdf`;
+            attachments.push({ filename, content: b64 });
+          } catch (_) {
+            // Ignorer les fichiers non téléchargeables
+          }
+        }
+      } else {
+        // Mode 2 — Liens signés (fichiers trop lourds)
+        for (const doc of approvedDocs) {
+          try {
+            // Extraire le chemin relatif depuis l'URL Supabase Storage
+            const urlObj  = new URL(doc.file_url);
+            const pathParts = urlObj.pathname.split('/object/public/');
+            if (pathParts.length < 2) continue;
+            const bucketAndPath = pathParts[1];
+            const slashIdx      = bucketAndPath.indexOf('/');
+            const bucket        = bucketAndPath.slice(0, slashIdx);
+            const storagePath   = bucketAndPath.slice(slashIdx + 1);
+
+            const { data: signed } = await supabase.storage
+              .from(bucket)
+              .createSignedUrl(storagePath, 7 * 24 * 3600); // 7 jours
+
+            if (signed?.signedUrl) {
+              const label = doc.file_name || doc.type;
+              signedLinksHtml += `<li><a href="${signed.signedUrl}">${label}</a></li>`;
+              signedLinksText += `  - ${label}: ${signed.signedUrl}\n`;
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
+    // ── 4. Template email ─────────────────────────────────────────────────────
     const { data: programTpl } = await supabase
       .from('email_templates')
       .select('subject_template, body_template')
@@ -71,28 +134,40 @@ Deno.serve(async (req) => {
       .limit(1);
 
     const templates = programTpl?.length ? programTpl : (globalTpl ?? []);
+    const tpl       = templates?.[0];
+    const vars      = { studentName, programName, univName, country, submittedAt };
+    const subject   = tpl
+      ? replaceVars(tpl.subject_template, vars)
+      : `[Studium] Candidature – ${studentName} – ${programName}`;
+    const bodyTxt   = tpl
+      ? replaceVars(tpl.body_template, vars)
+      : buildEmailText({ studentName, programName, univName, country, submittedAt, signedLinksText });
+    const html      = buildEmailHtml({
+      studentName, programName, univName, country, submittedAt,
+      notes: app.notes,
+      customBody:       tpl ? bodyTxt : null,
+      attachCount:      attachments.length,
+      signedLinksHtml,
+    });
 
-    const tpl     = templates?.[0];
-    const vars    = { studentName, programName, univName, country, submittedAt };
-    const subject = tpl ? replaceVars(tpl.subject_template, vars) : `[Studium] Candidature – ${studentName} – ${programName}`;
-    const bodyTxt = tpl ? replaceVars(tpl.body_template,    vars) : buildEmailText({ studentName, programName, univName, country, submittedAt });
-    const html    = buildEmailHtml({ studentName, programName, univName, country, submittedAt, notes: app.notes, customBody: tpl ? bodyTxt : null });
+    // ── 5. Envoi via Resend ───────────────────────────────────────────────────
+    const resendBody: any = {
+      from:    `${FROM_NAME} <${FROM_EMAIL}>`,
+      to:      [to_email],
+      cc:      cc_emails.length ? cc_emails : undefined,
+      subject,
+      html,
+      text:    bodyTxt,
+    };
 
-    // Send via Resend
-    const resendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type':  'application/json',
-      },
-      body: JSON.stringify({
-        from:    `${FROM_NAME} <${FROM_EMAIL}>`,
-        to:      [to_email],
-        cc:      cc_emails.length ? cc_emails : undefined,
-        subject,
-        html,
-        text: bodyTxt,
-      }),
+    if (attachments.length > 0) {
+      resendBody.attachments = attachments;
+    }
+
+    const resendRes  = await fetch('https://api.resend.com/emails', {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body:    JSON.stringify(resendBody),
     });
 
     const resendData = await resendRes.json();
@@ -100,7 +175,7 @@ Deno.serve(async (req) => {
     const msgId      = resendData?.id ?? null;
     const errMsg     = success ? null : JSON.stringify(resendData);
 
-    // Log the attempt
+    // ── 6. Log + mise à jour statut ───────────────────────────────────────────
     await supabase.from('email_logs').insert({
       application_id,
       to_email,
@@ -114,17 +189,18 @@ Deno.serve(async (req) => {
       is_followup:         false,
     });
 
-    // Update application status to 'sent' if successful
     if (success) {
-      await supabase
-        .from('applications')
-        .update({ status: 'sent' })
-        .eq('id', application_id);
+      await supabase.from('applications').update({ status: 'sent' }).eq('id', application_id);
     }
 
     if (!success) return jsonError(`Resend error: ${errMsg}`, 502);
 
-    return new Response(JSON.stringify({ success: true, message_id: msgId }), {
+    return new Response(JSON.stringify({
+      success:        true,
+      message_id:     msgId,
+      attachments:    attachments.length,
+      signed_links:   signedLinksHtml ? true : false,
+    }), {
       headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
     });
 
@@ -136,13 +212,16 @@ Deno.serve(async (req) => {
 /* ─── Email templates ──────────────────────────────────────────────────────── */
 
 interface TemplateData {
-  studentName:  string;
-  programName:  string;
-  univName:     string;
-  country:      string;
-  submittedAt:  string;
-  notes?:       string | null;
-  customBody?:  string | null;
+  studentName:     string;
+  programName:     string;
+  univName:        string;
+  country:         string;
+  submittedAt:     string;
+  notes?:          string | null;
+  customBody?:     string | null;
+  attachCount?:    number;
+  signedLinksHtml?: string;
+  signedLinksText?: string;
 }
 
 function replaceVars(tpl: string, vars: Record<string, string>): string {
@@ -155,26 +234,37 @@ function replaceVars(tpl: string, vars: Record<string, string>): string {
 }
 
 function buildEmailHtml(d: TemplateData): string {
+  const attachInfo = d.attachCount && d.attachCount > 0
+    ? `<p style="font-size:14px;color:#374151;margin:0 0 12px;">
+        📎 <strong>${d.attachCount} document(s) joint(s)</strong> en pièce jointe à cet email.
+       </p>`
+    : d.signedLinksHtml
+      ? `<p style="font-size:14px;color:#374151;margin:0 0 8px;">📂 <strong>Documents disponibles via les liens sécurisés ci-dessous (valables 7 jours) :</strong></p>
+         <ul style="font-size:13px;color:#2563eb;margin:0 0 20px;padding-left:20px;">${d.signedLinksHtml}</ul>`
+      : `<p style="font-size:14px;color:#6b7280;margin:0 0 12px;font-style:italic;">Aucun document approuvé à joindre.</p>`;
+
   const bodyContent = d.customBody
-    ? d.customBody.split('\n').map(line => `<p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 12px;">${line || '&nbsp;'}</p>`).join('')
+    ? d.customBody.split('\n').map(line =>
+        `<p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 12px;">${line || '&nbsp;'}</p>`
+      ).join('') + attachInfo
     : `<p style="font-size:15px;color:#374151;margin:0 0 20px;">Madame, Monsieur,</p>
-          <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 24px;">
-            Nous vous transmettons la candidature de <strong>${d.studentName}</strong>
-            pour le programme <strong>${d.programName}</strong>
-            à <strong>${d.univName}</strong>${d.country ? ` (${d.country})` : ''}.
-          </p>
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:24px;">
-            <tr><td style="padding:20px 24px;">
-              <table width="100%" cellpadding="4" cellspacing="0">
-                <tr><td style="font-size:12px;color:#6b7280;width:40%;">Candidat</td><td style="font-size:14px;font-weight:bold;color:#111827;">${d.studentName}</td></tr>
-                <tr><td style="font-size:12px;color:#6b7280;">Programme</td><td style="font-size:14px;font-weight:bold;color:#111827;">${d.programName}</td></tr>
-                <tr><td style="font-size:12px;color:#6b7280;">Université</td><td style="font-size:14px;color:#111827;">${d.univName}</td></tr>
-                <tr><td style="font-size:12px;color:#6b7280;">Date soumission</td><td style="font-size:14px;color:#111827;">${d.submittedAt}</td></tr>
-              </table>
-            </td></tr>
-          </table>
-          <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 20px;">Vous trouverez en pièce jointe le dossier complet du candidat.</p>
-          <p style="font-size:14px;color:#374151;font-weight:bold;margin:0;">L'équipe Studium Admissions</p>`;
+       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 24px;">
+         Nous vous transmettons la candidature de <strong>${d.studentName}</strong>
+         pour le programme <strong>${d.programName}</strong>
+         à <strong>${d.univName}</strong>${d.country ? ` (${d.country})` : ''}.
+       </p>
+       <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:24px;">
+         <tr><td style="padding:20px 24px;">
+           <table width="100%" cellpadding="4" cellspacing="0">
+             <tr><td style="font-size:12px;color:#6b7280;width:40%;">Candidat</td><td style="font-size:14px;font-weight:bold;color:#111827;">${d.studentName}</td></tr>
+             <tr><td style="font-size:12px;color:#6b7280;">Programme</td><td style="font-size:14px;font-weight:bold;color:#111827;">${d.programName}</td></tr>
+             <tr><td style="font-size:12px;color:#6b7280;">Université</td><td style="font-size:14px;color:#111827;">${d.univName}</td></tr>
+             <tr><td style="font-size:12px;color:#6b7280;">Date soumission</td><td style="font-size:14px;color:#111827;">${d.submittedAt}</td></tr>
+           </table>
+         </td></tr>
+       </table>
+       ${attachInfo}
+       <p style="font-size:14px;color:#374151;font-weight:bold;margin:0;">L'équipe Studium Admissions</p>`;
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -202,6 +292,12 @@ function buildEmailHtml(d: TemplateData): string {
 }
 
 function buildEmailText(d: TemplateData): string {
+  const docsSection = d.signedLinksText
+    ? `\nDOCUMENTS (liens valables 7 jours) :\n${d.signedLinksText}`
+    : d.attachCount && d.attachCount > 0
+      ? `\n${d.attachCount} document(s) joint(s) en pièce jointe.\n`
+      : '';
+
   return `STUDIUM — Candidature académique
 
 Madame, Monsieur,
@@ -209,13 +305,11 @@ Madame, Monsieur,
 Nous vous transmettons la candidature de ${d.studentName} pour le programme ${d.programName} à ${d.univName}${d.country ? ` (${d.country})` : ''}.
 
 DÉTAILS :
-- Candidat       : ${d.studentName}
-- Programme      : ${d.programName}
-- Université     : ${d.univName}
-- Date soumission: ${d.submittedAt}
-
-Vous trouverez en pièce jointe le dossier complet du candidat.
-
+- Candidat        : ${d.studentName}
+- Programme       : ${d.programName}
+- Université      : ${d.univName}
+- Date soumission : ${d.submittedAt}
+${docsSection}
 Cordialement,
 L'équipe Studium Admissions
 support@studium.app`;
