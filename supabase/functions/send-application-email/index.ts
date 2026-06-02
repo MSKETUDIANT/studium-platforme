@@ -8,6 +8,14 @@ const FROM_EMAIL     = 'onboarding@resend.dev'; // TODO: remplacer par noreply@s
 const FROM_NAME      = 'Studium Admissions';
 const MAX_ATTACH_MB  = 20; // Limite pièces jointes (Mo)
 
+const TYPE_LABELS: Record<string, string> = {
+  cv:             'Curriculum Vitae',
+  transcript:     'Relevé de notes et diplômes',
+  recommendation: 'Lettre de recommandation',
+  passport:       'Passeport / Pièce d\'identité',
+  other:          'Document complémentaire',
+};
+
 interface Payload {
   application_id: string;
   to_email:       string;
@@ -69,6 +77,19 @@ Deno.serve(async (req) => {
     let attachments: Array<{ filename: string; content: string; type?: string }> = [];
     let signedLinksHtml = '';
     let signedLinksText = '';
+
+    // Liste dynamique des documents réels (pour le corps de l'email)
+    const docsListHtml = approvedDocs.length > 0
+      ? approvedDocs.map((d: any) => {
+          const label    = TYPE_LABELS[d.type] ?? d.type;
+          const filename = d.file_name ? ` <span style="color:#6b7280;font-size:12px;">(${d.file_name})</span>` : '';
+          return `<li>${label}${filename}</li>`;
+        }).join('')
+      : '<li style="color:#6b7280;">Aucun document approuvé</li>';
+
+    const docsListText = approvedDocs.length > 0
+      ? approvedDocs.map((d: any) => `  - ${TYPE_LABELS[d.type] ?? d.type}${d.file_name ? ` (${d.file_name})` : ''}`).join('\n')
+      : '  - Aucun document approuvé';
 
     if (approvedDocs.length > 0) {
       if (totalSizeMb <= MAX_ATTACH_MB) {
@@ -135,19 +156,20 @@ Deno.serve(async (req) => {
 
     const templates = programTpl?.length ? programTpl : (globalTpl ?? []);
     const tpl       = templates?.[0];
-    const vars      = { studentName, programName, univName, country, submittedAt };
+    const vars      = { studentName, programName, univName, country, submittedAt, documentsListText: docsListText };
     const subject   = tpl
       ? replaceVars(tpl.subject_template, vars)
       : `[Studium] Candidature – ${studentName} – ${programName}`;
     const bodyTxt   = tpl
       ? replaceVars(tpl.body_template, vars)
-      : buildEmailText({ studentName, programName, univName, country, submittedAt, signedLinksText });
+      : buildEmailText({ studentName, programName, univName, country, submittedAt, signedLinksText, docsListText });
     const html      = buildEmailHtml({
       studentName, programName, univName, country, submittedAt,
-      notes: app.notes,
-      customBody:       tpl ? bodyTxt : null,
-      attachCount:      attachments.length,
+      notes:          app.notes,
+      customBody:     tpl ? replaceVarsHtml(tpl.body_template, vars, docsListHtml) : null,
+      attachCount:    attachments.length,
       signedLinksHtml,
+      docsListHtml,
     });
 
     // ── 5. Envoi via Resend ───────────────────────────────────────────────────
@@ -212,34 +234,52 @@ Deno.serve(async (req) => {
 /* ─── Email templates ──────────────────────────────────────────────────────── */
 
 interface TemplateData {
-  studentName:     string;
-  programName:     string;
-  univName:        string;
-  country:         string;
-  submittedAt:     string;
-  notes?:          string | null;
-  customBody?:     string | null;
-  attachCount?:    number;
+  studentName:      string;
+  programName:      string;
+  univName:         string;
+  country:          string;
+  submittedAt:      string;
+  notes?:           string | null;
+  customBody?:      string | null;
+  attachCount?:     number;
   signedLinksHtml?: string;
   signedLinksText?: string;
+  docsListHtml?:    string;
+  docsListText?:    string;
 }
 
 function replaceVars(tpl: string, vars: Record<string, string>): string {
   return tpl
-    .replace(/\{\{student_name\}\}/g,    vars.studentName ?? '')
-    .replace(/\{\{program_name\}\}/g,    vars.programName ?? '')
-    .replace(/\{\{university_name\}\}/g, vars.univName    ?? '')
-    .replace(/\{\{country\}\}/g,         vars.country ? ` (${vars.country})` : '')
-    .replace(/\{\{submitted_at\}\}/g,    vars.submittedAt ?? '');
+    .replace(/\{\{student_name\}\}/g,     vars.studentName         ?? '')
+    .replace(/\{\{program_name\}\}/g,     vars.programName         ?? '')
+    .replace(/\{\{university_name\}\}/g,  vars.univName            ?? '')
+    .replace(/\{\{country\}\}/g,          vars.country ? ` (${vars.country})` : '')
+    .replace(/\{\{submitted_at\}\}/g,     vars.submittedAt         ?? '')
+    .replace(/\{\{documents_list\}\}/g,   vars.documentsListText   ?? '');
+}
+
+// Version HTML avec rendu liste pour les templates
+function replaceVarsHtml(tpl: string, vars: Record<string, string>, docsListHtml: string): string {
+  return tpl
+    .replace(/\{\{student_name\}\}/g,     vars.studentName       ?? '')
+    .replace(/\{\{program_name\}\}/g,     vars.programName       ?? '')
+    .replace(/\{\{university_name\}\}/g,  vars.univName          ?? '')
+    .replace(/\{\{country\}\}/g,          vars.country ? ` (${vars.country})` : '')
+    .replace(/\{\{submitted_at\}\}/g,     vars.submittedAt       ?? '')
+    .replace(/\{\{documents_list\}\}/g,   `<ul style="margin:8px 0 16px;padding-left:20px;">${docsListHtml}</ul>`);
 }
 
 function buildEmailHtml(d: TemplateData): string {
+  const docsSection = `
+    <p style="font-size:14px;font-weight:bold;color:#111827;margin:0 0 8px;">📋 Documents transmis :</p>
+    <ul style="font-size:14px;color:#374151;margin:0 0 16px;padding-left:20px;line-height:1.8;">
+      ${d.docsListHtml ?? '<li style="color:#6b7280;">Aucun document approuvé</li>'}
+    </ul>`;
+
   const attachInfo = d.attachCount && d.attachCount > 0
-    ? `<p style="font-size:14px;color:#374151;margin:0 0 12px;">
-        📎 <strong>${d.attachCount} document(s) joint(s)</strong> en pièce jointe à cet email.
-       </p>`
+    ? `${docsSection}<p style="font-size:13px;color:#6b7280;margin:0 0 16px;">📎 Ces documents sont joints en pièce jointe à cet email.</p>`
     : d.signedLinksHtml
-      ? `<p style="font-size:14px;color:#374151;margin:0 0 8px;">📂 <strong>Documents disponibles via les liens sécurisés ci-dessous (valables 7 jours) :</strong></p>
+      ? `${docsSection}<p style="font-size:13px;color:#374151;margin:0 0 8px;">📂 <strong>Liens de téléchargement (valables 7 jours) :</strong></p>
          <ul style="font-size:13px;color:#2563eb;margin:0 0 20px;padding-left:20px;">${d.signedLinksHtml}</ul>`
       : `<p style="font-size:14px;color:#6b7280;margin:0 0 12px;font-style:italic;">Aucun document approuvé à joindre.</p>`;
 
@@ -292,10 +332,11 @@ function buildEmailHtml(d: TemplateData): string {
 }
 
 function buildEmailText(d: TemplateData): string {
+  const docsList    = d.docsListText ? `\nDOCUMENTS TRANSMIS :\n${d.docsListText}` : '';
   const docsSection = d.signedLinksText
-    ? `\nDOCUMENTS (liens valables 7 jours) :\n${d.signedLinksText}`
+    ? `${docsList}\n\nLIENS DE TÉLÉCHARGEMENT (valables 7 jours) :\n${d.signedLinksText}`
     : d.attachCount && d.attachCount > 0
-      ? `\n${d.attachCount} document(s) joint(s) en pièce jointe.\n`
+      ? `${docsList}\n(Documents joints en pièce jointe)`
       : '';
 
   return `STUDIUM — Candidature académique
