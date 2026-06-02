@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,18 +11,52 @@ final messagingDatasourceProvider = Provider<MessagingRemoteDatasource>(
   (ref) => MessagingRemoteDatasource(ref.watch(supabaseClientProvider)),
 );
 
-// ─── Badge non-lus étudiant (Realtime) ───────────────────────────────────────
+// ─── Badge non-lus étudiant (Realtime sur UPDATE) ────────────────────────────
 
 final unreadStudentProvider = StreamProvider.autoDispose<int>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) return Stream.value(0);
 
-  final client = ref.watch(supabaseClientProvider);
-  return client
+  final client  = ref.watch(supabaseClientProvider);
+  final ctrl    = StreamController<int>.broadcast();
+
+  // Valeur initiale depuis la DB
+  client
       .from('conversations')
-      .stream(primaryKey: ['id'])
+      .select('unread_student')
       .eq('student_profile_id', userId)
-      .map((rows) => rows.isEmpty ? 0 : (rows[0]['unread_student'] as int? ?? 0));
+      .maybeSingle()
+      .then((data) {
+        if (!ctrl.isClosed) {
+          ctrl.add(data?['unread_student'] as int? ?? 0);
+        }
+      });
+
+  // Écoute les UPDATE en temps réel
+  final channel = client
+      .channel('unread-student-$userId')
+      .onPostgresChanges(
+        event:  PostgresChangeEvent.update,
+        schema: 'public',
+        table:  'conversations',
+        filter: PostgresChangeFilter(
+          type:   PostgresChangeFilterType.eq,
+          column: 'student_profile_id',
+          value:  userId,
+        ),
+        callback: (payload) {
+          final count = payload.newRecord['unread_student'] as int? ?? 0;
+          if (!ctrl.isClosed) ctrl.add(count);
+        },
+      )
+      .subscribe();
+
+  ref.onDispose(() {
+    client.removeChannel(channel);
+    ctrl.close();
+  });
+
+  return ctrl.stream;
 });
 
 // ─── Conversation ID ─────────────────────────────────────────────────────────
