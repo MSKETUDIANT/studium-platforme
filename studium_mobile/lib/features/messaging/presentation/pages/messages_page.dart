@@ -9,7 +9,6 @@ import '../providers/messaging_providers.dart';
 
 // ─── Palette (identique aux autres pages) ─────────────────────────────────────
 const _kNavy   = Color(0xFF0D1F42);
-const _kBlue   = Color(0xFF1A3C6E);
 const _kAccent = Color(0xFF4880FF);
 const _kBg     = Color(0xFFF4F6FB);
 const _kText   = Color(0xFF1A1D2E);
@@ -81,6 +80,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                     child: CircularProgressIndicator(color: _kAccent, strokeWidth: 2),
                   ),
                   error: (e, _) => _ErrorState(
+                    error:   e.toString(),
                     onRetry: () => ref.invalidate(messagesProvider),
                   ),
                   data: (messages) {
@@ -237,14 +237,15 @@ class _EmptyState extends StatelessWidget {
 
 // ─── État erreur ──────────────────────────────────────────────────────────────
 class _ErrorState extends StatelessWidget {
+  final String       error;
   final VoidCallback onRetry;
-  const _ErrorState({required this.onRetry});
+  const _ErrorState({required this.error, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -254,20 +255,35 @@ class _ErrorState extends StatelessWidget {
                 color: AppColors.dangerBg,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.wifi_off_rounded, color: AppColors.danger, size: 32),
+              child: const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 32),
             ),
             const SizedBox(height: 16),
             const Text(
-              'Impossible de charger',
+              'Erreur de chargement',
               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: _kText),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Vérifiez votre connexion internet\net réessayez.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: _kMuted, height: 1.5),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.dangerBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.danger.withValues(alpha: 0.2)),
+              ),
+              child: Text(
+                error,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11.5, color: AppColors.danger, fontFamily: 'monospace'),
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 10),
+            Text(
+              '💡 Si l\'erreur mentionne "relation does not exist",\napplique les migrations SQL dans Supabase.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: _kMuted, height: 1.5),
+            ),
+            const SizedBox(height: 20),
             GestureDetector(
               onTap: onRetry,
               child: Container(

@@ -24,7 +24,7 @@ export interface TopItem {
 export async function fetchKPISummary(): Promise<KPISummary> {
   const { data, error } = await supabase
     .from('applications')
-    .select('status, student_profiles!student_profile_id(completeness_score)');
+    .select('status, student_profiles!student_profile_id(id, completeness_score)');
 
   if (error || !data) return {
     totalApplications: 0, pendingReview: 0, verified: 0,
@@ -33,8 +33,20 @@ export async function fetchKPISummary(): Promise<KPISummary> {
 
   const total    = data.length;
   const byStatus = (s: string) => data.filter((a: any) => a.status === s).length;
-  const scores   = data.map((a: any) => a.student_profiles?.completeness_score ?? 0);
-  const avg      = scores.length ? Math.round(scores.reduce((s: number, v: number) => s + v, 0) / scores.length) : 0;
+
+  // Score moyen : dédupliquer par étudiant pour éviter de compter N fois un étudiant avec N candidatures
+  const seenIds = new Set<string>();
+  const uniqueScores: number[] = [];
+  data.forEach((a: any) => {
+    const sid = a.student_profiles?.id as string | undefined;
+    if (sid && !seenIds.has(sid)) {
+      seenIds.add(sid);
+      uniqueScores.push(a.student_profiles?.completeness_score ?? 0);
+    }
+  });
+  const avg = uniqueScores.length
+    ? Math.round(uniqueScores.reduce((s, v) => s + v, 0) / uniqueScores.length)
+    : 0;
 
   return {
     totalApplications:    total,

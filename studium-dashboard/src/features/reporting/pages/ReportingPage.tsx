@@ -1,3 +1,296 @@
+import React, { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PageHeader } from '../../../shared/components/PageHeader';
+import { colors, fonts } from '../../../shared/constants/theme';
+import {
+  fetchKPISummary, fetchMonthlyApplications, fetchTopCountries, fetchTopPrograms, exportCSV,
+} from '../services/reporting_service';
+import type { KPISummary, MonthlyCount, TopItem } from '../services/reporting_service';
+import { supabase } from '../../../shared/services/supabase';
+
+/* ─── Icons ──────────────────────────────────────────────────────────────── */
+const IconTotal    = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
+const IconPending  = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+const IconSent     = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
+const IconAccepted = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+const IconFix      = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+const IconRate     = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
+const IconScore    = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>;
+
 export default function ReportingPage() {
-  return <div>Reporting</div>;
+  const [kpi,       setKpi]       = useState<KPISummary | null>(null);
+  const [monthly,   setMonthly]   = useState<MonthlyCount[]>([]);
+  const [countries, setCountries] = useState<TopItem[]>([]);
+  const [programs,  setPrograms]  = useState<TopItem[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      fetchKPISummary(),
+      fetchMonthlyApplications(),
+      fetchTopCountries(),
+      fetchTopPrograms(),
+    ]).then(([k, m, c, p]) => {
+      setKpi(k); setMonthly(m); setCountries(c); setPrograms(p);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  async function handleExportApplications() {
+    setExporting(true);
+    try {
+      const { data } = await supabase
+        .from('applications')
+        .select(`id, status, submitted_at, notes, student_profiles!student_profile_id(first_name, last_name, nationality), programs!program_id(program_name, university_name, country)`)
+        .order('submitted_at', { ascending: false });
+      const rows = (data ?? []).map((a: any) => ({
+        'ID':          a.id,
+        'Etudiant':    `${a.student_profiles?.first_name ?? ''} ${a.student_profiles?.last_name ?? ''}`.trim(),
+        'Nationalite': a.student_profiles?.nationality ?? '',
+        'Programme':   a.programs?.program_name    ?? '',
+        'Universite':  a.programs?.university_name ?? '',
+        'Pays':        a.programs?.country         ?? '',
+        'Statut':      a.status,
+        'Soumis le':   a.submitted_at ? new Date(a.submitted_at).toLocaleDateString('fr-FR') : '',
+      }));
+      exportCSV(rows, `studium_candidatures_${new Date().toISOString().slice(0, 10)}.csv`);
+    } finally { setExporting(false); }
+  }
+
+  const verifiedRate = kpi && kpi.totalApplications > 0
+    ? Math.round(((kpi.verified + kpi.sent + kpi.accepted) / kpi.totalApplications) * 100) : 0;
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f4f7fb', fontFamily: fonts.body }}>
+      <PageHeader
+        title="Rapports"
+        subtitle="KPIs et statistiques de la plateforme"
+        actions={
+          <button
+            onClick={handleExportApplications}
+            disabled={exporting}
+            style={{
+              padding: '9px 18px', borderRadius: 9, border: `1.5px solid rgba(255,255,255,.35)`,
+              background: 'rgba(255,255,255,.15)', color: 'white', backdropFilter: 'blur(4px)',
+              fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: fonts.body,
+              display: 'flex', alignItems: 'center', gap: 7, opacity: exporting ? 0.7 : 1,
+            }}
+          >
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            {exporting ? 'Export...' : 'Exporter CSV'}
+          </button>
+        }
+      />
+
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '80px 0', color: colors.textMuted, fontSize: 14 }}>
+            Chargement des donnees...
+          </div>
+        ) : (
+          <>
+            {/* Ligne 1 — 4 KPIs principaux */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+              <MetricCard
+                icon={<IconTotal />}    iconBg="#eff6ff" iconColor={colors.blue}
+                label="Total candidatures" value={kpi?.totalApplications ?? 0}
+                sub="Toutes periodes"
+              />
+              <MetricCard
+                icon={<IconPending />}  iconBg="#fffbeb" iconColor="#d97706"
+                label="En attente" value={kpi?.pendingReview ?? 0}
+                sub="Brouillons + soumises"
+              />
+              <MetricCard
+                icon={<IconSent />}     iconBg="#eff6ff" iconColor="#2546cc"
+                label="Envoyees" value={kpi?.sent ?? 0}
+                sub="Aux universites"
+              />
+              <MetricCard
+                icon={<IconAccepted />} iconBg="#f0fdf4" iconColor={colors.success}
+                label="Acceptees" value={kpi?.accepted ?? 0}
+                sub="Reponses positives"
+              />
+            </div>
+
+            {/* Ligne 2 — 3 métriques secondaires */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+              <MetricCard
+                icon={<IconFix />}   iconBg="#fef2f2" iconColor="#ef4444"
+                label="Corrections requises" value={kpi?.needsFix ?? 0}
+                sub="Dossiers a completer"
+              />
+              <MetricCard
+                icon={<IconRate />}  iconBg="#f0f4ff" iconColor={colors.navy}
+                label="Taux de validation" value={`${verifiedRate}%`}
+                sub="Verifiees + envoyees + acceptees"
+              />
+              <MetricCard
+                icon={<IconScore />} iconBg="#ecfeff" iconColor="#0891b2"
+                label="Score profil moyen" value={`${kpi?.avgCompletenessScore ?? 0}%`}
+                sub="Completude moyenne des dossiers"
+              />
+            </div>
+
+            {/* Ligne 3 — Graphiques */}
+            <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 20 }}>
+              <Panel title="Candidatures par mois">
+                {monthly.length === 0 ? <Empty /> : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={monthly} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 11.5, fill: colors.textMuted }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: colors.textMuted }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: 10, fontSize: 12.5, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,.1)' }}
+                        cursor={{ fill: '#f0f4ff' }}
+                      />
+                      <Bar dataKey="count" name="Candidatures" radius={[6, 6, 0, 0]} fill={colors.blue} maxBarSize={48} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </Panel>
+
+              <Panel title="Repartition par statut">
+                {kpi && kpi.totalApplications > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 4 }}>
+                    {[
+                      { label: 'Soumises',   value: kpi.pendingReview, color: '#d97706' },
+                      { label: 'A corriger', value: kpi.needsFix,      color: '#ef4444' },
+                      { label: 'Verifiees',  value: kpi.verified,      color: '#7c3aed' },
+                      { label: 'Envoyees',   value: kpi.sent,          color: colors.blue },
+                      { label: 'Acceptees',  value: kpi.accepted,      color: colors.success },
+                      { label: 'Refusees',   value: kpi.rejected,      color: '#9ca3af' },
+                    ].filter(s => s.value > 0).map(s => (
+                      <StatusBar key={s.label} label={s.label} value={s.value} total={kpi.totalApplications} color={s.color} />
+                    ))}
+                  </div>
+                ) : <Empty />}
+              </Panel>
+            </div>
+
+            {/* Ligne 4 — Top listes */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <Panel title="Top pays de destination">
+                {countries.length === 0 ? <Empty /> : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {countries.map((c, i) => (
+                      <RankItem key={c.label} rank={i + 1} label={c.label} count={c.count} max={countries[0].count} />
+                    ))}
+                  </div>
+                )}
+              </Panel>
+              <Panel title="Top programmes">
+                {programs.length === 0 ? <Empty /> : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {programs.map((p, i) => (
+                      <RankItem key={p.label} rank={i + 1} label={p.label} count={p.count} max={programs[0].count} />
+                    ))}
+                  </div>
+                )}
+              </Panel>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Components ──────────────────────────────────────────────────────────── */
+
+function MetricCard({ icon, iconBg, iconColor, label, value, sub }: {
+  icon: React.ReactNode; iconBg: string; iconColor: string;
+  label: string; value: number | string; sub: string;
+}) {
+  return (
+    <div style={{
+      background: 'white', borderRadius: 14, padding: '20px 22px',
+      boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04)',
+      display: 'flex', alignItems: 'flex-start', gap: 14,
+    }}>
+      <div style={{
+        width: 44, height: 44, borderRadius: 11, flexShrink: 0,
+        background: iconBg, color: iconColor,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {icon}
+      </div>
+      <div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', lineHeight: 1.1, fontFamily: fonts.display }}>
+          {value}
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginTop: 3 }}>{label}</div>
+        <div style={{ fontSize: 11.5, color: colors.textMuted, marginTop: 2 }}>{sub}</div>
+      </div>
+    </div>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      background: 'white', borderRadius: 14, padding: '22px 24px',
+      boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04)',
+    }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: colors.navy, marginBottom: 18 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function StatusBar({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
+  const pct = Math.round((value / total) * 100);
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+          <span style={{ fontSize: 13, color: '#374151' }}>{label}</span>
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+          {value} <span style={{ fontSize: 11, fontWeight: 400, color: colors.textMuted }}>({pct}%)</span>
+        </span>
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: '#f1f5f9' }}>
+        <div style={{ height: 5, borderRadius: 3, width: `${pct}%`, background: color, transition: 'width .5s ease' }} />
+      </div>
+    </div>
+  );
+}
+
+function RankItem({ rank, label, count, max }: { rank: number; label: string; count: number; max: number }) {
+  const pct        = Math.round((count / max) * 100);
+  const medalBg    = rank === 1 ? '#fbbf24' : rank === 2 ? '#9ca3af' : rank === 3 ? '#cd7c3b' : colors.inputBg;
+  const medalColor = rank <= 3 ? 'white' : colors.textMuted;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{
+        width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
+        background: medalBg, color: medalColor,
+        fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {rank}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>
+          {label}
+        </div>
+        <div style={{ height: 4, borderRadius: 2, background: '#f1f5f9' }}>
+          <div style={{ height: 4, borderRadius: 2, width: `${pct}%`, background: `${colors.blue}80`, transition: 'width .5s ease' }} />
+        </div>
+      </div>
+      <span style={{ fontSize: 13, fontWeight: 700, color: colors.blue, flexShrink: 0, minWidth: 20, textAlign: 'right' }}>{count}</span>
+    </div>
+  );
+}
+
+function Empty() {
+  return (
+    <div style={{ textAlign: 'center', padding: '28px 0', fontSize: 13, color: colors.textMuted }}>
+      Aucune donnee disponible
+    </div>
+  );
 }

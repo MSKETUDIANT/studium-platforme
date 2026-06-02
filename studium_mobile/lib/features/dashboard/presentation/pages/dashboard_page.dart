@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../messaging/presentation/providers/messaging_providers.dart';
+import '../../../applications/presentation/providers/application_providers.dart';
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
 const _kNavy   = Color(0xFF0D1F42);
@@ -136,6 +137,7 @@ class _Header extends ConsumerWidget {
     final firstName = profile?.firstName?.toString().trim();
     final photoUrl  = profile?.photoUrl?.toString();
     final score     = profile?.completenessScore ?? 0;
+    final appCount  = ref.watch(myApplicationsProvider).valueOrNull?.length;
 
     return Container(
       decoration: const BoxDecoration(
@@ -250,10 +252,10 @@ class _Header extends ConsumerWidget {
                       value: '$docCount',
                     ),
                     _StatDivider(),
-                    const _StatChip(
+                    _StatChip(
                       icon: Icons.send_outlined,
                       label: 'Candidatures',
-                      value: '—',
+                      value: appCount != null ? '$appCount' : '…',
                     ),
                   ]),
                 ).animate().fadeIn(duration: 500.ms, delay: 200.ms).slideY(begin: 0.06, end: 0),
