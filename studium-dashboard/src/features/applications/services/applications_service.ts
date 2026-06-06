@@ -18,9 +18,9 @@ function mapRow(a: any): Application {
     status:       STATUS_MAP[a.status]   ?? 'En attente',
     student:      `${a.student_profiles?.first_name ?? ''} ${a.student_profiles?.last_name ?? ''}`.trim() || 'Inconnu',
     email:        a.student_profiles?.nationality ?? '',
-    university:   a.programs?.university_name    ?? '—',
-    program:      a.programs?.program_name       ?? '—',
-    country:      a.programs?.country            ?? '—',
+    university:   a.programs?.university_name    ?? '',
+    program:      a.programs?.program_name       ?? '',
+    country:      a.programs?.country            ?? '',
     level:        a.programs?.level              ?? '',
     date:         a.submitted_at                 ?? '',
     score:        a.student_profiles?.completeness_score ?? 0,
@@ -46,6 +46,36 @@ export async function fetchApplications(): Promise<Application[]> {
   return (data ?? []).map(mapRow);
 }
 
+const STATUS_PUSH_MESSAGES: Partial<Record<RawStatus, { title: string; body: string }>> = {
+  needs_fix:        { title: '️ Correction demandée', body: 'Votre dossier nécessite des corrections. Consultez le message de l\'équipe.' },
+  verified:         { title: ' Dossier validé',       body: 'Votre candidature a été validée et sera bientôt envoyée.' },
+  sent:             { title: ' Candidature envoyée',  body: 'Votre dossier a été soumis à l\'université.' },
+  accepted:         { title: ' Félicitations !',      body: 'Votre candidature a été acceptée !' },
+  rejected:         { title: ' Résultat candidature', body: 'Votre candidature n\'a pas été retenue. Consultez l\'app pour plus d\'infos.' },
+  pending_decision: { title: ' En attente de décision', body: 'L\'université examine votre dossier.' },
+};
+
+async function sendStatusPush(applicationId: string, status: RawStatus): Promise<void> {
+  const msg = STATUS_PUSH_MESSAGES[status];
+  if (!msg) return;
+
+  const { data: app } = await supabase
+    .from('applications')
+    .select('student_id')
+    .eq('id', applicationId)
+    .single();
+  if (!app?.student_id) return;
+
+  await supabase.functions.invoke('send-push-notification', {
+    body: {
+      user_ids: [app.student_id],
+      title: msg.title,
+      body:  msg.body,
+      data:  { type: 'status_change', application_id: applicationId, status },
+    },
+  });
+}
+
 export async function updateApplicationStatus(
   id: string,
   status: RawStatus,
@@ -56,6 +86,9 @@ export async function updateApplicationStatus(
     .update({ status })
     .eq('id', id);
   if (error) throw error;
+
+  // Push notification asynchrone (ne bloque pas)
+  sendStatusPush(id, status).catch(console.error);
 
   if (note) {
     const { data: latest } = await supabase

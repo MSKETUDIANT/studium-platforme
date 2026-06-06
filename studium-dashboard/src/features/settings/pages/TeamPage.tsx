@@ -13,7 +13,7 @@ interface TeamMember {
   created_at: string;
 }
 
-/* ─── Config ─────────────────────────────────────────────────────────────── */
+/*  Config  */
 const PAGE_SIZE = 10;
 
 const ROLE_CFG: Record<string, { bg: string; color: string; label: string }> = {
@@ -33,7 +33,7 @@ const AVATAR_PALETTE = [
 const avatarColor = (email: string) =>
   AVATAR_PALETTE[email.charCodeAt(0) % AVATAR_PALETTE.length];
 
-/* ─── CSS ────────────────────────────────────────────────────────────────── */
+/*  CSS  */
 const CSS = `
   .tp-stat-grid {
     display: grid;
@@ -198,7 +198,7 @@ const CSS = `
   .tp-table-wrap { animation: ph-fade-up .35s .36s ease both; }
 `;
 
-/* ─── Page ───────────────────────────────────────────────────────────────── */
+/*  Page  */
 export default function TeamPage() {
   const { isAdmin } = useRole();
   const [members,    setMembers]    = useState<TeamMember[]>([]);
@@ -315,7 +315,7 @@ export default function TeamPage() {
         }
       />
 
-      {/* ── Stats ── */}
+      {/*  Stats  */}
       <div className="tp-stat-grid">
         {[
           {
@@ -368,7 +368,7 @@ export default function TeamPage() {
         ))}
       </div>
 
-      {/* ── Alerts ── */}
+      {/*  Alerts  */}
       {success && (
         <div className="tp-alert tp-alert--success">
           <span style={{ display:'flex', alignItems:'center', gap:6 }}>
@@ -377,7 +377,7 @@ export default function TeamPage() {
             </svg>
             {success}
           </span>
-          <button onClick={() => setSuccess('')}>✕</button>
+          <button onClick={() => setSuccess('')}></button>
         </div>
       )}
       {error && (
@@ -388,11 +388,11 @@ export default function TeamPage() {
             </svg>
             {error}
           </span>
-          <button onClick={() => setError('')}>✕</button>
+          <button onClick={() => setError('')}></button>
         </div>
       )}
 
-      {/* ── Formulaire invitation ── */}
+      {/*  Formulaire invitation  */}
       {showForm && (
         <div className="tp-form-card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -401,7 +401,7 @@ export default function TeamPage() {
             </h3>
             <button onClick={() => { setShowForm(false); setError(''); }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textMuted, fontSize: 18 }}>
-              ✕
+              
             </button>
           </div>
           <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#1d4ed8', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -449,7 +449,7 @@ export default function TeamPage() {
         </div>
       )}
 
-      {/* ── Filtres ── */}
+      {/*  Filtres  */}
       <div className="tp-filters">
         {([
           { key: 'all',      label: `Tous (${members.length})`          },
@@ -466,7 +466,7 @@ export default function TeamPage() {
         ))}
       </div>
 
-      {/* ── Table ── */}
+      {/*  Table  */}
       <div className="tp-table-wrap">
         <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, #7c3aed)` }} />
         <table className="tp-table">

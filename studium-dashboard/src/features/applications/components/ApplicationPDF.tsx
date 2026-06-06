@@ -63,7 +63,7 @@ export default function ApplicationPDF({ app, history }: Props) {
   });
 
   return (
-    <Document title={`Dossier — ${app.student}`} author="Studium">
+    <Document title={`Dossier  ${app.student}`} author="Studium">
 
       {/* Page de couverture */}
       <Page size="A4" style={s.page}>
@@ -73,13 +73,13 @@ export default function ApplicationPDF({ app, history }: Props) {
           <View style={s.coverSep} />
           <Text style={s.coverName}>{app.student}</Text>
           <Text style={s.coverProg}>{app.program}</Text>
-          <Text style={s.coverUniv}>{app.university}{app.country ? ` — ${app.country}` : ''}</Text>
+          <Text style={s.coverUniv}>{app.university}{app.country ? `  ${app.country}` : ''}</Text>
           {app.level && <Text style={{ ...s.coverDate, marginTop: 8, fontSize: 10, color: '#64748b' }}>{LEVEL_LABELS[app.level] ?? app.level}</Text>}
           <Text style={s.coverDate}>Généré le {generatedAt}</Text>
         </View>
 
         <View style={s.footer}>
-          <Text style={s.footerText}>Studium — Plateforme de gestion des candidatures</Text>
+          <Text style={s.footerText}>Studium  Plateforme de gestion des candidatures</Text>
           <Text style={s.footerText}>Confidentiel</Text>
         </View>
       </Page>
@@ -94,12 +94,12 @@ export default function ApplicationPDF({ app, history }: Props) {
           <View style={s.row}><Text style={s.rowLabel}>Étudiant</Text><Text style={s.rowValue}>{app.student}</Text></View>
           <View style={s.row}><Text style={s.rowLabel}>Programme</Text><Text style={s.rowValue}>{app.program}</Text></View>
           <View style={s.row}><Text style={s.rowLabel}>Université</Text><Text style={s.rowValue}>{app.university}</Text></View>
-          <View style={s.row}><Text style={s.rowLabel}>Pays</Text><Text style={s.rowValue}>{app.country || '—'}</Text></View>
-          <View style={s.row}><Text style={s.rowLabel}>Niveau</Text><Text style={s.rowValue}>{(LEVEL_LABELS[app.level] ?? app.level) || '—'}</Text></View>
+          <View style={s.row}><Text style={s.rowLabel}>Pays</Text><Text style={s.rowValue}>{app.country || ''}</Text></View>
+          <View style={s.row}><Text style={s.rowLabel}>Niveau</Text><Text style={s.rowValue}>{(LEVEL_LABELS[app.level] ?? app.level) || ''}</Text></View>
           <View style={s.row}>
             <Text style={s.rowLabel}>Date de soumission</Text>
             <Text style={s.rowValue}>
-              {app.date ? new Date(app.date).toLocaleDateString('fr-FR') : '—'}
+              {app.date ? new Date(app.date).toLocaleDateString('fr-FR') : ''}
             </Text>
           </View>
           <View style={s.row}>
@@ -131,7 +131,7 @@ export default function ApplicationPDF({ app, history }: Props) {
                 <View style={s.histDot} />
                 <View style={s.histText}>
                   <Text style={s.histStatus}>
-                    {entry.fromStatus ? `${RAW_STATUS_LABELS[entry.fromStatus as RawStatus] ?? entry.fromStatus} → ` : ''}
+                    {entry.fromStatus ? `${RAW_STATUS_LABELS[entry.fromStatus as RawStatus] ?? entry.fromStatus}  ` : ''}
                     {RAW_STATUS_LABELS[entry.toStatus as RawStatus] ?? entry.toStatus}
                   </Text>
                   {entry.createdAt && (
@@ -158,7 +158,7 @@ export default function ApplicationPDF({ app, history }: Props) {
         )}
 
         <View style={s.footer}>
-          <Text style={s.footerText}>Studium — {app.student} / {app.program}</Text>
+          <Text style={s.footerText}>Studium  {app.student} / {app.program}</Text>
           <Text style={s.footerText} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
       </Page>

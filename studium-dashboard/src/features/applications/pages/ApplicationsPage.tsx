@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Badge }          from '../../../shared/components/Badge';
 import { Button }         from '../../../shared/components/Button';
+import { downloadCsv }   from '../../../shared/utils/export_csv';
 import { EmptyState }     from '../../../shared/components/EmptyState';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
 import { PageHeader }     from '../../../shared/components/PageHeader';
@@ -12,14 +13,14 @@ import { fetchApplications }              from '../services/applications_service
 import ApplicationDetailModal             from '../components/ApplicationDetailModal';
 import ApplicationKanban                  from '../components/ApplicationKanban';
 
-/* ─── Constants ─────────────────────────────────────────────────────────── */
+/*  Constants  */
 const PAGE_SIZE = 10;
 
-/* ─── Types ──────────────────────────────────────────────────────────────── */
+/*  Types  */
 type UIStatus = Application['status'];
 type ViewMode = 'table' | 'kanban';
 
-/* ─── CSS ────────────────────────────────────────────────────────────────── */
+/*  CSS  */
 const CSS = `
   .ap-stat-grid {
     display: grid;
@@ -165,7 +166,7 @@ if (!document.getElementById('ap-css')) {
   document.head.appendChild(s);
 }
 
-/* ─── Helpers ────────────────────────────────────────────────────────────── */
+/*  Helpers  */
 const STATUS_BADGE: Record<string, 'validated' | 'pending' | 'urgent' | 'info' | 'default'> = {
   draft:            'default',
   submitted:        'pending',
@@ -199,7 +200,7 @@ function scoreColor(n: number) {
 
 const FILTERS: ('Tous' | UIStatus)[] = ['Tous', 'En attente', 'Validé', 'Urgent', 'Refusé'];
 
-/* ─── Stat card ──────────────────────────────────────────────────────────── */
+/*  Stat card  */
 function StatCard({ label, value, sub, accent, iconBg, iconColor, icon }: {
   label: string; value: number; sub?: string;
   accent: string; iconBg: string; iconColor: string;
@@ -220,9 +221,9 @@ function StatCard({ label, value, sub, accent, iconBg, iconColor, icon }: {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* 
    ApplicationsPage
-   ═══════════════════════════════════════════════════════════════════════════ */
+    */
 export default function ApplicationsPage() {
   const [apps,        setApps]        = useState<Application[]>([]);
   const [search,      setSearch]      = useState('');
@@ -277,9 +278,27 @@ export default function ApplicationsPage() {
       <PageHeader
         title="Candidatures"
         subtitle={`${total} dossier${total !== 1 ? 's' : ''} · ${pending} en attente de traitement`}
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => {
+            downloadCsv(`candidatures_${new Date().toISOString().split('T')[0]}.csv`,
+              filtered.map(a => ({
+                'Programme':    a.program,
+                'Université':   a.university,
+                'Étudiant':     a.student,
+                'Email':        a.email,
+                'Statut':       a.status,
+                'Date':         a.date,
+                'Pays':         a.country,
+                'Niveau':       a.level,
+              }))
+            );
+          }}>
+             Export CSV
+          </Button>
+        }
       />
 
-      {/* ── Toggle vue ── */}
+      {/*  Toggle vue  */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20, marginTop: -12 }}>
         <div style={{ display: 'flex', gap: 4, background: colors.inputBg, borderRadius: 10, padding: 4 }}>
           <button
@@ -297,7 +316,7 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
-      {/* ── Erreur fetch ── */}
+      {/*  Erreur fetch  */}
       {fetchError && (
         <div style={{
           marginBottom: 20, padding: '12px 16px',
@@ -308,7 +327,7 @@ export default function ApplicationsPage() {
         </div>
       )}
 
-      {/* ── Stats ── */}
+      {/*  Stats  */}
       <div className="ap-stat-grid">
         <StatCard
           label="Total dossiers" value={total} sub="Toutes périodes"
@@ -332,7 +351,7 @@ export default function ApplicationsPage() {
         />
       </div>
 
-      {/* ── Vue kanban ── */}
+      {/*  Vue kanban  */}
       {view === 'kanban' && (
         <ApplicationKanban
           apps={apps}
@@ -341,7 +360,7 @@ export default function ApplicationsPage() {
         />
       )}
 
-      {/* ── Vue tableau ── */}
+      {/*  Vue tableau  */}
       {view === 'table' && (
         <div className="ap-table-card">
           <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, #7c3aed)` }} />
@@ -355,7 +374,7 @@ export default function ApplicationsPage() {
               <input
                 className="ap-search"
                 type="search"
-                placeholder="Rechercher…"
+                placeholder="Rechercher"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -425,7 +444,7 @@ export default function ApplicationsPage() {
                           <span style={{ fontSize: 13, color: colors.textSecondary }}>{app.country}</span>
                         </td>
                         <td style={{ color: colors.textMuted, fontSize: 13, whiteSpace: 'nowrap' }}>
-                          {app.date ? new Date(app.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                          {app.date ? new Date(app.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
                         </td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -464,7 +483,7 @@ export default function ApplicationsPage() {
         </div>
       )}
 
-      {/* ── Modal détail ── */}
+      {/*  Modal détail  */}
       {selectedApp && (
         <ApplicationDetailModal
           app={selectedApp}
@@ -476,7 +495,7 @@ export default function ApplicationsPage() {
   );
 }
 
-/* ─── Icons ──────────────────────────────────────────────────────────────── */
+/*  Icons  */
 function IconSearch()  { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>; }
 function IconEye()     { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>; }
 function IconTable()   { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>; }

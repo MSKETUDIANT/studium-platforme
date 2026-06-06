@@ -1,5 +1,5 @@
 /**
- * AppLayout.tsx — Layout principal Studium
+ * AppLayout.tsx  Layout principal Studium
  * Sidebar fixe + zone de contenu principale.
  * Navigation filtrée par rôle.
  */
@@ -19,98 +19,137 @@ const CSS = `
   .sl-root { display:flex; min-height:100vh; width:100%; font-family:${fonts.body}; background:${colors.pageBg}; }
 
   .sl-sidebar {
-    width: 240px; min-height: 100vh;
+    width: 248px; min-height: 100vh;
     background: ${colors.sidebarBg};
     display: flex; flex-direction: column;
     position: sticky; top: 0; height: 100vh;
     flex-shrink: 0; z-index: 100;
-    transition: width .25s cubic-bezier(.4,0,.2,1);
+    transition: width .28s cubic-bezier(.4,0,.2,1);
+    border-right: 1px solid rgba(255,255,255,0.05);
   }
-  .sl-sidebar.collapsed { width: 68px; }
+  .sl-sidebar.collapsed { width: 72px; }
 
+  /*  Brand  */
   .sl-brand {
-    padding: 28px 16px 24px;
+    padding: 24px 16px 20px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.07);
-    min-height: 130px; overflow: hidden;
+    gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.07);
+    min-height: 120px; overflow: hidden;
   }
-  .sl-brand img { width: 180px; filter: brightness(0) invert(1); flex-shrink:0; transition: width .2s; }
-  .sl-sidebar.collapsed .sl-brand img { width: 36px; }
+  .sl-brand img { width: 160px; filter: brightness(0) invert(1); flex-shrink:0; transition: width .22s; }
+  .sl-sidebar.collapsed .sl-brand img { width: 34px; }
   .sl-brand-tag {
-    font-size: 10px; font-weight: 500; letter-spacing: .09em;
-    color: rgba(255,255,255,0.55); text-transform: uppercase;
-    white-space: nowrap; transition: opacity .2s;
+    font-size: 9.5px; font-weight: 600; letter-spacing: .1em;
+    color: rgba(255,255,255,0.40); text-transform: uppercase;
+    white-space: nowrap; transition: opacity .2s, height .2s;
   }
   .sl-sidebar.collapsed .sl-brand-tag { opacity: 0; height: 0; overflow: hidden; }
 
-  .sl-nav { flex:1; padding: 16px 10px; display:flex; flex-direction:column; gap:2px; overflow:hidden; }
+  /*  Nav  */
+  .sl-nav {
+    flex:1; padding: 12px 8px;
+    display:flex; flex-direction:column; gap:1px;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: none;
+  }
+  .sl-nav::-webkit-scrollbar { display: none; }
+
+  .sl-section-group { margin-bottom: 4px; }
+
   .sl-section-label {
-    font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
-    color:rgba(255,255,255,0.28); padding:12px 10px 6px;
-    white-space:nowrap; overflow:hidden; transition: opacity .2s;
+    font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    color: rgba(255,255,255,0.30); padding: 14px 12px 5px;
+    white-space: nowrap; overflow: hidden;
+    transition: opacity .2s, height .2s, padding .2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sl-section-label::after {
+    content: ''; flex: 1; height: 1px;
+    background: rgba(255,255,255,0.08); min-width: 0;
   }
   .sl-sidebar.collapsed .sl-section-label { opacity:0; height:0; padding:0; }
 
+  /*  Nav item  */
   .sl-nav-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px; border-radius: 9px;
-    color: ${colors.sidebarText};
-    text-decoration: none; font-size: 14px; font-weight: 500;
-    transition: background .15s, color .15s, border-left-color .15s;
-    border-left: 2px solid transparent;
+    display: flex; align-items: center; gap: 11px;
+    padding: 9px 12px; border-radius: 10px;
+    color: rgba(255,255,255,0.55);
+    text-decoration: none; font-size: 13.5px; font-weight: 500;
+    transition: background .15s, color .15s;
     white-space: nowrap; overflow: hidden; position: relative;
   }
-  .sl-nav-item:hover { background:rgba(255,255,255,0.07); color:${colors.sidebarTextHover}; }
-  .sl-nav-item.active {
-    background: rgba(255,255,255,0.11); color: #ffffff;
-    border-left-color: ${colors.sidebarActiveBorder};
+  .sl-nav-item:hover {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.90);
   }
-  .sl-nav-icon { width:18px; height:18px; flex-shrink:0; }
-  .sl-nav-label { transition:opacity .2s; }
+  .sl-nav-item.active {
+    background: rgba(72,128,255,0.22);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 ${colors.sidebarActiveBorder};
+  }
+
+  /* Mode réduit  centrer l'icône + pill active */
+  .sl-sidebar.collapsed .sl-nav-item {
+    justify-content: center;
+    padding: 10px;
+  }
+  .sl-sidebar.collapsed .sl-nav-item.active {
+    background: rgba(72,128,255,0.30);
+    box-shadow: none;
+  }
+
+  .sl-nav-icon { width: 20px; height: 20px; flex-shrink:0; }
+  .sl-nav-label { transition: opacity .2s, width .2s; }
   .sl-sidebar.collapsed .sl-nav-label { opacity:0; width:0; overflow:hidden; }
 
+  /* Tooltip en mode réduit */
   .sl-sidebar.collapsed .sl-nav-item:hover::after {
     content: attr(data-label);
-    position: absolute; left: 72px; top: 50%; transform: translateY(-50%);
-    background: #1a2f8a; color:#fff; font-size:12px; font-weight:500;
-    padding: 5px 10px; border-radius:6px; white-space:nowrap;
-    pointer-events:none; z-index:200;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    position: absolute; left: 76px; top: 50%; transform: translateY(-50%);
+    background: #1a2f8a; color: #fff; font-size: 12px; font-weight: 600;
+    padding: 6px 12px; border-radius: 8px; white-space: nowrap;
+    pointer-events: none; z-index: 300;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.30);
+    border: 1px solid rgba(255,255,255,0.12);
   }
 
+  /*  Toggle collapse  */
   .sl-toggle {
-    margin: 0 10px 16px;
-    display:flex; align-items:center; justify-content:center;
-    width:36px; height:36px; border-radius:8px;
-    background:rgba(255,255,255,0.06); border:none;
-    cursor:pointer; color:rgba(255,255,255,0.5);
-    transition:background .15s, color .15s; flex-shrink:0; align-self: flex-start;
+    margin: 8px 10px 14px;
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 9px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer; color: rgba(255,255,255,0.45);
+    transition: background .15s, color .15s; flex-shrink: 0; align-self: flex-start;
   }
-  .sl-sidebar.collapsed .sl-toggle { align-self:center; }
-  .sl-toggle:hover { background:rgba(255,255,255,0.12); color:#fff; }
+  .sl-sidebar.collapsed .sl-toggle { align-self: center; }
+  .sl-toggle:hover { background: rgba(255,255,255,0.13); color: #fff; border-color: rgba(255,255,255,0.18); }
 
+  /*  User zone  */
   .sl-user {
-    padding: 12px 10px; border-top: 1px solid rgba(255,255,255,0.07);
-    display:flex; align-items:center; gap:10px; overflow:hidden;
+    padding: 10px 10px 14px; border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex; align-items: center; gap: 10px; overflow: hidden;
   }
   .sl-avatar {
-    width:34px; height:34px; border-radius:9px;
-    background: rgba(77,122,255,0.30);
-    display:flex; align-items:center; justify-content:center;
-    font-family:${fonts.display}; font-size:13px; font-weight:700;
-    color:#fff; flex-shrink:0;
+    width: 34px; height: 34px; border-radius: 50%;
+    background: linear-gradient(135deg, #4880ff 0%, #2546cc 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: ${fonts.display}; font-size: 13px; font-weight: 700;
+    color: #fff; flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(72,128,255,0.35);
   }
-  .sl-user-info { overflow:hidden; }
-  .sl-user-name  { font-size:13px; font-weight:600; color:rgba(255,255,255,0.88); white-space:nowrap; }
-  .sl-user-role  { font-size:11px; color:rgba(255,255,255,0.38); white-space:nowrap; }
-  .sl-sidebar.collapsed .sl-user-info { display:none; }
+  .sl-user-info { overflow: hidden; }
+  .sl-user-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.90); white-space: nowrap; }
+  .sl-user-role { font-size: 10.5px; color: rgba(255,255,255,0.35); white-space: nowrap; margin-top: 1px; }
+  .sl-sidebar.collapsed .sl-user-info { display: none; }
   .sl-logout {
-    margin-left:auto; background:none; border:none; cursor:pointer;
-    color:rgba(255,255,255,0.35); padding:6px; border-radius:6px;
-    transition:color .15s, background .15s; flex-shrink:0;
+    margin-left: auto; background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.30); padding: 6px; border-radius: 7px;
+    transition: color .15s, background .15s; flex-shrink: 0;
   }
-  .sl-logout:hover { color:#f87171; background:rgba(248,113,113,0.12); }
-  .sl-sidebar.collapsed .sl-logout { margin:0 auto; }
+  .sl-logout:hover { color: #f87171; background: rgba(248,113,113,0.12); }
+  .sl-sidebar.collapsed .sl-logout { margin: 0 auto; }
 
   .sl-main { flex:1; display:flex; flex-direction:column; min-width:0; overflow:hidden; }
 
@@ -145,13 +184,13 @@ const CSS = `
     color:${colors.textPrimary}; padding:4px;
   }
 
-  /* ── Tablette (769px – 1100px) : padding réduit ── */
+  /*  Tablette (769px  1100px) : padding réduit  */
   @media (min-width: 769px) and (max-width: 1100px) {
     .sl-content { padding:20px; }
     .sl-topbar  { padding:0 20px; }
   }
 
-  /* ── Mobile (≤ 768px) : sidebar hors-écran, hamburger ── */
+  /*  Mobile ( 768px) : sidebar hors-écran, hamburger  */
   @media (max-width: 768px) {
     .sl-sidebar {
       position: fixed; left:0; top:0; bottom:0;
@@ -170,12 +209,12 @@ const CSS = `
     .sl-topbar-btn { width:32px; height:32px; }
   }
 
-  /* ── Grands écrans (> 1400px) : sidebar légèrement plus large ── */
+  /*  Grands écrans (> 1400px) : sidebar légèrement plus large  */
   @media (min-width: 1400px) {
     .sl-sidebar:not(.collapsed) { width: 260px; }
   }
 
-  /* ── Badge messagerie sidebar ── */
+  /*  Badge messagerie sidebar  */
   .sl-badge {
     min-width:18px; height:18px; border-radius:9px;
     background:#ef4444; color:white;
@@ -185,7 +224,7 @@ const CSS = `
   }
   .sl-sidebar.collapsed .sl-badge { margin-left:0; }
 
-  /* ── Cloche topbar ── */
+  /*  Cloche topbar  */
   .sl-notif-wrap { position:relative; }
   .sl-notif-dot {
     position:absolute; top:5px; right:5px;
@@ -194,7 +233,7 @@ const CSS = `
     pointer-events:none;
   }
 
-  /* ── Dropdown notifications ── */
+  /*  Dropdown notifications  */
   .sl-notif-drop {
     position:absolute; top:calc(100% + 10px); right:0;
     width:340px; background:white; border-radius:14px;
@@ -233,7 +272,7 @@ if (!document.getElementById('sl-css')) {
   document.head.appendChild(s);
 }
 
-/* ─── Types notifications ────────────────────────────────────────────────── */
+/*  Types notifications  */
 interface NotifItem {
   convId:    string;
   student:   string;
@@ -252,7 +291,7 @@ const fmtNotifTime = (iso: string) => {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
 };
 
-/* ─── Nav items avec contrôle par rôle ──────────────────────────────────── */
+/*  Nav items avec contrôle par rôle  */
 type RoleKey = 'admin' | 'manager' | 'admissions' | 'support';
 
 const ALL_NAV_ITEMS = [
@@ -267,10 +306,12 @@ const ALL_NAV_ITEMS = [
   {
     section: 'Outils',
     items: [
-      { to: '/messaging',  label: 'Messagerie', icon: <IconMessaging />, roles: ['admin','manager','admissions','support'] },
+      { to: '/messaging',  label: 'Messagerie', icon: <IconMessaging />, roles: ['admin','admissions','support'] },
+      { to: '/tasks',      label: 'Tâches',     icon: <IconTasks />,     roles: ['admin','admissions','support'] },
       { to: '/reporting',  label: 'Rapports',   icon: <IconReporting />, roles: ['admin','manager'] },
+      { to: '/audit',      label: 'Audit',      icon: <IconAudit />,     roles: ['admin'] },
       { to: '/team',       label: 'Équipe',     icon: <IconTeam />,      roles: ['admin'] },
-      { to: '/settings',   label: 'Paramètres', icon: <IconSettings />,  roles: ['admin','manager'] },
+      { to: '/settings',   label: 'Paramètres', icon: <IconSettings />,  roles: ['admin'] },
     ],
   },
 ];
@@ -280,7 +321,9 @@ const PAGE_TITLES: Record<string, string> = {
   '/students':     'Gestion des étudiants',
   '/programs':     'Programmes',
   '/messaging':    'Messagerie',
+  '/tasks':        'Tâches & Relances',
   '/reporting':    'Rapports',
+  '/audit':        'Journal d\'audit',
   '/team':         'Équipe Studium',
   '/settings':     'Paramètres',
 };
@@ -292,7 +335,7 @@ const ROLE_LABELS: Record<string, string> = {
   support:    'Support',
 };
 
-/* ─── SVG Icons ──────────────────────────────────────────────────────────── */
+/*  SVG Icons  */
 function IconApplications() {
   return <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
 }
@@ -314,6 +357,12 @@ function IconTeam() {
 function IconSettings() {
   return <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
 }
+function IconTasks() {
+  return <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>;
+}
+function IconAudit() {
+  return <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>;
+}
 function IconCollapse() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>;
 }
@@ -330,9 +379,9 @@ function IconNotif() {
   return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* 
    AppLayout
-   ═══════════════════════════════════════════════════════════════════════════ */
+    */
 export default function AppLayout() {
   const navigate  = useNavigate();
   const { user }  = useAuth();
@@ -390,7 +439,7 @@ export default function AppLayout() {
       return {
         convId:    c.id,
         student:   [sp?.first_name, sp?.last_name].filter(Boolean).join(' ') || 'Étudiant',
-        preview:   last?.content ?? '…',
+        preview:   last?.content ?? '',
         updatedAt: c.updated_at,
       };
     }));
@@ -398,7 +447,7 @@ export default function AppLayout() {
 
   useEffect(() => { loadUnread(); }, [loadUnread]);
 
-  /* Realtime — rafraîchir le badge à chaque changement de conversations */
+  /* Realtime  rafraîchir le badge à chaque changement de conversations */
   useEffect(() => {
     const channel = supabase
       .channel('notif-conversations')
@@ -451,7 +500,7 @@ export default function AppLayout() {
         onClick={() => setMobileOpen(false)}
       />
 
-      {/* ══════════ SIDEBAR ══════════ */}
+      {/*  SIDEBAR  */}
       <aside className={sidebarClass} aria-label="Navigation principale">
 
         <div className="sl-brand">
@@ -461,7 +510,7 @@ export default function AppLayout() {
 
         <nav className="sl-nav">
           {navItems.map(({ section, items }) => (
-            <div key={section}>
+            <div key={section} className="sl-section-group">
               <div className="sl-section-label">{section}</div>
               {items.map(({ to, label, icon }) => (
                 <NavLink
@@ -503,7 +552,7 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      {/* ══════════ MAIN ══════════ */}
+      {/*  MAIN  */}
       <div className="sl-main">
 
         <header className="sl-topbar">
@@ -579,7 +628,7 @@ export default function AppLayout() {
                       onClick={() => { setNotifOpen(false); navigate('/messaging'); }}
                       style={{ background: 'none', border: 'none', fontSize: 12.5, fontWeight: 600, color: '#2546cc', cursor: 'pointer', fontFamily: fonts.body }}
                     >
-                      Voir la messagerie →
+                      Voir la messagerie 
                     </button>
                   </div>
                 </div>

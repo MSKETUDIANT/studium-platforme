@@ -3,14 +3,23 @@ import { supabase }    from '../../../shared/services/supabase';
 import { PageHeader }  from '../../../shared/components/PageHeader';
 import { colors, fonts } from '../../../shared/constants/theme';
 
-/* ─── Types ──────────────────────────────────────────────────────────────── */
+/*  Types  */
 interface Conversation {
   id:           string;
   updatedAt:    string;
   unreadStaff:  number;
   student:      { id: string; firstName: string | null; lastName: string | null; nationality: string | null };
   lastMessage:  string | null;
+  tags:         string[];
 }
+
+const ALL_TAGS = [
+  { key: 'urgent',       label: 'Urgent',        color: '#ef4444', bg: 'rgba(239,68,68,0.10)'   },
+  { key: 'doc_manquant', label: 'Doc manquant',   color: '#f59e0b', bg: 'rgba(245,158,11,0.10)' },
+  { key: 'paiement',     label: 'Paiement',       color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)' },
+  { key: 'technique',    label: 'Technique',      color: '#0891b2', bg: 'rgba(8,145,178,0.10)'  },
+  { key: 'resolu',       label: 'Résolu',         color: '#10b981', bg: 'rgba(16,185,129,0.10)' },
+];
 
 interface Message {
   id:         string;
@@ -19,7 +28,7 @@ interface Message {
   createdAt:  string;
 }
 
-/* ─── Helpers ─────────────────────────────────────────────────────────────── */
+/*  Helpers  */
 const fullName = (s: Conversation['student']) =>
   [s.firstName, s.lastName].filter(Boolean).join(' ') || 'Étudiant';
 
@@ -45,7 +54,7 @@ const fmtTime = (iso: string) => {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
 };
 
-/* ─── CSS ─────────────────────────────────────────────────────────────────── */
+/*  CSS  */
 const CSS = `
   .mp-layout { display:grid; grid-template-columns:320px 1fr; height:calc(100vh - 140px); gap:0; background:white; border-radius:16px; box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04); overflow:hidden; }
   @media(max-width:900px){ .mp-layout{ grid-template-columns:1fr; } }
@@ -88,9 +97,9 @@ const CSS = `
   .mp-send:disabled { opacity:.45; cursor:not-allowed; }
 `;
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* 
    MessagingPage
-   ═══════════════════════════════════════════════════════════════════════════ */
+    */
 export default function MessagingPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [filtered,      setFiltered]      = useState<Conversation[]>([]);
@@ -103,12 +112,12 @@ export default function MessagingPage() {
   const [sending,       setSending]       = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  /* ── Charger conversations ── */
+  /*  Charger conversations  */
   const loadConversations = useCallback(async () => {
     const { data } = await supabase
       .from('conversations')
       .select(`
-        id, updated_at, unread_staff,
+        id, updated_at, unread_staff, tags,
         student_profiles!student_profile_id(id, first_name, last_name, nationality),
         messages(content, created_at, sender_type)
       `)
@@ -129,6 +138,7 @@ export default function MessagingPage() {
           nationality: c.student_profiles?.nationality ?? null,
         },
         lastMessage: last?.content ?? null,
+        tags:        c.tags ?? [],
       };
     });
 
@@ -138,7 +148,7 @@ export default function MessagingPage() {
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
-  /* ── Filtre search ── */
+  /*  Filtre search  */
   useEffect(() => {
     if (!search.trim()) { setFiltered(conversations); return; }
     const q = search.toLowerCase();
@@ -148,7 +158,21 @@ export default function MessagingPage() {
     ));
   }, [search, conversations]);
 
-  /* ── Charger messages d'une conversation ── */
+  /*  Tags  */
+  const toggleTag = async (convId: string, tag: string) => {
+    const conv = conversations.find(c => c.id === convId);
+    if (!conv) return;
+    const has     = conv.tags.includes(tag);
+    const newTags = has ? conv.tags.filter(t => t !== tag) : [...conv.tags, tag];
+    await supabase.from('conversations').update({ tags: newTags }).eq('id', convId);
+    const update = (list: Conversation[]) =>
+      list.map(c => c.id === convId ? { ...c, tags: newTags } : c);
+    setConversations(update);
+    setFiltered(update);
+    if (selected?.id === convId) setSelected(prev => prev ? { ...prev, tags: newTags } : prev);
+  };
+
+  /*  Charger messages d'une conversation  */
   const openConversation = useCallback(async (conv: Conversation) => {
     setSelected(conv);
     setMsgLoading(true);
@@ -180,12 +204,12 @@ export default function MessagingPage() {
     }
   }, []);
 
-  /* ── Scroll bas ── */
+  /*  Scroll bas  */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  /* ── Envoyer un message ── */
+  /*  Envoyer un message  */
   const sendReply = async () => {
     if (!reply.trim() || !selected) return;
     setSending(true);
@@ -217,6 +241,15 @@ export default function MessagingPage() {
           : c
         ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       );
+      // Push notification à l'étudiant
+      supabase.functions.invoke('send-push-notification', {
+        body: {
+          user_ids: [selected.student.id],
+          title: ' Nouveau message  Équipe Studium',
+          body:  content.length > 80 ? content.substring(0, 80) + '' : content,
+          data:  { type: 'message', conversation_id: selected.id },
+        },
+      }).catch(console.error);
     }
     setSending(false);
   };
@@ -241,7 +274,7 @@ export default function MessagingPage() {
 
       <div className="mp-layout">
 
-        {/* ── Sidebar ── */}
+        {/*  Sidebar  */}
         <div className="mp-sidebar">
           <div className="mp-sidebar-head">
             <div style={{ position: 'relative' }}>
@@ -251,7 +284,7 @@ export default function MessagingPage() {
               </svg>
               <input
                 className="mp-search"
-                placeholder="Rechercher un étudiant…"
+                placeholder="Rechercher un étudiant"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -261,7 +294,7 @@ export default function MessagingPage() {
           <div className="mp-conv-list">
             {loading ? (
               <div style={{ padding: 40, textAlign: 'center', color: colors.textMuted, fontSize: 13 }}>
-                Chargement…
+                Chargement
               </div>
             ) : filtered.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center', color: colors.textMuted, fontSize: 13 }}>
@@ -302,6 +335,20 @@ export default function MessagingPage() {
                         {conv.lastMessage}
                       </div>
                     )}
+                    {conv.tags.length > 0 && (
+                      <div style={{ display: 'flex', gap: 4, marginTop: 5, flexWrap: 'wrap' }}>
+                        {conv.tags.map(tag => {
+                          const t = ALL_TAGS.find(t => t.key === tag);
+                          if (!t) return null;
+                          return (
+                            <span key={tag} style={{
+                              fontSize: 10, fontWeight: 700, padding: '1px 7px',
+                              borderRadius: 20, background: t.bg, color: t.color,
+                            }}>{t.label}</span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   {conv.unreadStaff > 0 && (
                     <div className="mp-unread">{conv.unreadStaff}</div>
@@ -312,7 +359,7 @@ export default function MessagingPage() {
           </div>
         </div>
 
-        {/* ── Thread ── */}
+        {/*  Thread  */}
         <div className="mp-thread">
           {!selected ? (
             <div className="mp-empty">
@@ -353,6 +400,25 @@ export default function MessagingPage() {
                       {selected.student.nationality}
                     </div>
                   )}
+                  {/* Sélecteur de tags */}
+                  <div style={{ display: 'flex', gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
+                    {ALL_TAGS.map(t => {
+                      const active = selected.tags.includes(t.key);
+                      return (
+                        <button
+                          key={t.key}
+                          onClick={() => toggleTag(selected.id, t.key)}
+                          style={{
+                            fontSize: 10.5, fontWeight: 700, padding: '3px 10px',
+                            borderRadius: 20, border: `1.5px solid ${active ? t.color : colors.border}`,
+                            background: active ? t.bg : 'transparent',
+                            color: active ? t.color : colors.textMuted,
+                            cursor: 'pointer', transition: 'all .15s',
+                          }}
+                        >{t.label}</button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -360,7 +426,7 @@ export default function MessagingPage() {
               <div className="mp-messages">
                 {msgLoading ? (
                   <div style={{ textAlign: 'center', color: colors.textMuted, fontSize: 13, padding: 32 }}>
-                    Chargement…
+                    Chargement
                   </div>
                 ) : messages.length === 0 ? (
                   <div style={{ textAlign: 'center', color: colors.textMuted, fontSize: 13, padding: 32 }}>
@@ -382,7 +448,7 @@ export default function MessagingPage() {
                 <textarea
                   className="mp-textarea"
                   rows={3}
-                  placeholder="Écrire un message… (Ctrl+Entrée pour envoyer)"
+                  placeholder="Écrire un message (Ctrl+Entrée pour envoyer)"
                   value={reply}
                   onChange={e => setReply(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -396,7 +462,7 @@ export default function MessagingPage() {
                     <line x1="22" y1="2" x2="11" y2="13"/>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"/>
                   </svg>
-                  {sending ? 'Envoi…' : 'Envoyer'}
+                  {sending ? 'Envoi' : 'Envoyer'}
                 </button>
               </div>
             </>

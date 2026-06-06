@@ -1,5 +1,5 @@
 /**
- * Button.tsx — Bouton réutilisable Studium
+ * Button.tsx  Bouton réutilisable Studium
  * Variantes : primary | secondary | danger | ghost
  * Tailles    : sm | md | lg
  */

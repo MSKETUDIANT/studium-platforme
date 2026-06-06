@@ -8,7 +8,7 @@ import {
 import type { KPISummary, MonthlyCount, TopItem } from '../services/reporting_service';
 import { supabase } from '../../../shared/services/supabase';
 
-/* ─── Icons ──────────────────────────────────────────────────────────────── */
+/*  Icons  */
 const IconTotal    = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
 const IconPending  = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
 const IconSent     = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
@@ -91,7 +91,7 @@ export default function ReportingPage() {
           </div>
         ) : (
           <>
-            {/* Ligne 1 — 4 KPIs principaux */}
+            {/* Ligne 1  4 KPIs principaux */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
               <MetricCard
                 icon={<IconTotal />}    iconBg="#eff6ff" iconColor={colors.blue}
@@ -115,7 +115,7 @@ export default function ReportingPage() {
               />
             </div>
 
-            {/* Ligne 2 — 3 métriques secondaires */}
+            {/* Ligne 2  3 métriques secondaires */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
               <MetricCard
                 icon={<IconFix />}   iconBg="#fef2f2" iconColor="#ef4444"
@@ -134,7 +134,7 @@ export default function ReportingPage() {
               />
             </div>
 
-            {/* Ligne 3 — Graphiques */}
+            {/* Ligne 3  Graphiques */}
             <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 20 }}>
               <Panel title="Candidatures par mois">
                 {monthly.length === 0 ? <Empty /> : (
@@ -171,7 +171,7 @@ export default function ReportingPage() {
               </Panel>
             </div>
 
-            {/* Ligne 4 — Top listes */}
+            {/* Ligne 4  Top listes */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               <Panel title="Top pays de destination">
                 {countries.length === 0 ? <Empty /> : (
@@ -199,7 +199,7 @@ export default function ReportingPage() {
   );
 }
 
-/* ─── Components ──────────────────────────────────────────────────────────── */
+/*  Components  */
 
 function MetricCard({ icon, iconBg, iconColor, label, value, sub }: {
   icon: React.ReactNode; iconBg: string; iconColor: string;

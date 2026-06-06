@@ -7,7 +7,7 @@ import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
 import { EmptyState }     from '../../../shared/components/EmptyState';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 
-/* ─── Types ──────────────────────────────────────────────────────────────── */
+/*  Types  */
 interface Program {
   id:              string;
   program_name:    string;
@@ -121,16 +121,16 @@ const DURATIONS = [
 ];
 
 const CURRENCIES: { symbol: string; code: string; label: string }[] = [
-  { symbol: '€',   code: 'EUR', label: 'EUR — Euro'             },
-  { symbol: '$',   code: 'USD', label: 'USD — Dollar américain' },
-  { symbol: '£',   code: 'GBP', label: 'GBP — Livre sterling'   },
-  { symbol: 'CA$', code: 'CAD', label: 'CAD — Dollar canadien'  },
-  { symbol: 'CHF', code: 'CHF', label: 'CHF — Franc suisse'     },
-  { symbol: 'CFA', code: 'XOF', label: 'XOF — Franc CFA UEMOA' },
-  { symbol: 'CFA', code: 'XAF', label: 'XAF — Franc CFA CEMAC' },
-  { symbol: 'MAD', code: 'MAD', label: 'MAD — Dirham marocain'  },
-  { symbol: 'DZD', code: 'DZD', label: 'DZD — Dinar algérien'  },
-  { symbol: 'TND', code: 'TND', label: 'TND — Dinar tunisien'   },
+  { symbol: '',   code: 'EUR', label: 'EUR  Euro'             },
+  { symbol: '$',   code: 'USD', label: 'USD  Dollar américain' },
+  { symbol: '£',   code: 'GBP', label: 'GBP  Livre sterling'   },
+  { symbol: 'CA$', code: 'CAD', label: 'CAD  Dollar canadien'  },
+  { symbol: 'CHF', code: 'CHF', label: 'CHF  Franc suisse'     },
+  { symbol: 'CFA', code: 'XOF', label: 'XOF  Franc CFA UEMOA' },
+  { symbol: 'CFA', code: 'XAF', label: 'XAF  Franc CFA CEMAC' },
+  { symbol: 'MAD', code: 'MAD', label: 'MAD  Dirham marocain'  },
+  { symbol: 'DZD', code: 'DZD', label: 'DZD  Dinar algérien'  },
+  { symbol: 'TND', code: 'TND', label: 'TND  Dinar tunisien'   },
 ];
 
 const LEVEL_CFG: Record<string, { color: string; bg: string }> = {
@@ -139,7 +139,7 @@ const LEVEL_CFG: Record<string, { color: string; bg: string }> = {
   phd:      { color: colors.success, bg: 'rgba(22,163,74,0.10)'   },
 };
 
-/* ─── CSS ─────────────────────────────────────────────────────────────────── */
+/*  CSS  */
 const CSS = `
   .pp-stat-grid {
     display: grid;
@@ -367,7 +367,7 @@ const CSS = `
   .pp-textarea { resize: vertical; min-height: 80px; }
   .pp-field-error { font-size: 11px; color: ${colors.danger}; margin-top: 2px; }
 
-  /* ─── Cost input group ─── */
+  /*  Cost input group  */
   .pp-cost-group {
     display: flex;
     border: 1.5px solid ${colors.borderInput};
@@ -420,7 +420,7 @@ const CSS = `
   }
   .pp-gratuit-btn:hover { border-color: ${colors.success}; }
 
-  /* ─── Toast ─── */
+  /*  Toast  */
   .pp-toast {
     position: fixed;
     bottom: 28px;
@@ -445,7 +445,7 @@ const CSS = `
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  /* ─── Detail modal ─── */
+  /*  Detail modal  */
   .pp-detail-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -499,15 +499,15 @@ function injectCSS() {
   document.head.appendChild(s);
 }
 
-/* ─── Helpers ─────────────────────────────────────────────────────────────── */
+/*  Helpers  */
 function fmtCost(cost: number | null) {
-  if (cost == null) return '—';
+  if (cost == null) return '';
   if (cost === 0) return 'Gratuit';
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(cost);
 }
 
 function fmtDate(d: string | null) {
-  if (!d) return '—';
+  if (!d) return '';
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
@@ -563,7 +563,7 @@ function StatCard({ label, value, color, iconKey }: { label: string; value: numb
   );
 }
 
-/* ─── Detail Modal ────────────────────────────────────────────────────────── */
+/*  Detail Modal  */
 function ProgramDetailModal({ program, onClose, onEdit }: {
   program: Program;
   onClose: () => void;
@@ -585,14 +585,14 @@ function ProgramDetailModal({ program, onClose, onEdit }: {
             </h2>
             <div style={{ fontSize: 14, color: colors.textSecondary }}>{program.university_name}</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: colors.textMuted, flexShrink: 0 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: colors.textMuted, flexShrink: 0 }}></button>
         </div>
 
         <div className="pp-detail-grid">
           {[
-            ['Pays',     program.country   ?? '—'],
-            ['Langue',   program.language  ?? '—'],
-            ['Durée',    program.duration  ?? '—'],
+            ['Pays',     program.country   ?? ''],
+            ['Langue',   program.language  ?? ''],
+            ['Durée',    program.duration  ?? ''],
             ['Coût',     fmtCost(program.cost)],
             ['Deadline', fmtDate(program.deadline)],
             ['Statut',   program.is_active ? 'Actif' : 'Inactif'],
@@ -638,7 +638,7 @@ function ProgramDetailModal({ program, onClose, onEdit }: {
   );
 }
 
-/* ─── Modal Form ──────────────────────────────────────────────────────────── */
+/*  Modal Form  */
 function ProgramModal({
   initial,
   onSave,
@@ -675,7 +675,7 @@ function ProgramModal({
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: fonts.display, color: colors.textPrimary }}>
             {initial.program_name ? 'Modifier le programme' : 'Nouveau programme'}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: colors.textMuted }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: colors.textMuted }}></button>
         </div>
 
         <div className="pp-form-grid">
@@ -703,14 +703,14 @@ function ProgramModal({
           <div className="pp-field">
             <label className="pp-label">Niveau</label>
             <select className="pp-form-select" value={form.level ?? ''} onChange={e => set('level', e.target.value || null)}>
-              <option value="">— Sélectionner —</option>
+              <option value=""> Sélectionner </option>
               {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div className="pp-field">
             <label className="pp-label">Pays</label>
             <select className="pp-form-select" value={form.country ?? ''} onChange={e => set('country', e.target.value || null)}>
-              <option value="">— Sélectionner —</option>
+              <option value=""> Sélectionner </option>
               {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -718,14 +718,14 @@ function ProgramModal({
           <div className="pp-field">
             <label className="pp-label">Langue</label>
             <select className="pp-form-select" value={form.language ?? ''} onChange={e => set('language', e.target.value || null)}>
-              <option value="">— Sélectionner —</option>
+              <option value=""> Sélectionner </option>
               {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
           <div className="pp-field">
             <label className="pp-label">Durée</label>
             <select className="pp-form-select" value={form.duration ?? ''} onChange={e => set('duration', e.target.value || null)}>
-              <option value="">— Sélectionner —</option>
+              <option value=""> Sélectionner </option>
               {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
@@ -738,7 +738,7 @@ function ProgramModal({
                 className={`pp-gratuit-btn${isGratuit ? ' active' : ''}`}
                 onClick={() => set('cost', isGratuit ? null : 0)}
               >
-                {isGratuit ? '✓ Gratuit' : 'Gratuit ?'}
+                {isGratuit ? ' Gratuit' : 'Gratuit ?'}
               </button>
             </label>
             {!isGratuit ? (
@@ -763,7 +763,7 @@ function ProgramModal({
               </div>
             ) : (
               <div style={{ padding: '9px 12px', background: 'rgba(22,163,74,0.06)', border: `1.5px solid ${colors.success}`, borderRadius: radius.md, fontSize: 13.5, color: colors.success, fontWeight: 600 }}>
-                ✓ Programme gratuit
+                 Programme gratuit
               </div>
             )}
           </div>
@@ -780,7 +780,7 @@ function ProgramModal({
           <div className="pp-field">
             <label className="pp-label">Domaine</label>
             <select className="pp-form-select" value={form.domain ?? ''} onChange={e => set('domain', e.target.value || null)}>
-              <option value="">— Sélectionner —</option>
+              <option value=""> Sélectionner </option>
               {DOMAINS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
@@ -831,7 +831,7 @@ function ProgramModal({
   );
 }
 
-/* ─── Page principale ─────────────────────────────────────────────────────── */
+/*  Page principale  */
 export default function ProgramsPage() {
   injectCSS();
 
@@ -860,7 +860,7 @@ export default function ProgramsPage() {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
-  /* ─── Fetch ─── */
+  /*  Fetch  */
   async function fetchPrograms() {
     setLoading(true);
     const { data, error } = await supabase
@@ -873,7 +873,7 @@ export default function ProgramsPage() {
 
   useEffect(() => { fetchPrograms(); }, []);
 
-  /* ─── Valeurs dynamiques pour les selects ─── */
+  /*  Valeurs dynamiques pour les selects  */
   const countries = useMemo(() =>
     [...new Set(programs.map(p => p.country).filter(Boolean) as string[])].sort()
   , [programs]);
@@ -884,7 +884,7 @@ export default function ProgramsPage() {
 
   const anyFilter = search || filterLevel || filterCountry || filterLang || filterActive !== 'all';
 
-  /* ─── Filtres ─── */
+  /*  Filtres  */
   const filtered = useMemo(() => programs.filter(p => {
     const q = search.toLowerCase();
     const matchSearch  = !q ||
@@ -903,13 +903,13 @@ export default function ProgramsPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  /* ─── Stats ─── */
+  /*  Stats  */
   const total    = programs.length;
   const active   = programs.filter(p => p.is_active).length;
   const masters  = programs.filter(p => p.level === 'master').length;
   const licences = programs.filter(p => p.level === 'bachelor').length;
 
-  /* ─── Save (create / update) ─── */
+  /*  Save (create / update)  */
   async function handleSave(form: FormData) {
     setSaving(true);
     setSaveError(null);
@@ -946,7 +946,7 @@ export default function ProgramsPage() {
     showToast(modal.program ? 'Programme modifié avec succès' : 'Programme créé avec succès');
   }
 
-  /* ─── Toggle actif / archiver ─── */
+  /*  Toggle actif / archiver  */
   async function handleToggleActive(p: Program) {
     const { error } = await supabase.from('programs').update({ is_active: !p.is_active }).eq('id', p.id);
     if (!error) {
@@ -957,7 +957,7 @@ export default function ProgramsPage() {
     }
   }
 
-  /* ─── Supprimer ─── */
+  /*  Supprimer  */
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -972,7 +972,7 @@ export default function ProgramsPage() {
     fetchPrograms();
   }
 
-  /* ─── Render ─── */
+  /*  Render  */
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -998,7 +998,7 @@ export default function ProgramsPage() {
           <span className="pp-search-icon" style={{ display:'flex' }}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
           <input
             className="pp-search"
-            placeholder="Rechercher programme, université, pays…"
+            placeholder="Rechercher programme, université, pays"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -1025,7 +1025,7 @@ export default function ProgramsPage() {
             onClick={() => { setSearch(''); setFilterLevel(''); setFilterCountry(''); setFilterLang(''); setFilterActive('all'); }}
             style={{ padding: '7px 13px', borderRadius: 8, border: `1.5px solid ${colors.borderInput}`, background: 'white', cursor: 'pointer', fontSize: 13, color: colors.textSecondary, whiteSpace: 'nowrap', fontFamily: fonts.body }}
           >
-            ✕ Réinitialiser
+             Réinitialiser
           </button>
         )}
       </div>
@@ -1088,7 +1088,7 @@ export default function ProgramsPage() {
                         <span className="pp-level-badge" style={{ color: lvlCfg.color, background: lvlCfg.bg }}>
                           {LEVEL_LABEL[p.level] ?? p.level}
                         </span>
-                      ) : <span style={{ color: colors.textMuted }}>—</span>}
+                      ) : <span style={{ color: colors.textMuted }}></span>}
                     </td>
                     <td>
                       <div style={{ fontSize: 13, color: colors.textSecondary }}>
@@ -1099,7 +1099,7 @@ export default function ProgramsPage() {
                       </div>
                     </td>
                     <td style={{ color: colors.textSecondary, fontSize: 13 }}>
-                      {p.duration ?? '—'}
+                      {p.duration ?? ''}
                     </td>
                     <td>
                       <span style={{
@@ -1107,8 +1107,8 @@ export default function ProgramsPage() {
                         color: p.cost === 0 ? colors.success : p.cost ? colors.textPrimary : colors.textMuted,
                       }}>
                         {p.cost === 0 ? 'Gratuit' : p.cost
-                          ? `${new Intl.NumberFormat('fr-FR').format(p.cost)} €`
-                          : '—'}
+                          ? `${new Intl.NumberFormat('fr-FR').format(p.cost)} `
+                          : ''}
                       </span>
                     </td>
                     <td>
@@ -1116,7 +1116,7 @@ export default function ProgramsPage() {
                         <span style={{ fontSize: 13, color: deadlineColor, fontWeight: deadlineSoon ? 600 : 400 }}>
                           {fmtDate(p.deadline)}
                         </span>
-                      ) : <span style={{ color: colors.textMuted }}>—</span>}
+                      ) : <span style={{ color: colors.textMuted }}></span>}
                     </td>
                     <td>
                       <span
@@ -1231,10 +1231,10 @@ export default function ProgramsPage() {
               Supprimer définitivement ?
             </h2>
             <p style={{ margin: '0 0 6px', fontSize: 14, color: colors.textSecondary }}>
-              <strong>{deleteTarget.program_name}</strong> — {deleteTarget.university_name}
+              <strong>{deleteTarget.program_name}</strong>  {deleteTarget.university_name}
             </p>
             <p style={{ margin: '0 0 4px', fontSize: 13, color: colors.textSecondary }}>
-              💡 Si vous souhaitez seulement le masquer aux étudiants, utilisez plutôt <strong>Archiver</strong>.
+               Si vous souhaitez seulement le masquer aux étudiants, utilisez plutôt <strong>Archiver</strong>.
             </p>
             <p style={{ margin: '0 0 24px', fontSize: 13, color: colors.danger }}>
               La suppression est définitive et irréversible.

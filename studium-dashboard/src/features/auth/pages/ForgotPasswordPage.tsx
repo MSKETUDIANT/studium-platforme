@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../shared/services/supabase';
 import stlogo from '../../../assets/stlogo.png';
 
-/* ─── CSS partagé (même guard que LoginPage) ────────────────────────────── */
+/*  CSS partagé (même guard que LoginPage)  */
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
 
@@ -101,7 +101,7 @@ if (!document.getElementById('stl-css')) {
   document.head.appendChild(s);
 }
 
-/* ─── Icons ─────────────────────────────────────────────────────────────── */
+/*  Icons  */
 const IconMail = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
     stroke="rgba(255,255,255,0.80)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -145,7 +145,7 @@ const Spinner = () => (
   </svg>
 );
 
-/* ═══════════════════════════════════════════════════════════════════════════ */
+/*  */
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
   const emailId  = useId();
@@ -181,7 +181,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="stl-root">
 
-      {/* ══════════ PANEL GAUCHE ══════════ */}
+      {/*  PANEL GAUCHE  */}
       <aside className="stl-left" aria-label="Présentation Studium">
         <Orb style={{ width:400, height:400, top:-120, right:-100 }} />
         <Orb style={{ width:280, height:280, bottom:-70, left:-80, opacity:0.6 }} />
@@ -225,7 +225,7 @@ export default function ForgotPasswordPage() {
         </div>
       </aside>
 
-      {/* ══════════ PANEL DROIT ══════════ */}
+      {/*  PANEL DROIT  */}
       <div className="stl-right">
         <div style={{ width:'100%', maxWidth:420 }}>
 
@@ -245,7 +245,7 @@ export default function ForgotPasswordPage() {
             <div style={{ padding:'40px 44px' }}>
 
               {sent ? (
-                /* ── État envoyé ── */
+                /*  État envoyé  */
                 <div style={{ textAlign:'center', padding:'8px 0' }}>
                   <div style={{
                     width:72, height:72, borderRadius:'50%', margin:'0 auto 20px',
@@ -273,12 +273,12 @@ export default function ForgotPasswordPage() {
                     Pensez à vérifier vos spams si vous ne le recevez pas.
                   </p>
                   <button onClick={() => navigate('/login')} className="stl-btn">
-                    ← Retour à la connexion
+                     Retour à la connexion
                   </button>
                 </div>
               ) : (
                 <>
-                  {/* ── En-tête ── */}
+                  {/*  En-tête  */}
                   <div style={{ marginBottom:32, paddingBottom:24, borderBottom:'1px solid #eceef6' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
                       <div style={{
@@ -308,7 +308,7 @@ export default function ForgotPasswordPage() {
                     </p>
                   </div>
 
-                  {/* ── Form ── */}
+                  {/*  Form  */}
                   <form onSubmit={handleSubmit} noValidate>
                     <div style={{ marginBottom:24 }}>
                       <label htmlFor={emailId} style={labelStyle}>Adresse email</label>
@@ -339,12 +339,12 @@ export default function ForgotPasswordPage() {
                     )}
 
                     <button type="submit" disabled={loading} className="stl-btn">
-                      {loading ? <><Spinner />Envoi en cours…</> : 'Envoyer le lien'}
+                      {loading ? <><Spinner />Envoi en cours</> : 'Envoyer le lien'}
                     </button>
 
                     <div style={{ textAlign:'center', marginTop:20 }}>
                       <span className="stl-link" onClick={() => navigate('/login')}>
-                        ← Retour à la connexion
+                         Retour à la connexion
                       </span>
                     </div>
                   </form>
@@ -354,7 +354,7 @@ export default function ForgotPasswordPage() {
           </main>
 
           <p style={{ textAlign:'center', marginTop:24, fontSize:12, color:'#aab2cc', lineHeight:1.6 }}>
-            © 2025 Studium Platform — Tous droits réservés
+             2025 Studium Platform  Tous droits réservés
           </p>
         </div>
       </div>

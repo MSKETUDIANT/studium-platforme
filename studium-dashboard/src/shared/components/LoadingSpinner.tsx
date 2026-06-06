@@ -1,5 +1,5 @@
 /**
- * LoadingSpinner.tsx — Spinner de chargement Studium
+ * LoadingSpinner.tsx  Spinner de chargement Studium
  */
 import { colors } from '../constants/theme';
 
@@ -31,7 +31,7 @@ export function LoadingSpinner({ size = 32, color = colors.navy, fullPage = fals
       className="st-spinner"
       width={size} height={size}
       viewBox="0 0 24 24" fill="none"
-      aria-label="Chargement…" role="status"
+      aria-label="Chargement" role="status"
     >
       <circle cx="12" cy="12" r="10" stroke={color} strokeOpacity=".15" strokeWidth="2.5"/>
       <path d="M22 12a10 10 0 0 0-10-10" stroke={color} strokeWidth="2.5" strokeLinecap="round"/>

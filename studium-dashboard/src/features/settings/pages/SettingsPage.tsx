@@ -11,9 +11,9 @@ import {
 } from '../services/platform_settings_service';
 import type { PlatformSettings } from '../services/platform_settings_service';
 
-/* ─── Constants ────────────────────────────────────────────────────────────── */
+/*  Constants  */
 
-const DEFAULT_SUBJECT = '[Studium] Candidature – {{student_name}} – {{program_name}}';
+const DEFAULT_SUBJECT = '[Studium] Candidature  {{student_name}}  {{program_name}}';
 const DEFAULT_BODY =
 `Madame, Monsieur,
 
@@ -38,7 +38,7 @@ const EMPTY_FORM = {
   bodyTemplate:    DEFAULT_BODY,
 };
 
-/* ─── Page ─────────────────────────────────────────────────────────────────── */
+/*  Page  */
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('Templates email');
@@ -87,7 +87,7 @@ export default function SettingsPage() {
   );
 }
 
-/* ─── Tab 1 : Templates email ──────────────────────────────────────────────── */
+/*  Tab 1 : Templates email  */
 
 function TemplatesTab() {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -197,7 +197,7 @@ function TemplatesTab() {
           {error && <div style={{ fontSize: 12.5, color: colors.danger, marginBottom: 12, padding: '8px 12px', background: '#fef2f2', borderRadius: 7 }}>{error}</div>}
 
           <BtnPrimary onClick={handleSave} disabled={saving || !form.subjectTemplate.trim()} saved={saved} saving={saving}>
-            {saved ? 'Enregistré' : saving ? 'Enregistrement…' : 'Enregistrer'}
+            {saved ? 'Enregistré' : saving ? 'Enregistrement' : 'Enregistrer'}
           </BtnPrimary>
         </Card>
       </div>
@@ -207,7 +207,7 @@ function TemplatesTab() {
         <Card>
           <div style={{ fontSize: 13, fontWeight: 700, color: colors.navy, marginBottom: 14 }}>Templates existants</div>
           {loading ? (
-            <div style={{ fontSize: 13, color: colors.textMuted, textAlign: 'center', padding: '20px 0' }}>Chargement…</div>
+            <div style={{ fontSize: 13, color: colors.textMuted, textAlign: 'center', padding: '20px 0' }}>Chargement</div>
           ) : templates.length === 0 ? (
             <div style={{ fontSize: 13, color: colors.textMuted, fontStyle: 'italic', textAlign: 'center', padding: '20px 0' }}>Aucun template.</div>
           ) : (
@@ -237,7 +237,7 @@ function TemplatesTab() {
   );
 }
 
-/* ─── Tab 2 : Règles & Limites ─────────────────────────────────────────────── */
+/*  Tab 2 : Règles & Limites  */
 
 function RulesTab() {
   const [settings, setSettings] = useState<PlatformSettings>({
@@ -296,14 +296,14 @@ function RulesTab() {
 
         {error && <div style={{ fontSize: 12.5, color: colors.danger, marginBottom: 12, padding: '8px 12px', background: '#fef2f2', borderRadius: 7 }}>{error}</div>}
         <BtnPrimary onClick={handleSave} disabled={saving} saved={saved} saving={saving}>
-          {saved ? 'Enregistré' : saving ? 'Enregistrement…' : 'Enregistrer les règles'}
+          {saved ? 'Enregistré' : saving ? 'Enregistrement' : 'Enregistrer les règles'}
         </BtnPrimary>
       </Card>
     </div>
   );
 }
 
-/* ─── Tab 3 : Général ──────────────────────────────────────────────────────── */
+/*  Tab 3 : Général  */
 
 function GeneralTab() {
   const [settings, setSettings] = useState<PlatformSettings>({
@@ -362,14 +362,14 @@ function GeneralTab() {
 
         {error && <div style={{ fontSize: 12.5, color: colors.danger, marginBottom: 12, padding: '8px 12px', background: '#fef2f2', borderRadius: 7 }}>{error}</div>}
         <BtnPrimary onClick={handleSave} disabled={saving} saved={saved} saving={saving}>
-          {saved ? 'Enregistré' : saving ? 'Enregistrement…' : 'Enregistrer'}
+          {saved ? 'Enregistré' : saving ? 'Enregistrement' : 'Enregistrer'}
         </BtnPrimary>
       </Card>
     </div>
   );
 }
 
-/* ─── Shared components ────────────────────────────────────────────────────── */
+/*  Shared components  */
 
 function Card({ children }: { children: React.ReactNode }) {
   return (

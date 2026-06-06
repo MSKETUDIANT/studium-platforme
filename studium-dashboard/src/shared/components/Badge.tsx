@@ -1,5 +1,5 @@
 /**
- * Badge.tsx — Statuts colorés Studium
+ * Badge.tsx  Statuts colorés Studium
  * Variantes : pending | validated | urgent | info | default
  */
 

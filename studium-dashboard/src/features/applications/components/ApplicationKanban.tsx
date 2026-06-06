@@ -125,7 +125,7 @@ export default function ApplicationKanban({ apps, onUpdate, onSelect }: Props) {
   );
 }
 
-/* ─── Kanban card ─────────────────────────────────────────────────────────── */
+/*  Kanban card  */
 
 function KanbanCard({ app, accent, onDragStart, onDragEnd, onClick }: {
   app:         Application;

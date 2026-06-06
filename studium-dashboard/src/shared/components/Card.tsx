@@ -1,5 +1,5 @@
 /**
- * Card.tsx — Carte blanche réutilisable Studium
+ * Card.tsx  Carte blanche réutilisable Studium
  */
 import { colors, radius, shadows } from '../constants/theme';
 

@@ -116,7 +116,7 @@ export async function fetchTopPrograms(limit = 5): Promise<TopItem[]> {
   data.forEach((a: any) => {
     const p = a.programs;
     if (!p) return;
-    const key = `${p.program_name} — ${p.university_name}`;
+    const key = `${p.program_name}  ${p.university_name}`;
     map[key] = (map[key] ?? 0) + 1;
   });
 

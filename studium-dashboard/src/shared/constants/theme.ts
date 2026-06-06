@@ -1,5 +1,5 @@
 /**
- * theme.ts — Design tokens Studium
+ * theme.ts  Design tokens Studium
  * Source unique de vérité pour toute l'application.
  * Importer depuis n'importe quel composant : import { colors, fonts } from '@/shared/constants/theme'
  */

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../shared/services/supabase';
 import stlogo from '../../../assets/stlogo.png';
 
-/* ─── CSS partagé (même guard que LoginPage / ForgotPasswordPage) ─────── */
+/*  CSS partagé (même guard que LoginPage / ForgotPasswordPage)  */
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
 
@@ -101,7 +101,7 @@ if (!document.getElementById('stl-css')) {
   document.head.appendChild(s);
 }
 
-/* ─── Icons ─────────────────────────────────────────────────────────────── */
+/*  Icons  */
 const IconLock = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
     stroke="rgba(255,255,255,0.80)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -168,7 +168,7 @@ const EyeOff = () => (
   </svg>
 );
 
-/* ─── Password strength ──────────────────────────────────────────────────── */
+/*  Password strength  */
 function passwordStrength(pw: string) {
   if (!pw) return { score: 0, label: '', color: 'transparent' };
   let score = 0;
@@ -182,7 +182,7 @@ function passwordStrength(pw: string) {
   return              { score, label: 'Fort',    color: '#34d399' };
 }
 
-/* ─── Shared left panel ──────────────────────────────────────────────────── */
+/*  Shared left panel  */
 function LeftPanel() {
   return (
     <aside className="stl-left" aria-label="Présentation Studium">
@@ -205,7 +205,7 @@ function LeftPanel() {
       }}>
         Bienvenue dans{' '}
         <strong style={{ color:'#ffffff', fontWeight:600 }}>l'équipe Studium</strong>
-        {' '}— définissez votre mot de passe pour accéder au dashboard.
+        {' '} définissez votre mot de passe pour accéder au dashboard.
       </p>
 
       <div style={{
@@ -228,7 +228,7 @@ function LeftPanel() {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════ */
+/*  */
 export default function ResetPasswordPage() {
   const navigate   = useNavigate();
   const passwordId = useId();
@@ -309,7 +309,7 @@ export default function ResetPasswordPage() {
     textTransform:'uppercase', color:'#3d4a68',
   };
 
-  /* ── État succès ── */
+  /*  État succès  */
   if (success) return (
     <div className="stl-root">
       <LeftPanel />
@@ -332,13 +332,13 @@ export default function ResetPasswordPage() {
           <p style={{ color:'#6b7a9e', fontSize:14.5, lineHeight:1.6, marginBottom:6 }}>
             Votre compte est maintenant sécurisé.
           </p>
-          <p style={{ color:'#9ba3bc', fontSize:13 }}>Redirection vers le dashboard…</p>
+          <p style={{ color:'#9ba3bc', fontSize:13 }}>Redirection vers le dashboard</p>
         </div>
       </div>
     </div>
   );
 
-  /* ── État chargement / lien invalide ── */
+  /*  État chargement / lien invalide  */
   if (!sessionReady) return (
     <div className="stl-root">
       <LeftPanel />
@@ -371,7 +371,7 @@ export default function ResetPasswordPage() {
               <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
                 <Spinner />
               </div>
-              <p style={{ color:'#6b7a9e', fontSize:14 }}>Vérification du lien…</p>
+              <p style={{ color:'#6b7a9e', fontSize:14 }}>Vérification du lien</p>
             </>
           )}
         </div>
@@ -379,7 +379,7 @@ export default function ResetPasswordPage() {
     </div>
   );
 
-  /* ── Formulaire principal ── */
+  /*  Formulaire principal  */
   return (
     <div className="stl-root">
 
@@ -521,7 +521,7 @@ export default function ResetPasswordPage() {
 
                 <button type="submit" disabled={loading} className="stl-btn">
                   {loading
-                    ? <><Spinner />Enregistrement…</>
+                    ? <><Spinner />Enregistrement</>
                     : <>Définir mon mot de passe <Arrow /></>
                   }
                 </button>
@@ -531,7 +531,7 @@ export default function ResetPasswordPage() {
           </main>
 
           <p style={{ ...anim(340), textAlign:'center', marginTop:24, fontSize:12, color:'#aab2cc', lineHeight:1.6 }}>
-            © 2025 Studium Platform — Tous droits réservés
+             2025 Studium Platform  Tous droits réservés
           </p>
         </div>
       </div>

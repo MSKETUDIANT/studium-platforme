@@ -74,7 +74,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
       return;
     }
     if (app.score < 70) {
-      setSendError(`Score insuffisant (${app.score}% — minimum 70%). Demandez une correction à l'étudiant.`);
+      setSendError(`Score insuffisant (${app.score}%  minimum 70%). Demandez une correction à l'étudiant.`);
       return;
     }
     setSending(true);
@@ -331,7 +331,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                     key={s}
                     onClick={() => !blocked && setStatus(s)}
                     disabled={blocked}
-                    title={blocked ? `Score ${app.score}% insuffisant — minimum 70% requis` : undefined}
+                    title={blocked ? `Score ${app.score}% insuffisant  minimum 70% requis` : undefined}
                     style={{
                       padding: '6px 14px', borderRadius: 20, fontSize: 12.5,
                       fontWeight: 700, fontFamily: fonts.body,
@@ -366,7 +366,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                 value={correctionMsg}
                 onChange={e => setCorrectionMsg(e.target.value)}
                 rows={3}
-                placeholder="Expliquez à l'étudiant ce qui doit être corrigé ou complété…"
+                placeholder="Expliquez à l'étudiant ce qui doit être corrigé ou complété"
                 style={{
                   width: '100%', padding: '10px 14px', borderRadius: 10,
                   border: `1.5px solid #f59e0b`,
@@ -409,7 +409,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                           {entry.fromStatus && (
                             <>
                               <span style={{ fontSize: 12, color: colors.textMuted }}>{RAW_STATUS_LABELS[entry.fromStatus as RawStatus] ?? entry.fromStatus}</span>
-                              <span style={{ fontSize: 11, color: colors.textMuted }}>→</span>
+                              <span style={{ fontSize: 11, color: colors.textMuted }}></span>
                             </>
                           )}
                           <span style={{ fontSize: 13, fontWeight: 700, color: colors.navy }}>
@@ -465,7 +465,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                 )}
                 {sendSuccess && (
                   <div style={{ fontSize: 12.5, color: colors.success, padding: '7px 12px', background: '#f0fdf4', borderRadius: 7 }}>
-                    Email envoyé avec succès — statut mis à jour à "Envoyée".
+                    Email envoyé avec succès  statut mis à jour à "Envoyée".
                   </div>
                 )}
                 <button
@@ -485,7 +485,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                   }}
                 >
                   <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  {sending ? 'Envoi en cours…' : sendSuccess ? 'Envoyé' : 'Envoyer à l\'université'}
+                  {sending ? 'Envoi en cours' : sendSuccess ? 'Envoyé' : 'Envoyer à l\'université'}
                 </button>
               </div>
             </Section>
@@ -510,7 +510,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                         {new Date(log.sentAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <div style={{ color: colors.textSecondary, marginTop: 2 }}>→ {log.toEmail}</div>
+                    <div style={{ color: colors.textSecondary, marginTop: 2 }}> {log.toEmail}</div>
                     {log.errorMessage && <div style={{ color: colors.danger, fontSize: 11.5, marginTop: 2 }}>{log.errorMessage}</div>}
                   </div>
                 ))}
@@ -524,7 +524,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
               value={notes}
               onChange={e => setNotes(e.target.value)}
               rows={3}
-              placeholder="Ajouter une note interne visible uniquement par l'équipe…"
+              placeholder="Ajouter une note interne visible uniquement par l'équipe"
               style={{
                 width: '100%', padding: '10px 14px', borderRadius: radius.md,
                 border: `1.5px solid ${colors.borderInput}`,
@@ -566,7 +566,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                   fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: fonts.body,
                 }}
               >
-                {saving ? 'Archivage…' : 'Confirmer l\'archivage'}
+                {saving ? 'Archivage' : 'Confirmer l\'archivage'}
               </button>
             </div>
           ) : (
@@ -584,7 +584,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                   }}
                 >
                   <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
-                  {generatingPdf ? 'Génération…' : 'PDF'}
+                  {generatingPdf ? 'Génération' : 'PDF'}
                 </button>
                 <button
                   onClick={() => setArchiveConfirm(true)}
@@ -639,7 +639,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                   ) : saved ? (
                     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                   ) : null}
-                  {saved ? 'Enregistré' : saving ? 'Enregistrement…' : 'Enregistrer'}
+                  {saved ? 'Enregistré' : saving ? 'Enregistrement' : 'Enregistrer'}
                 </button>
               </div>
             </div>
@@ -651,7 +651,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   );
 }
 
-/* ─── Helpers ────────────────────────────────────────────────────────────── */
+/*  Helpers  */
 
 const STATUS_MAP_UI: Record<RawStatus, Application['status']> = {
   draft:            'En attente',
@@ -694,11 +694,11 @@ function Tag({ children }: { children: React.ReactNode }) {
 function ChecklistSection({ app }: { app: Application }) {
   const items = [
     { label: 'Candidature soumise',   ok: app.rawStatus !== 'draft' },
-    { label: 'Programme sélectionné', ok: app.program !== '—' && app.program !== '' },
-    { label: 'Université renseignée', ok: app.university !== '—' && app.university !== '' },
-    { label: 'Pays de destination',   ok: app.country !== '—' && app.country !== '' },
+    { label: 'Programme sélectionné', ok: app.program !== '' && app.program !== '' },
+    { label: 'Université renseignée', ok: app.university !== '' && app.university !== '' },
+    { label: 'Pays de destination',   ok: app.country !== '' && app.country !== '' },
     { label: "Niveau d'études",       ok: !!app.level },
-    { label: 'Score profil ≥ 70%',    ok: app.score >= 70, extra: `${app.score}%` },
+    { label: 'Score profil  70%',    ok: app.score >= 70, extra: `${app.score}%` },
   ];
   const okCount = items.filter(i => i.ok).length;
   const allOk = okCount === items.length;

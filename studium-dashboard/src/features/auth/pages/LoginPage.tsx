@@ -1,14 +1,14 @@
 /**
- * LoginPage — Studium Internal Dashboard
+ * LoginPage  Studium Internal Dashboard
  *
  * Standards appliqués :
- *  ✓ WCAG 2.1 AA  — contrastes ≥ 4.5:1, labels liés, aria, focus-visible
- *  ✓ Nielsen's Heuristics — feedback d'état, récupération d'erreur, cohérence
- *  ✓ Fitts's Law  — toutes les zones interactives ≥ 44×44 px
- *  ✓ Mobile-first — 3 breakpoints (desktop / tablet / mobile)
- *  ✓ iOS Safari   — font-size ≥ 16px sur inputs (pas de zoom auto)
- *  ✓ autocomplete — compatible gestionnaires de mots de passe
- *  ✓ prefers-reduced-motion — animations désactivées si besoin
+ *   WCAG 2.1 AA   contrastes  4.5:1, labels liés, aria, focus-visible
+ *   Nielsen's Heuristics  feedback d'état, récupération d'erreur, cohérence
+ *   Fitts's Law   toutes les zones interactives  44×44 px
+ *   Mobile-first  3 breakpoints (desktop / tablet / mobile)
+ *   iOS Safari    font-size  16px sur inputs (pas de zoom auto)
+ *   autocomplete  compatible gestionnaires de mots de passe
+ *   prefers-reduced-motion  animations désactivées si besoin
  *
  * NB : Nécessite le reset suivant dans index.css :
  *   html, body { margin: 0; height: 100%; }
@@ -21,7 +21,7 @@ import { authService } from '../services/authService';
 import stlogo from '../../../assets/stlogo.png';
 
 
-/* ─── CSS global injecté une seule fois ─────────────────────────────────── */
+/*  CSS global injecté une seule fois  */
 const CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
 
@@ -63,7 +63,7 @@ const CSS = `
     padding: 40px 32px;
   }
 
-  /* Inputs — 16px obligatoire iOS */
+  /* Inputs  16px obligatoire iOS */
   .stl-input {
     width: 100%; font-size: 16px; font-family: 'Plus Jakarta Sans', sans-serif;
     padding: 13px 16px; line-height: 1.5;
@@ -80,7 +80,7 @@ const CSS = `
   }
   .stl-input.stl-input-error { border-color: #f87171 !important; background: #fff8f8; }
 
-  /* Bouton submit — min-height 52px Fitts */
+  /* Bouton submit  min-height 52px Fitts */
   .stl-btn {
     width: 100%; min-height: 52px;
     padding: 14px 20px;
@@ -98,7 +98,7 @@ const CSS = `
   .stl-btn:disabled               { background:linear-gradient(135deg,#7a9bd4,#9bb5e0); box-shadow:none; cursor:not-allowed; }
   .stl-btn:focus-visible          { outline:3px solid #4d7aff; outline-offset:3px; }
 
-  /* Toggle mot de passe — zone 50×100% Fitts */
+  /* Toggle mot de passe  zone 50×100% Fitts */
   .stl-eye {
     position:absolute; right:0; top:0; width:50px; height:100%;
     display:flex; align-items:center; justify-content:center;
@@ -126,7 +126,7 @@ const CSS = `
   /* Force-champ helper text */
   .stl-helper { font-size:12.5px; color:#6b7a9e; margin-top:6px; min-height:18px; line-height:1.4; }
 
-  /* ── Responsive ── */
+  /*  Responsive  */
   @media (max-width: 900px) {
     .stl-left  { flex:0 0 38%; padding:48px 32px; }
     .stl-right { padding:32px 20px; }
@@ -155,7 +155,7 @@ if (!document.getElementById('stl-css')) {
   document.head.appendChild(s);
 }
 
-/* ─── Icons SVG ──────────────────────────────────────────────────────────── */
+/*  Icons SVG  */
 const Eye = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"
     stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -201,7 +201,7 @@ const Orb = ({ style }: { style: React.CSSProperties }) => (
   }} />
 );
 
-/* ─── Évaluation force mot de passe ─────────────────────────────────────── */
+/*  Évaluation force mot de passe  */
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
   if (!pw) return { score: 0, label: '', color: 'transparent' };
   let score = 0;
@@ -215,7 +215,7 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
   return              { score, label: 'Fort',    color: '#34d399' };
 }
 
-/* ─── Feature chips (panel gauche) ──────────────────────────────────────── */
+/*  Feature chips (panel gauche)  */
 const IconDossiers = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"
     stroke="rgba(255,255,255,0.80)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -244,9 +244,9 @@ const FEATURES = [
   { label: 'Équipe',      Icon: IconEquipe   },
 ];
 
-/* ═══════════════════════════════════════════════════════════════════════════
+/* 
    Component
-   ═══════════════════════════════════════════════════════════════════════════ */
+    */
 export default function LoginPage() {
   const navigate   = useNavigate();
   const emailId    = useId();
@@ -267,7 +267,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     setMounted(true);
-    // focus programmatique — on marque isProgrammaticFocus pour ne pas
+    // focus programmatique  on marque isProgrammaticFocus pour ne pas
     // déclencher la validation onBlur si l'utilisateur n'a pas encore agi
     const t = setTimeout(() => {
       const el = document.getElementById(emailId) as HTMLInputElement | null;
@@ -280,7 +280,7 @@ export default function LoginPage() {
     mounted ? { animation:`stFadeUp .5s cubic-bezier(.25,.75,.25,1) ${d}ms both` } : { opacity:0 };
 
   /* Validation email :
-     - Sur blur → signale seulement si le champ a du contenu mais format invalide
+     - Sur blur  signale seulement si le champ a du contenu mais format invalide
      - "Ce champ est requis" uniquement à la soumission                          */
   const validateEmail = (val: string, onSubmit = false) => {
     if (!val) {
@@ -322,7 +322,7 @@ export default function LoginPage() {
   return (
     <div className="stl-root">
 
-      {/* ══════════ PANEL GAUCHE ══════════ */}
+      {/*  PANEL GAUCHE  */}
       <aside className="stl-left" aria-label="Présentation Studium">
         <Orb style={{ width:400, height:400, top:-120, right:-100 }} />
         <Orb style={{ width:280, height:280, bottom:-70, left:-80, opacity:0.6 }} />
@@ -330,7 +330,7 @@ export default function LoginPage() {
         <div style={{ ...anim(0), zIndex:1 }}>
           <img
             src={stlogo}
-            alt="Studium — Étudier Partout Dans le Monde"
+            alt="Studium  Étudier Partout Dans le Monde"
             className="stl-logo"
             style={{ width:340, display:'block', margin:'0 auto', filter:'brightness(0) invert(1)' }}
           />
@@ -351,7 +351,7 @@ export default function LoginPage() {
           <strong style={{ color:'#ffffff', fontWeight:600 }}>
             l'équipe interne Studium
           </strong>
-          {' '}— gestion et suivi des dossiers académiques internationaux.
+          {' '} gestion et suivi des dossiers académiques internationaux.
         </p>
 
         {/* Feature chips */}
@@ -373,7 +373,7 @@ export default function LoginPage() {
         </div>
       </aside>
 
-      {/* ══════════ PANEL DROIT ══════════ */}
+      {/*  PANEL DROIT  */}
       <div className="stl-right">
         <div style={{ width:'100%', maxWidth:420 }}>
 
@@ -425,7 +425,7 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} noValidate aria-label="Formulaire de connexion">
 
-              {/* ── Email ── */}
+              {/*  Email  */}
               <div style={{ marginBottom:20 }}>
                 <label htmlFor={emailId} style={labelStyle}>Adresse email</label>
                 <input
@@ -456,7 +456,7 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              {/* ── Mot de passe ── */}
+              {/*  Mot de passe  */}
               <div style={{ marginBottom:28 }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
                   <label htmlFor={passwordId} style={{ ...labelStyle, marginBottom:0 }}>Mot de passe</label>
@@ -476,13 +476,13 @@ export default function LoginPage() {
                     value={password}
                     onChange={e => { setPassword(e.target.value); setTouched(t => ({ ...t, password:true })); }}
                     required
-                    placeholder="••••••••"
+                    placeholder=""
                     autoComplete="current-password"
                     aria-required="true"
                     aria-describedby={`${passwordId}-strength`}
                     style={{ paddingRight:52 }}
                   />
-                  {/* Toggle — 50×100% Fitts */}
+                  {/* Toggle  50×100% Fitts */}
                   <button
                     type="button"
                     className="stl-eye"
@@ -512,7 +512,7 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* ── Erreur globale ── */}
+              {/*  Erreur globale  */}
               <div role="alert" aria-live="assertive" aria-atomic="true" id={errorId}>
                 {error && (
                   <div key={shakeKey} className="stl-error stl-error-shake">
@@ -522,9 +522,9 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* ── Submit ── */}
+              {/*  Submit  */}
               <button type="submit" disabled={loading} className="stl-btn" aria-busy={loading}>
-                {loading ? <><Spinner />Connexion en cours…</> : <>Se connecter <Arrow /></>}
+                {loading ? <><Spinner />Connexion en cours</> : <>Se connecter <Arrow /></>}
               </button>
 
             </form>
@@ -532,7 +532,7 @@ export default function LoginPage() {
           </main>
 
           <p style={{ ...anim(340), textAlign:'center', marginTop:24, fontSize:12, color:'#aab2cc', lineHeight:1.6 }}>
-            © 2025 Studium Platform — Tous droits réservés
+             2025 Studium Platform  Tous droits réservés
           </p>
         </div>
       </div>

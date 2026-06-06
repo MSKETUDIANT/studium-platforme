@@ -76,7 +76,7 @@ export function Pagination({ page, totalPages, total, pageSize, onChange, label 
   return (
     <div className="pg-wrap">
       <span className="pg-info">
-        <b>{from}–{to}</b> sur <b>{total}</b> {label}
+        <b>{from}{to}</b> sur <b>{total}</b> {label}
       </span>
       <div className="pg-controls">
         <button

@@ -1,5 +1,5 @@
 /**
- * EmptyState.tsx — Écran vide réutilisable Studium
+ * EmptyState.tsx  Écran vide réutilisable Studium
  */
 import { colors, fonts } from '../constants/theme';
 

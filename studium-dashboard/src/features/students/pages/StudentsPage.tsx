@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase }       from '../../../shared/services/supabase';
 import { Button }         from '../../../shared/components/Button';
 import { PageHeader }     from '../../../shared/components/PageHeader';
+import { downloadCsv }   from '../../../shared/utils/export_csv';
 import { Pagination }     from '../../../shared/components/Pagination';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 
-/* ─── Types ──────────────────────────────────────────────────────────────── */
+/*  Types  */
 interface Student {
   id:                 string;
   first_name:         string | null;
@@ -14,6 +15,13 @@ interface Student {
   photo_url:          string | null;
   completeness_score: number;
   nationality:        string | null;
+}
+
+interface StudentNote {
+  id:           string;
+  content:      string;
+  author_email: string | null;
+  created_at:   string;
 }
 
 interface StudentDoc {
@@ -27,7 +35,7 @@ interface StudentDoc {
   created_at:       string | null;
 }
 
-/* ─── Constantes ─────────────────────────────────────────────────────────── */
+/*  Constantes  */
 const TYPE_LABELS: Record<string, string> = {
   cv: 'CV', transcript: 'Relevé de notes',
   recommendation: 'Lettre de recommandation', passport: 'Passeport', other: 'Autre',
@@ -70,7 +78,7 @@ const AVATAR_COLORS = [
 
 const avatarColor = (name: string) => AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 
-/* ─── Helpers ─────────────────────────────────────────────────────────────── */
+/*  Helpers  */
 const initials = (s: Student) =>
   `${s.first_name?.[0] ?? ''}${s.last_name?.[0] ?? ''}`.toUpperCase() || '?';
 const fullName = (s: Student) =>
@@ -83,7 +91,7 @@ const fmtDate = (s: string | null) => {
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 };
 
-/* ─── CSS ─────────────────────────────────────────────────────────────────── */
+/*  CSS  */
 const CSS = `
   /* Layout */
   .sp-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
@@ -185,6 +193,34 @@ const CSS = `
   .sp-btn-act--reject { color:${colors.danger};  }
   .sp-btn-act--reject:hover { border-color:${colors.danger};  background:rgba(220,38,38,0.07); }
 
+  /* Notes */
+  .sp-note-card {
+    padding:12px 14px; border-radius:${radius.md}px;
+    border:1px solid ${colors.border}; margin:0 14px 10px;
+    background:white; transition:border-color .15s;
+  }
+  .sp-note-card:hover { border-color:${colors.borderHover}; }
+  .sp-note-content { font-size:13px; color:${colors.textPrimary}; line-height:1.5; white-space:pre-wrap; }
+  .sp-note-meta { font-size:11px; color:${colors.textMuted}; margin-top:6px; display:flex; justify-content:space-between; align-items:center; }
+  .sp-note-del { background:none; border:none; cursor:pointer; color:${colors.textMuted}; padding:2px 4px; border-radius:4px; font-size:11px; }
+  .sp-note-del:hover { color:${colors.danger}; background:rgba(220,38,38,0.08); }
+  .sp-note-input {
+    width:100%; padding:10px 12px; border:1.5px solid ${colors.borderInput};
+    border-radius:${radius.md}px; font-size:13px; font-family:${fonts.body};
+    color:${colors.textPrimary}; resize:vertical; min-height:80px; outline:none;
+    box-sizing:border-box; transition:border-color .15s;
+  }
+  .sp-note-input:focus { border-color:${colors.blue}; }
+  .sp-detail-tabs { display:flex; gap:2px; padding:12px 14px 0; border-bottom:1px solid ${colors.border}; }
+  .sp-detail-tab {
+    padding:7px 14px; font-size:12px; font-weight:600; border:none;
+    background:none; cursor:pointer; border-radius:8px 8px 0 0;
+    color:${colors.textMuted}; font-family:${fonts.body};
+    border-bottom:2px solid transparent; margin-bottom:-1px;
+    transition:all .15s;
+  }
+  .sp-detail-tab--active { color:${colors.blue}; border-bottom-color:${colors.blue}; background:rgba(37,70,204,0.04); }
+
   /* Badge */
   .sp-badge {
     display:inline-flex; align-items:center; gap:5px;
@@ -224,7 +260,7 @@ const CSS = `
 
 const STUDENT_PAGE_SIZE = 10;
 
-/* ─── Composant ───────────────────────────────────────────────────────────── */
+/*  Composant  */
 export default function StudentsPage() {
   const [students,      setStudents]      = useState<Student[]>([]);
   const [loading,       setLoading]       = useState(true);
@@ -238,6 +274,12 @@ export default function StudentsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [studentPage,   setStudentPage]   = useState(1);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
+  // Notes internes
+  const [detailTab,     setDetailTab]     = useState<'docs'|'notes'>('docs');
+  const [notes,         setNotes]         = useState<StudentNote[]>([]);
+  const [notesLoading,  setNotesLoading]  = useState(false);
+  const [noteText,      setNoteText]      = useState('');
+  const [savingNote,    setSavingNote]    = useState(false);
 
   /* Charger étudiants */
   useEffect(() => {
@@ -263,6 +305,37 @@ export default function StudentsPage() {
       .order('created_at', { ascending: false })
       .then(({ data }) => { setDocs(data ?? []); setDocsLoading(false); });
   }, [selected]);
+
+  /* Charger notes */
+  useEffect(() => {
+    if (!selected) { setNotes([]); setDetailTab('docs'); return; }
+    setNotesLoading(true);
+    supabase
+      .from('student_notes')
+      .select('id, content, author_email, created_at')
+      .eq('student_id', selected.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => { setNotes(data ?? []); setNotesLoading(false); });
+  }, [selected]);
+
+  const addNote = async () => {
+    if (!noteText.trim() || !selected) return;
+    setSavingNote(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data } = await supabase
+      .from('student_notes')
+      .insert({ student_id: selected.id, content: noteText.trim(), author_email: user?.email })
+      .select('id, content, author_email, created_at')
+      .single();
+    if (data) setNotes(prev => [data, ...prev]);
+    setNoteText('');
+    setSavingNote(false);
+  };
+
+  const deleteNote = async (id: string) => {
+    await supabase.from('student_notes').delete().eq('id', id);
+    setNotes(prev => prev.filter(n => n.id !== id));
+  };
 
   /* Actions */
   const approve = async (docId: string) => {
@@ -308,7 +381,7 @@ export default function StudentsPage() {
 
   const pendingDocs = docs.filter(d => d.status === 'uploaded' || d.status === 'under_review').length;
 
-  /* ── Stats SVG icons ── */
+  /*  Stats SVG icons  */
   const statIcons: Record<string, React.ReactNode> = {
     students: (
       <svg width={20} height={20} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -336,7 +409,7 @@ export default function StudentsPage() {
     ),
   };
 
-  /* ── Stats ── */
+  /*  Stats  */
   const stats = [
     {
       label: 'Total étudiants', value: String(students.length),
@@ -344,7 +417,7 @@ export default function StudentsPage() {
       iconBg: 'rgba(37,70,204,0.12)', iconColor: colors.blue,
     },
     {
-      label: 'Profils ≥ 80%', value: String(students.filter(s => s.completeness_score >= 80).length),
+      label: 'Profils  80%', value: String(students.filter(s => s.completeness_score >= 80).length),
       iconKey: 'complete', accentColor: colors.success,
       iconBg: 'rgba(22,163,74,0.12)', iconColor: colors.success,
     },
@@ -367,9 +440,21 @@ export default function StudentsPage() {
       <PageHeader
         title="Gestion des étudiants"
         subtitle={`${students.length} étudiant${students.length !== 1 ? 's' : ''} enregistré${students.length !== 1 ? 's' : ''}`}
+        actions={
+          <Button variant="secondary" size="sm" onClick={() =>
+            downloadCsv(`etudiants_${new Date().toISOString().split('T')[0]}.csv`,
+              students.map(s => ({
+                'Prénom':       s.first_name ?? '',
+                'Nom':          s.last_name ?? '',
+                'Nationalité':  s.nationality ?? '',
+                'Complétude %': s.completeness_score,
+              }))
+            )
+          }> Export CSV</Button>
+        }
       />
 
-      {/* ── Stats ── */}
+      {/*  Stats  */}
       <div className="sp-grid">
         {stats.map(s => (
           <div key={s.label} className="sp-stat">
@@ -391,7 +476,7 @@ export default function StudentsPage() {
 
       <div className="sp-layout">
 
-        {/* ── Liste étudiants ── */}
+        {/*  Liste étudiants  */}
         <div className="sp-panel">
           <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, #7c3aed)` }} />
           {/* Tabs */}
@@ -495,7 +580,7 @@ export default function StudentsPage() {
           )}
         </div>
 
-        {/* ── Panel documents ── */}
+        {/*  Panel documents  */}
         <div className="sp-panel" style={{ minHeight: 400, overflow: 'hidden' }}>
           <div style={{ height: 3, background: `linear-gradient(90deg, #7c3aed, ${colors.blue})` }} />
           {!selected ? (
@@ -550,7 +635,7 @@ export default function StudentsPage() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 12, color: colors.textMuted }}>
-                    {docsLoading ? '…' : `${docs.length} doc${docs.length !== 1 ? 's' : ''}`}
+                    {docsLoading ? '' : `${docs.length} doc${docs.length !== 1 ? 's' : ''}`}
                   </span>
                   <button
                     onClick={() => setSelected(null)}
@@ -559,19 +644,80 @@ export default function StudentsPage() {
                       background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center',
                       justifyContent: 'center', fontSize: 14, color: colors.textMuted,
                     }}
-                  >✕</button>
+                  ></button>
                 </div>
               </div>
 
+              {/* Onglets Documents / Notes */}
+              <div className="sp-detail-tabs">
+                {([
+                  { key: 'docs',  label: `Documents (${docs.length})` },
+                  { key: 'notes', label: `Notes (${notes.length})` },
+                ] as const).map(t => (
+                  <button
+                    key={t.key}
+                    className={`sp-detail-tab${detailTab === t.key ? ' sp-detail-tab--active' : ''}`}
+                    onClick={() => setDetailTab(t.key)}
+                  >{t.label}</button>
+                ))}
+              </div>
+
+              {/* Contenu Notes */}
+              {detailTab === 'notes' && (
+                <div style={{ padding: '14px 0', overflowY: 'auto', maxHeight: 520 }}>
+                  {/* Formulaire ajout */}
+                  <div style={{ padding: '0 14px 14px' }}>
+                    <textarea
+                      className="sp-note-input"
+                      placeholder="Ajouter une note interne (visible uniquement par l'équipe)..."
+                      value={noteText}
+                      onChange={e => setNoteText(e.target.value)}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                      <Button
+                        size="sm"
+                        loading={savingNote}
+                        onClick={addNote}
+                        disabled={!noteText.trim()}
+                      >
+                        Enregistrer la note
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Liste notes */}
+                  {notesLoading ? (
+                    <div style={{ padding: 32, textAlign: 'center' }}><LoadingSpinner /></div>
+                  ) : notes.length === 0 ? (
+                    <div className="sp-empty" style={{ padding: '32px 20px' }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={colors.textMuted} strokeWidth="1.5" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      <span>Aucune note pour cet étudiant</span>
+                    </div>
+                  ) : (
+                    notes.map(note => (
+                      <div key={note.id} className="sp-note-card">
+                        <div className="sp-note-content">{note.content}</div>
+                        <div className="sp-note-meta">
+                          <span>{note.author_email ?? 'Équipe'} · {new Date(note.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          <button className="sp-note-del" onClick={() => deleteNote(note.id)} title="Supprimer">
+                            Supprimer
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
               {/* Docs */}
-              {docsLoading ? (
+              {detailTab === 'docs' && docsLoading ? (
                 <div style={{ padding: 48, textAlign: 'center' }}><LoadingSpinner /></div>
-              ) : docs.length === 0 ? (
+              ) : detailTab === 'docs' && docs.length === 0 ? (
                 <div className="sp-empty">
                   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={colors.textMuted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   <span>Aucun document uploadé</span>
                 </div>
-              ) : (
+              ) : detailTab === 'docs' ? (
                 <div style={{ overflowY: 'auto', maxHeight: 560, paddingBottom: 14 }}>
                   {docs.map(doc => {
                     const cfg  = STATUS_CFG[doc.status] ?? STATUS_CFG.uploaded;
@@ -649,7 +795,7 @@ export default function StudentsPage() {
                               <svg width={13} height={13} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path d="M20 6 9 17l-5-5"/>
                               </svg>
-                              {busy ? 'En cours…' : 'Approuver'}
+                              {busy ? 'En cours' : 'Approuver'}
                             </button>
                           )}
                           {doc.status !== 'rejected' && (
@@ -669,13 +815,13 @@ export default function StudentsPage() {
                     );
                   })}
                 </div>
-              )}
+              ) : null}
             </>
           )}
         </div>
       </div>
 
-      {/* ── Modal rejet ── */}
+      {/*  Modal rejet  */}
       {rejectTarget && (
         <div className="sp-overlay" onClick={() => { setRejectTarget(null); setRejectReason(''); }}>
           <div className="sp-modal" onClick={e => e.stopPropagation()}>
