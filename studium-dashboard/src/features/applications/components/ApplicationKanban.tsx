@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 import { KANBAN_COLUMNS }            from '../types/application';
 import type { Application, RawStatus } from '../types/application';
@@ -204,11 +204,10 @@ function KanbanCard({ app, accent, onDragStart, onDragEnd, onClick }: {
       {isDeadlinePast && (
         <div style={{
           marginTop: 6,
-          display: 'flex', alignItems: 'center', gap: 4,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
           background: 'rgba(220,38,38,0.08)',
           borderRadius: 4, padding: '2px 6px',
         }}>
-          <span style={{ fontSize: 10, color: colors.danger }}>⏰</span>
           <span style={{ fontSize: 10, fontWeight: 700, color: colors.danger }}>Délai dépassé</span>
         </div>
       )}

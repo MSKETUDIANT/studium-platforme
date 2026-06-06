@@ -48,12 +48,12 @@ export async function fetchApplications(): Promise<Application[]> {
 }
 
 const STATUS_PUSH_MESSAGES: Partial<Record<RawStatus, { title: string; body: string }>> = {
-  needsfix:         { title: '️ Correction demandée', body: 'Votre dossier nécessite des corrections. Consultez le message de l\'équipe.' },
-  verified:         { title: ' Dossier validé',       body: 'Votre candidature a été validée et sera bientôt envoyée.' },
-  sent:             { title: ' Candidature envoyée',  body: 'Votre dossier a été soumis à l\'université.' },
-  accepted:         { title: ' Félicitations !',      body: 'Votre candidature a été acceptée !' },
-  rejected:         { title: ' Résultat candidature', body: 'Votre candidature n\'a pas été retenue. Consultez l\'app pour plus d\'infos.' },
-  pending_decision: { title: ' En attente de décision', body: 'L\'université examine votre dossier.' },
+  needsfix:         { title: 'Correction demandée',    body: 'Votre dossier nécessite des corrections. Consultez le message de l\'équipe.' },
+  verified:         { title: 'Dossier validé',         body: 'Votre candidature a été validée et sera bientôt envoyée.' },
+  sent:             { title: 'Candidature envoyée',    body: 'Votre dossier a été soumis à l\'université.' },
+  accepted:         { title: 'Candidature acceptée',   body: 'Votre candidature a été acceptée !' },
+  rejected:         { title: 'Résultat candidature',   body: 'Votre candidature n\'a pas été retenue. Consultez l\'app pour plus d\'infos.' },
+  pending_decision: { title: 'En attente de décision', body: 'L\'université examine votre dossier.' },
 };
 
 async function sendStatusPush(applicationId: string, status: RawStatus): Promise<void> {
