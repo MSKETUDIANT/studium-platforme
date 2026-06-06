@@ -1,4 +1,4 @@
-// @ts-nocheck — Deno Edge Function (erreurs IDE normales, pas de compilation Node)
+// @ts-nocheck  Deno Edge Function (erreurs IDE normales, pas de compilation Node)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // ── 1. Détails de la candidature ──────────────────────────────────────────
+    //  1. Détails de la candidature 
     const { data: app, error: appErr } = await supabase
       .from('applications')
       .select(`
@@ -56,13 +56,13 @@ Deno.serve(async (req) => {
     if (appErr || !app) return jsonError('Application not found', 404);
 
     const studentName  = `${app.student_profiles?.first_name ?? ''} ${app.student_profiles?.last_name ?? ''}`.trim();
-    const programName  = app.programs?.program_name   ?? '—';
-    const univName     = app.programs?.university_name ?? '—';
+    const programName  = app.programs?.program_name   ?? '';
+    const univName     = app.programs?.university_name ?? '';
     const country      = app.programs?.country          ?? '';
     const submittedAt  = app.submitted_at
-      ? new Date(app.submitted_at).toLocaleDateString('fr-FR') : '—';
+      ? new Date(app.submitted_at).toLocaleDateString('fr-FR') : '';
 
-    // ── 2. Documents approuvés de l'étudiant ──────────────────────────────────
+    //  2. Documents approuvés de l'étudiant 
     const { data: docs } = await supabase
       .from('documents')
       .select('id, type, file_url, file_name, size_bytes, status')
@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     const totalSizeBytes = approvedDocs.reduce((s: number, d: any) => s + (d.size_bytes ?? 0), 0);
     const totalSizeMb    = totalSizeBytes / (1024 * 1024);
 
-    // ── 3. Mode attachments : < MAX_ATTACH_MB → joint, sinon liens signés ────
+    //  3. Mode attachments : < MAX_ATTACH_MB  joint, sinon liens signés 
     let attachments: Array<{ filename: string; content: string; type?: string }> = [];
     let signedLinksHtml = '';
     let signedLinksText = '';
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
 
     if (approvedDocs.length > 0) {
       if (totalSizeMb <= MAX_ATTACH_MB) {
-        // Mode 1 — Télécharger et attacher les fichiers
+        // Mode 1  Télécharger et attacher les fichiers
         for (const doc of approvedDocs) {
           try {
             const res = await fetch(doc.file_url);
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
           }
         }
       } else {
-        // Mode 2 — Liens signés (fichiers trop lourds)
+        // Mode 2  Liens signés (fichiers trop lourds)
         for (const doc of approvedDocs) {
           try {
             // Extraire le chemin relatif depuis l'URL Supabase Storage
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 4. Template email ─────────────────────────────────────────────────────
+    //  4. Template email 
     const { data: programTpl } = await supabase
       .from('email_templates')
       .select('subject_template, body_template')
@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
     const vars      = { studentName, programName, univName, country, submittedAt, documentsListText: docsListText };
     const subject   = tpl
       ? replaceVars(tpl.subject_template, vars)
-      : `[Studium] Candidature – ${studentName} – ${programName}`;
+      : `[Studium] Candidature  ${studentName}  ${programName}`;
     const bodyTxt   = tpl
       ? replaceVars(tpl.body_template, vars)
       : buildEmailText({ studentName, programName, univName, country, submittedAt, signedLinksText, docsListText });
@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
       docsListHtml,
     });
 
-    // ── 5. Envoi via Resend ───────────────────────────────────────────────────
+    //  5. Envoi via Resend 
     const resendBody: any = {
       from:    `${FROM_NAME} <${FROM_EMAIL}>`,
       to:      [to_email],
@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
     const msgId      = resendData?.id ?? null;
     const errMsg     = success ? null : JSON.stringify(resendData);
 
-    // ── 6. Log + mise à jour statut ───────────────────────────────────────────
+    //  6. Log + mise à jour statut 
     await supabase.from('email_logs').insert({
       application_id,
       to_email,
@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
   }
 });
 
-/* ─── Email templates ──────────────────────────────────────────────────────── */
+/*  Email templates  */
 
 interface TemplateData {
   studentName:      string;
@@ -271,15 +271,15 @@ function replaceVarsHtml(tpl: string, vars: Record<string, string>, docsListHtml
 
 function buildEmailHtml(d: TemplateData): string {
   const docsSection = `
-    <p style="font-size:14px;font-weight:bold;color:#111827;margin:0 0 8px;">📋 Documents transmis :</p>
+    <p style="font-size:14px;font-weight:bold;color:#111827;margin:0 0 8px;"> Documents transmis :</p>
     <ul style="font-size:14px;color:#374151;margin:0 0 16px;padding-left:20px;line-height:1.8;">
       ${d.docsListHtml ?? '<li style="color:#6b7280;">Aucun document approuvé</li>'}
     </ul>`;
 
   const attachInfo = d.attachCount && d.attachCount > 0
-    ? `${docsSection}<p style="font-size:13px;color:#6b7280;margin:0 0 16px;">📎 Ces documents sont joints en pièce jointe à cet email.</p>`
+    ? `${docsSection}<p style="font-size:13px;color:#6b7280;margin:0 0 16px;"> Ces documents sont joints en pièce jointe à cet email.</p>`
     : d.signedLinksHtml
-      ? `${docsSection}<p style="font-size:13px;color:#374151;margin:0 0 8px;">📂 <strong>Liens de téléchargement (valables 7 jours) :</strong></p>
+      ? `${docsSection}<p style="font-size:13px;color:#374151;margin:0 0 8px;"> <strong>Liens de téléchargement (valables 7 jours) :</strong></p>
          <ul style="font-size:13px;color:#2563eb;margin:0 0 20px;padding-left:20px;">${d.signedLinksHtml}</ul>`
       : `<p style="font-size:14px;color:#6b7280;margin:0 0 12px;font-style:italic;">Aucun document approuvé à joindre.</p>`;
 
@@ -339,7 +339,7 @@ function buildEmailText(d: TemplateData): string {
       ? `${docsList}\n(Documents joints en pièce jointe)`
       : '';
 
-  return `STUDIUM — Candidature académique
+  return `STUDIUM  Candidature académique
 
 Madame, Monsieur,
 
@@ -356,7 +356,7 @@ L'équipe Studium Admissions
 support@studium.app`;
 }
 
-/* ─── Helpers ──────────────────────────────────────────────────────────────── */
+/*  Helpers  */
 
 function corsHeaders() {
   return {
