@@ -11,6 +11,8 @@ import MessagingPage from './features/messaging/pages/MessagingPage';
 import ReportingPage from './features/reporting/pages/ReportingPage';
 import SettingsPage from './features/settings/pages/SettingsPage';
 import TeamPage from './features/settings/pages/TeamPage';
+import AuditPage from './features/audit/pages/AuditPage';
+import TasksPage from './features/tasks/pages/TasksPage';
 
 export default function App() {
   return (
@@ -31,6 +33,8 @@ export default function App() {
             <Route path="/reporting"    element={<ReportingPage />} />
             <Route path="/settings"     element={<SettingsPage />} />
             <Route path="/team"         element={<TeamPage />} />
+            <Route path="/audit"        element={<AuditPage />} />
+            <Route path="/tasks"        element={<TasksPage />} />
           </Route>
         </Route>
       </Routes>
