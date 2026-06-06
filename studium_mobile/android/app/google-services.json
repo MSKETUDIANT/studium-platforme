@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "476681349501",
+    "project_id": "studium-47c1e",
+    "storage_bucket": "studium-47c1e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:476681349501:android:932b87752dfe3e03084414",
+        "android_client_info": {
+          "package_name": "com.studium.studium_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAKLiq3TfS_LJ1HetJ_HHpHwlX5e_KatmM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
