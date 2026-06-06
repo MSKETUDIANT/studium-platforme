@@ -121,16 +121,8 @@ const DURATIONS = [
 ];
 
 const CURRENCIES: { symbol: string; code: string; label: string }[] = [
-  { symbol: '',   code: 'EUR', label: 'EUR  Euro'             },
-  { symbol: '$',   code: 'USD', label: 'USD  Dollar américain' },
-  { symbol: '£',   code: 'GBP', label: 'GBP  Livre sterling'   },
-  { symbol: 'CA$', code: 'CAD', label: 'CAD  Dollar canadien'  },
-  { symbol: 'CHF', code: 'CHF', label: 'CHF  Franc suisse'     },
-  { symbol: 'CFA', code: 'XOF', label: 'XOF  Franc CFA UEMOA' },
-  { symbol: 'CFA', code: 'XAF', label: 'XAF  Franc CFA CEMAC' },
-  { symbol: 'MAD', code: 'MAD', label: 'MAD  Dirham marocain'  },
-  { symbol: 'DZD', code: 'DZD', label: 'DZD  Dinar algérien'  },
-  { symbol: 'TND', code: 'TND', label: 'TND  Dinar tunisien'   },
+  { symbol: '',  code: 'EUR', label: 'EUR  Euro'             },
+  { symbol: '$', code: 'USD', label: 'USD  Dollar américain' },
 ];
 
 const LEVEL_CFG: Record<string, { color: string; bg: string }> = {
@@ -238,8 +230,10 @@ const CSS = `
   }
 
   .pp-table tbody tr:last-child td { border-bottom: none; }
-  .pp-table tbody tr { transition: background .12s; }
-  .pp-table tbody tr:hover td { background: #f5f8ff; }
+  .pp-table tbody tr { transition: background .15s; }
+  .pp-table tbody tr:hover td { background: rgba(37,70,204,0.04); }
+  .pp-table tbody tr:hover td:first-child { border-left: 3px solid ${colors.blue}; padding-left: 13px; }
+  .pp-table tbody td:first-child { border-left: 3px solid transparent; }
 
   .pp-prog-name {
     font-weight: 600;
@@ -284,27 +278,25 @@ const CSS = `
     font-weight: 600;
   }
 
-  .pp-action-btn {
-    padding: 5px 9px;
+  .pp-icon-btn {
+    width: 32px; height: 32px;
     border-radius: 8px;
-    border: 1.5px solid transparent;
-    background: ${colors.inputBg};
-    display: inline-flex; align-items: center; gap: 4px;
+    border: 1.5px solid ${colors.border};
+    background: white;
+    display: inline-flex; align-items: center; justify-content: center;
     cursor: pointer;
-    font-size: 11.5px;
-    font-family: ${fonts.body};
-    font-weight: 600;
     transition: all .15s;
-    white-space: nowrap;
+    flex-shrink: 0;
   }
+  .pp-icon-btn:hover { border-color: transparent; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.10); }
   .pp-action-edit  { color: ${colors.blue}; }
-  .pp-action-edit:hover  { border-color: ${colors.blue}; background: rgba(37,70,204,0.07); }
+  .pp-action-edit:hover  { background: rgba(37,70,204,0.08); color: ${colors.blue}; }
   .pp-action-archive { color: ${colors.warning}; }
-  .pp-action-archive:hover { border-color: ${colors.warning}; background: rgba(217,119,6,0.07); }
+  .pp-action-archive:hover { background: rgba(217,119,6,0.08); color: ${colors.warning}; }
   .pp-action-restore { color: ${colors.success}; }
-  .pp-action-restore:hover { border-color: ${colors.success}; background: rgba(22,163,74,0.07); }
+  .pp-action-restore:hover { background: rgba(22,163,74,0.08); color: ${colors.success}; }
   .pp-action-delete { color: ${colors.danger}; }
-  .pp-action-delete:hover { border-color: ${colors.danger}; background: rgba(220,38,38,0.07); }
+  .pp-action-delete:hover { background: rgba(220,38,38,0.08); color: ${colors.danger}; }
 
   .pp-overlay {
     position: fixed; inset: 0;
@@ -542,22 +534,23 @@ function StatCard({ label, value, color, iconKey }: { label: string; value: numb
       background: 'white',
       borderRadius: radius.lg,
       boxShadow: shadows.card,
-      overflow: 'hidden',
+      padding: '18px 20px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 16,
+      borderLeft: `4px solid ${color}`,
     }}>
-      <div style={{ height: 3, background: color }} />
-      <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{
-          width: 46, height: 46, borderRadius: 13, flexShrink: 0,
-          background: color + '18',
-          color,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {STAT_ICONS[iconKey]}
-        </div>
-        <div>
-          <div style={{ fontSize: 26, fontWeight: 800, color, fontFamily: fonts.display, lineHeight: 1 }}>{value}</div>
-          <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, fontWeight: 500 }}>{label}</div>
-        </div>
+      <div style={{
+        width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+        background: color + '15',
+        color,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {STAT_ICONS[iconKey]}
+      </div>
+      <div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: colors.navy, fontFamily: fonts.display, lineHeight: 1 }}>{value}</div>
+        <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 5, fontWeight: 500, letterSpacing: '.01em' }}>{label}</div>
       </div>
     </div>
   );
@@ -1058,7 +1051,6 @@ export default function ProgramsPage() {
             <tbody>
               {paginated.map(p => {
                 const lvlCfg = p.level ? (LEVEL_CFG[p.level] ?? null) : null;
-                const accentColor = lvlCfg?.color ?? colors.textMuted;
                 const deadlineSoon = p.deadline
                   ? (new Date(p.deadline).getTime() - Date.now()) / 86400000 < 30
                   : false;
@@ -1071,17 +1063,11 @@ export default function ProgramsPage() {
 
                 return (
                   <tr key={p.id}>
-                    <td style={{ paddingLeft: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
-                        {/* accent gauche coloré */}
-                        <div style={{ width: 3, borderRadius: '3px 0 0 3px', background: accentColor, marginRight: 14, flexShrink: 0 }} />
-                        <div>
-                          <button className="pp-prog-name" onClick={() => setDetailProgram(p)}>
-                            {p.program_name}
-                          </button>
-                          <span className="pp-univ-name">{p.university_name}</span>
-                        </div>
-                      </div>
+                    <td>
+                      <button className="pp-prog-name" onClick={() => setDetailProgram(p)}>
+                        {p.program_name}
+                      </button>
+                      <span className="pp-univ-name">{p.university_name}</span>
                     </td>
                     <td>
                       {lvlCfg && p.level ? (
@@ -1130,39 +1116,36 @@ export default function ProgramsPage() {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 5 }}>
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                         <button
-                          className="pp-action-btn pp-action-edit"
+                          className="pp-icon-btn pp-action-edit"
                           title="Modifier"
                           onClick={() => setModal({ open: true, program: p })}
                         >
-                          <svg width={12} height={12} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                           </svg>
-                          Modifier
                         </button>
                         <button
-                          className={`pp-action-btn ${p.is_active ? 'pp-action-archive' : 'pp-action-restore'}`}
+                          className={`pp-icon-btn ${p.is_active ? 'pp-action-archive' : 'pp-action-restore'}`}
                           title={p.is_active ? 'Archiver' : 'Réactiver'}
                           onClick={() => handleToggleActive(p)}
                         >
                           {p.is_active ? (
-                            <svg width={12} height={12} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+                            <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
                           ) : (
-                            <svg width={12} height={12} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                            <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                           )}
-                          {p.is_active ? 'Archiver' : 'Réactiver'}
                         </button>
                         <button
-                          className="pp-action-btn pp-action-delete"
+                          className="pp-icon-btn pp-action-delete"
                           title="Supprimer"
                           onClick={() => setDeleteTarget(p)}
                         >
-                          <svg width={12} height={12} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
                           </svg>
-                          Supprimer
                         </button>
                       </div>
                     </td>
