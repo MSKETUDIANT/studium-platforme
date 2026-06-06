@@ -7,7 +7,7 @@ import '../../domain/entities/document.dart';
 import '../../domain/repositories/document_repository.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 
-// ─── Infrastructure ───────────────────────────────────────────────────────────
+//  Infrastructure 
 
 final documentDatasourceProvider = Provider<DocumentRemoteDatasource>(
   (ref) => DocumentRemoteDatasource(ref.watch(supabaseClientProvider)),
@@ -17,7 +17,7 @@ final documentRepositoryProvider = Provider<DocumentRepository>(
   (ref) => DocumentRepositoryImpl(ref.watch(documentDatasourceProvider)),
 );
 
-// ─── Documents ────────────────────────────────────────────────────────────────
+//  Documents 
 
 final documentsProvider =
     AsyncNotifierProvider.autoDispose<DocumentsNotifier, List<Document>>(

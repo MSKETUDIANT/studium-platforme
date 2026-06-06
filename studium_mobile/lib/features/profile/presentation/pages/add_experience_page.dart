@@ -381,7 +381,7 @@ class _AddExperiencePageState extends ConsumerState<AddExperiencePage> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF0D1F42), Color(0xFF1565C0), Color(0xFF1E5298)],
+          colors: [Color(0xFF08122E), Color(0xFF153EA8), Color(0xFF1A67D6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -458,7 +458,7 @@ class _DecorCircle extends StatelessWidget {
       );
 }
 
-// ─── Section Header ───────────────────────────────────────────────────────────
+//  Section Header 
 
 class _SectionHeader extends StatelessWidget {
   final String text;
@@ -490,7 +490,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ─── Form Card ────────────────────────────────────────────────────────────────
+//  Form Card 
 
 class _FormCard extends StatelessWidget {
   final List<Widget> children;
@@ -519,7 +519,7 @@ class _FormCard extends StatelessWidget {
   }
 }
 
-// ─── Styled Field ─────────────────────────────────────────────────────────────
+//  Styled Field 
 
 class _StyledField extends StatelessWidget {
   final TextEditingController controller;
@@ -587,7 +587,7 @@ class _StyledField extends StatelessWidget {
   }
 }
 
-// ─── Date Field ───────────────────────────────────────────────────────────────
+//  Date Field 
 
 class _DateField extends StatelessWidget {
   final String label;

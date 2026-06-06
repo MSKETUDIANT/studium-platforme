@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +8,6 @@ import '../../domain/entities/document.dart';
 import '../providers/document_providers.dart';
 import 'upload_document_page.dart';
 
-const _kBg     = Color(0xFFF4F6FB);
 const _kNavy   = Color(0xFF1A1D2E);
 const _kBlue   = Color(0xFF4880FF);
 const _kGrey   = Color(0xFF9CA3AF);
@@ -24,9 +23,7 @@ class DocumentsPage extends ConsumerWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _kBg,
-        body: SafeArea(
-          child: documentsAsync.when(
+        body: documentsAsync.when(
             loading: () => const Center(
                 child: CircularProgressIndicator(color: _kBlue)),
             error: (e, _) => Center(
@@ -38,14 +35,14 @@ class DocumentsPage extends ConsumerWidget {
             ),
             data: (docs) => CustomScrollView(
               slivers: [
-                // ─── Gradient Header ─────────────────────────────────────
+                //  Gradient Header 
                 SliverToBoxAdapter(
                   child: _buildHeader(context, docs)
                       .animate()
                       .fadeIn(duration: 400.ms)
                       .slideY(begin: -0.06),
                 ),
-                // ─── Upload Button ────────────────────────────────────────
+                //  Upload Button 
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
@@ -58,7 +55,7 @@ class DocumentsPage extends ConsumerWidget {
                     ),
                   ).animate().fadeIn(delay: 120.ms).slideY(begin: .04),
                 ),
-                // ─── Content ─────────────────────────────────────────────
+                //  Content 
                 docs.isEmpty
                     ? SliverFillRemaining(
                         hasScrollBody: false,
@@ -90,7 +87,6 @@ class DocumentsPage extends ConsumerWidget {
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -100,31 +96,20 @@ class DocumentsPage extends ConsumerWidget {
     final pending  = docs.where((d) => d.status == DocumentStatus.uploaded ||
         d.status == DocumentStatus.underReview).length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF0D1F42),
-              Color(0xFF1565C0),
-              Color(0xFF1E5298),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0D1F42).withValues(alpha: 0.28),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF08122E), Color(0xFF153EA8), Color(0xFF1A67D6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Stack(
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
+          child: Stack(
           clipBehavior: Clip.none,
           children: [
             Positioned(
@@ -208,7 +193,8 @@ class DocumentsPage extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -247,7 +233,7 @@ class DocumentsPage extends ConsumerWidget {
   }
 }
 
-// ─── Upload Button ─────────────────────────────────────────────────────────────
+//  Upload Button 
 
 class _UploadButton extends StatelessWidget {
   final VoidCallback onTap;
@@ -297,7 +283,7 @@ class _UploadButton extends StatelessWidget {
   }
 }
 
-// ─── Document Card ─────────────────────────────────────────────────────────────
+//  Document Card 
 
 class _DocumentCard extends ConsumerWidget {
   final Document doc;
@@ -520,7 +506,7 @@ class _DocumentCard extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Supprimer le document ?',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-        content: Text('${doc.typeLabel} — ${doc.fileName}'),
+        content: Text('${doc.typeLabel}  ${doc.fileName}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -554,48 +540,50 @@ class _DocumentCard extends ConsumerWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kBorder),
-          boxShadow: [
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? statusColor.withValues(alpha: 0.22)
+                : statusColor.withValues(alpha: 0.16),
+            width: 1.5,
+          ),
+          boxShadow: Theme.of(context).brightness == Brightness.dark ? [] : [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: statusColor.withValues(alpha: 0.06),
+              blurRadius: 12, offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Column(children: [
-          Container(
-            height: 3,
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(14)),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 46, height: 46,
-                  decoration: BoxDecoration(
-                    color: typeColor.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      typeColor.withValues(alpha: 0.14),
+                      typeColor.withValues(alpha: 0.07),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  child: Icon(_typeIcon(), color: typeColor, size: 22),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(doc.typeLabel,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                              color: _kNavy)),
+                child: Icon(_typeIcon(), color: typeColor, size: 23),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(doc.typeLabel,
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.onSurface)),
                       const SizedBox(height: 3),
                       Text(
                         '${_shortName()} · ${doc.sizeLabel}',
@@ -644,13 +632,12 @@ class _DocumentCard extends ConsumerWidget {
               ],
             ),
           ),
-        ]),
-      ),
+        ),
     );
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+//  Helpers 
 
 class _DecorCircle extends StatelessWidget {
   final double size;

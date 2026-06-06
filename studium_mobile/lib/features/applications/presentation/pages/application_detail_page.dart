@@ -14,7 +14,6 @@ import '../providers/application_providers.dart';
 const _kNavy   = Color(0xFF1A1D2E);
 const _kBlue   = Color(0xFF4880FF);
 const _kGrey   = Color(0xFF9CA3AF);
-const _kBg     = Color(0xFFF4F6FB);
 const _kBorder = Color(0xFFE5E7EB);
 
 class ApplicationDetailPage extends ConsumerStatefulWidget {
@@ -229,7 +228,7 @@ class _ApplicationDetailPageState
   List<pw.Widget> _buildPdfTimeline() {
     final steps = _buildTimelineSteps();
     return steps.map((step) {
-      final icon  = step.done ? '✓' : (step.current ? '●' : '○');
+      final icon  = step.done ? '' : (step.current ? '' : '');
       final color = step.done || step.current
           ? (step.isNegative
               ? PdfColor.fromInt(0xFFEF4444)
@@ -290,7 +289,6 @@ class _ApplicationDetailPageState
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _kBg,
         body: CustomScrollView(
           slivers: [
             _buildSliverAppBar(context),
@@ -339,7 +337,7 @@ class _ApplicationDetailPageState
                                       color: Colors.white, strokeWidth: 2))
                               : const Icon(Icons.send_rounded, size: 18),
                           label: Text(
-                            _submitting ? 'Envoi…' : 'Soumettre',
+                            _submitting ? 'Envoi' : 'Soumettre',
                             style: const TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 15),
                           ),
@@ -384,7 +382,7 @@ class _ApplicationDetailPageState
                               child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.picture_as_pdf_outlined, size: 18),
                       label: Text(
-                        _generatingPdf ? 'Génération…' : 'Télécharger PDF',
+                        _generatingPdf ? 'Génération' : 'Télécharger PDF',
                         style: const TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 15),
                       ),
@@ -403,7 +401,7 @@ class _ApplicationDetailPageState
     );
   }
 
-  // ─── Gradient SliverAppBar ─────────────────────────────────────────────────
+  //  Gradient SliverAppBar 
 
   SliverAppBar _buildSliverAppBar(BuildContext context) {
     return SliverAppBar(
@@ -503,7 +501,7 @@ class _ApplicationDetailPageState
     );
   }
 
-  // ─── Status card ──────────────────────────────────────────────────────────
+  //  Status card 
 
   Widget _buildStatusCard() {
     return _Card(
@@ -553,7 +551,7 @@ class _ApplicationDetailPageState
     );
   }
 
-  // ─── Completeness card ────────────────────────────────────────────────────
+  //  Completeness card 
 
   Widget _buildCompletenessCard() {
     final items = <({String label, bool ok})>[
@@ -584,11 +582,11 @@ class _ApplicationDetailPageState
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Complétude du dossier',
+              Text('Complétude du dossier',
                   style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: _kNavy)),
+                      color: Theme.of(context).colorScheme.onSurface)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -637,7 +635,9 @@ class _ApplicationDetailPageState
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: item.ok ? _kNavy : _kGrey,
+                    color: item.ok
+                        ? Theme.of(context).colorScheme.onSurface
+                        : _kGrey,
                   ),
                 ),
               ],
@@ -648,7 +648,7 @@ class _ApplicationDetailPageState
     );
   }
 
-  // ─── Timeline ─────────────────────────────────────────────────────────────
+  //  Timeline 
 
   Widget _buildTimeline() {
     final steps  = _buildTimelineSteps();
@@ -656,11 +656,11 @@ class _ApplicationDetailPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Suivi de candidature',
+          Text('Suivi de candidature',
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: _kNavy)),
+                  color: Theme.of(context).colorScheme.onSurface)),
           const SizedBox(height: 16),
           ...steps.asMap().entries.map((entry) {
             final i    = entry.key;
@@ -731,7 +731,7 @@ class _ApplicationDetailPageState
     ];
   }
 
-  // ─── History card ─────────────────────────────────────────────────────────
+  //  History card 
 
   Widget _buildHistoryCard() {
     final historyAsync = ref.watch(statusHistoryProvider(app.id));
@@ -739,11 +739,11 @@ class _ApplicationDetailPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Historique des changements',
+          Text('Historique des changements',
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: _kNavy)),
+                  color: Theme.of(context).colorScheme.onSurface)),
           const SizedBox(height: 16),
           historyAsync.when(
             loading: () => const Center(
@@ -780,7 +780,7 @@ class _ApplicationDetailPageState
     );
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
+  //  Helpers 
 
   IconData get _statusIcon => switch (app.status) {
     ApplicationStatus.accepted  => Icons.check_circle_outline,
@@ -804,7 +804,7 @@ class _ApplicationDetailPageState
       '${dt.year}';
 }
 
-// ─── Shared card ──────────────────────────────────────────────────────────────
+//  Shared card 
 
 class _Card extends StatelessWidget {
   final Widget child;
@@ -812,17 +812,19 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).colorScheme.surface;
+    final borderColor = isDark ? const Color(0xFF1E2A52) : _kBorder;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
-        boxShadow: [
+        border: Border.all(color: borderColor),
+        boxShadow: isDark ? [] : [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 8, offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -831,7 +833,7 @@ class _Card extends StatelessWidget {
   }
 }
 
-// ─── Timeline row ─────────────────────────────────────────────────────────────
+//  Timeline row 
 
 class _TimelineRow extends StatelessWidget {
   final String  label;
@@ -851,6 +853,12 @@ class _TimelineRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    final emptyDot  = isDark ? const Color(0xFF1E2A52) : Colors.white;
+    final emptyBorder = isDark ? const Color(0xFF2E3A5A) : _kBorder;
+    final connector   = isDark ? const Color(0xFF1E2A52) : _kBorder;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -858,10 +866,11 @@ class _TimelineRow extends StatelessWidget {
           Container(
             width: 24, height: 24,
             decoration: BoxDecoration(
-              color: done || current ? color : Colors.white,
+              color: done || current ? color : emptyDot,
               shape: BoxShape.circle,
               border: Border.all(
-                  color: done || current ? color : _kBorder, width: 2),
+                color: done || current ? color : emptyBorder, width: 2,
+              ),
             ),
             child: done
                 ? const Icon(Icons.check, color: Colors.white, size: 14)
@@ -869,8 +878,7 @@ class _TimelineRow extends StatelessWidget {
                     ? Center(
                         child: Container(
                           width: 8, height: 8,
-                          decoration:
-                              BoxDecoration(color: color, shape: BoxShape.circle),
+                          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                         ),
                       )
                     : null,
@@ -879,7 +887,7 @@ class _TimelineRow extends StatelessWidget {
             Container(
               width: 2,
               height: 36,
-              color: done ? color.withValues(alpha: 0.3) : _kBorder,
+              color: done ? color.withValues(alpha: 0.3) : connector,
             ),
         ]),
         const SizedBox(width: 14),
@@ -893,13 +901,12 @@ class _TimelineRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: current ? FontWeight.w700 : FontWeight.w500,
-                  color: done || current ? _kNavy : _kGrey,
+                  color: done || current ? textColor : _kGrey,
                 ),
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: 2),
-                Text(subtitle!,
-                    style: const TextStyle(fontSize: 12, color: _kGrey)),
+                Text(subtitle!, style: const TextStyle(fontSize: 12, color: _kGrey)),
               ],
               SizedBox(height: isLast ? 0 : 18),
             ],
@@ -910,7 +917,7 @@ class _TimelineRow extends StatelessWidget {
   }
 }
 
-// ─── History row ──────────────────────────────────────────────────────────────
+//  History row 
 
 class _HistoryRow extends StatelessWidget {
   final StatusHistoryEntry entry;
@@ -929,7 +936,7 @@ class _HistoryRow extends StatelessWidget {
     'archived':         'Archivée',
   };
 
-  String _label(String? s) => s != null ? (_statusLabels[s] ?? s) : '—';
+  String _label(String? s) => s != null ? (_statusLabels[s] ?? s) : '';
 
   String _date(DateTime? dt) => dt == null
       ? ''
@@ -939,6 +946,7 @@ class _HistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -955,7 +963,7 @@ class _HistoryRow extends StatelessWidget {
             Container(
               width: 2,
               height: 40,
-              color: _kBorder,
+              color: isDark ? const Color(0xFF1E2A52) : _kBorder,
             ),
         ]),
         const SizedBox(width: 12),
@@ -981,10 +989,10 @@ class _HistoryRow extends StatelessWidget {
                   ],
                   Text(
                     _label(entry.toStatus),
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: _kNavy),
+                        color: Theme.of(context).colorScheme.onSurface),
                   ),
                 ]),
                 if (entry.createdAt != null)
@@ -997,9 +1005,9 @@ class _HistoryRow extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       entry.note!,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 12,
-                          color: _kNavy,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontStyle: FontStyle.italic),
                     ),
                   ),
@@ -1012,7 +1020,7 @@ class _HistoryRow extends StatelessWidget {
   }
 }
 
-// ─── Data class ───────────────────────────────────────────────────────────────
+//  Data class 
 
 class _TimelineStep {
   final String  label;

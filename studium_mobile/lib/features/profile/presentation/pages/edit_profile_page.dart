@@ -14,9 +14,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/student_profile.dart';
 import '../providers/profile_providers.dart';
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
+//  Palette 
 const _kBlue   = Color(0xFF4880FF);
-const _kNavy   = Color(0xFF0D1F42);
+const _kNavy   = Color(0xFF08122E);
 const _kDark   = Color(0xFF1A1D2E);
 const _kGrey   = Color(0xFF9CA3AF);
 const _kBorder = Color(0xFFE5E7EB);
@@ -94,7 +94,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     return text.trim().split(RegExp(r'\s+')).length;
   }
 
-  // ─── Photo ────────────────────────────────────────────────────────────────
+  //  Photo 
 
   Future<void> _pickPhoto() async {
     showModalBottomSheet(
@@ -209,7 +209,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     }
   }
 
-  // ─── Date / pays ──────────────────────────────────────────────────────────
+  //  Date / pays 
 
   Future<void> _pickBirthDate() async {
     final picked = await showDatePicker(
@@ -271,7 +271,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     );
   }
 
-  // ─── Adresse Nominatim ────────────────────────────────────────────────────
+  //  Adresse Nominatim 
 
   Future<List<Map<String, dynamic>>> _searchAddress(String pattern) async {
     if (pattern.length < 3) return [];
@@ -312,7 +312,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     }
   }
 
-  // ─── Word counter ─────────────────────────────────────────────────────────
+  //  Word counter 
 
   Color _wordCountColor() {
     if (_wordCount == 0) return _kGrey;
@@ -322,13 +322,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   }
 
   String _wordCountLabel() {
-    if (_wordCount == 0) return '0 / 300–600 mots';
-    if (_wordCount < 300) return '$_wordCount mots — minimum 300';
-    if (_wordCount <= 600) return '$_wordCount mots ✓';
-    return '$_wordCount mots — maximum 600 dépassé';
+    if (_wordCount == 0) return '0 / 300600 mots';
+    if (_wordCount < 300) return '$_wordCount mots  minimum 300';
+    if (_wordCount <= 600) return '$_wordCount mots ';
+    return '$_wordCount mots  maximum 600 dépassé';
   }
 
-  // ─── Save ─────────────────────────────────────────────────────────────────
+  //  Save 
 
   Future<void> _save(StudentProfile? current) async {
     if (!_formKey.currentState!.validate()) return;
@@ -363,7 +363,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     if (mounted) Navigator.pop(context);
   }
 
-  // ─── Build ────────────────────────────────────────────────────────────────
+  //  Build 
 
   @override
   Widget build(BuildContext context) {
@@ -388,13 +388,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  // ─── Hero photo card ──────────────────────────────
+                  //  Hero photo card 
                   _buildPhotoHero(profile)
                       .animate().fadeIn(duration: 400.ms).slideY(begin: -0.1),
 
                   const SizedBox(height: 28),
 
-                  // ─── Identité ─────────────────────────────────────
+                  //  Identité 
                   _SectionHeader('Identité', icon: Icons.person_outline_rounded)
                       .animate().fadeIn(delay: 80.ms),
                   const SizedBox(height: 12),
@@ -442,7 +442,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
                   const SizedBox(height: 24),
 
-                  // ─── Contact ──────────────────────────────────────
+                  //  Contact 
                   _SectionHeader('Contact', icon: Icons.contacts_outlined)
                       .animate().fadeIn(delay: 180.ms),
                   const SizedBox(height: 12),
@@ -473,7 +473,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Adresse — Nominatim typeahead
+                    // Adresse  Nominatim typeahead
                     TypeAheadField<Map<String, dynamic>>(
                       controller: _addressCtrl,
                       builder: (context, controller, focusNode) {
@@ -548,7 +548,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                       emptyBuilder: (context) => const Padding(
                         padding: EdgeInsets.all(12),
                         child: Text(
-                          'Aucun résultat — essayez un autre terme',
+                          'Aucun résultat  essayez un autre terme',
                           style: TextStyle(color: _kGrey, fontSize: 13),
                         ),
                       ),
@@ -557,7 +557,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
                   const SizedBox(height: 24),
 
-                  // ─── Motivation & Objectifs ───────────────────────
+                  //  Motivation & Objectifs 
                   _SectionHeader('Motivation & Objectifs',
                       icon: Icons.auto_stories_outlined)
                       .animate().fadeIn(delay: 260.ms),
@@ -659,7 +659,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
                   const SizedBox(height: 32),
 
-                  // ─── Gradient save button ─────────────────────────
+                  //  Gradient save button 
                   _GradientButton(
                     loading: _loading,
                     onTap: () => _save(profile),
@@ -675,7 +675,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     );
   }
 
-  // ─── AppBar ───────────────────────────────────────────────────────────────
+  //  AppBar 
 
   PreferredSizeWidget _buildAppBar(StudentProfile? profile) {
     return AppBar(
@@ -685,7 +685,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       flexibleSpace: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [_kNavy, Color(0xFF1E5298)],
+            colors: [_kNavy, Color(0xFF1A67D6)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -732,7 +732,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     );
   }
 
-  // ─── Photo hero card ──────────────────────────────────────────────────────
+  //  Photo hero card 
 
   Widget _buildPhotoHero(StudentProfile? profile) {
     final displayName =
@@ -743,7 +743,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [_kNavy, Color(0xFF1565C0), Color(0xFF1E5298)],
+          colors: [_kNavy, Color(0xFF153EA8), Color(0xFF1A67D6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -871,7 +871,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   }
 }
 
-// ─── InputDecoration helper ───────────────────────────────────────────────────
+//  InputDecoration helper 
 
 InputDecoration _fieldDecoration(
   String label, {
@@ -909,19 +909,19 @@ InputDecoration _fieldDecoration(
   );
 }
 
-// ─── Avatar placeholder ───────────────────────────────────────────────────────
+//  Avatar placeholder 
 
 class _AvatarPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF1A3C6E),
+      color: const Color(0xFF153EA8),
       child: const Icon(Icons.person, color: Colors.white, size: 48),
     );
   }
 }
 
-// ─── Bottom sheet tile ────────────────────────────────────────────────────────
+//  Bottom sheet tile 
 
 class _SheetTile extends StatelessWidget {
   final IconData icon;
@@ -958,7 +958,7 @@ class _SheetTile extends StatelessWidget {
   }
 }
 
-// ─── Gradient save button ─────────────────────────────────────────────────────
+//  Gradient save button 
 
 class _GradientButton extends StatelessWidget {
   final bool loading;
@@ -1017,7 +1017,7 @@ class _GradientButton extends StatelessWidget {
   }
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
+//  Section header 
 
 class _SectionHeader extends StatelessWidget {
   final String   text;
@@ -1060,7 +1060,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ─── Form card ────────────────────────────────────────────────────────────────
+//  Form card 
 
 class _FormCard extends StatelessWidget {
   final List<Widget> children;
@@ -1089,7 +1089,7 @@ class _FormCard extends StatelessWidget {
   }
 }
 
-// ─── Styled text field ────────────────────────────────────────────────────────
+//  Styled text field 
 
 class _StyledField extends StatelessWidget {
   final TextEditingController controller;
@@ -1123,7 +1123,7 @@ class _StyledField extends StatelessWidget {
   }
 }
 
-// ─── Country picker field ─────────────────────────────────────────────────────
+//  Country picker field 
 
 class _CountryPickerField extends StatelessWidget {
   final String   label;
@@ -1201,7 +1201,7 @@ class _CountryPickerField extends StatelessWidget {
   }
 }
 
-// ─── Date picker field ────────────────────────────────────────────────────────
+//  Date picker field 
 
 class _DatePickerField extends StatelessWidget {
   final String label;

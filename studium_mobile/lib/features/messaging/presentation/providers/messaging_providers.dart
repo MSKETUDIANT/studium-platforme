@@ -5,13 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/datasources/messaging_remote_datasource.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 
-// ─── Infrastructure ───────────────────────────────────────────────────────────
+//  Infrastructure 
 
 final messagingDatasourceProvider = Provider<MessagingRemoteDatasource>(
   (ref) => MessagingRemoteDatasource(ref.watch(supabaseClientProvider)),
 );
 
-// ─── Badge non-lus étudiant (Realtime sur UPDATE) ────────────────────────────
+//  Badge non-lus étudiant (Realtime sur UPDATE) 
 
 final unreadStudentProvider = StreamProvider.autoDispose<int>((ref) {
   final userId = ref.watch(currentUserIdProvider);
@@ -59,7 +59,7 @@ final unreadStudentProvider = StreamProvider.autoDispose<int>((ref) {
   return ctrl.stream;
 });
 
-// ─── Conversation ID ─────────────────────────────────────────────────────────
+//  Conversation ID 
 
 final conversationIdProvider = FutureProvider.autoDispose<String?>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
@@ -67,7 +67,7 @@ final conversationIdProvider = FutureProvider.autoDispose<String?>((ref) async {
   return ref.read(messagingDatasourceProvider).getOrCreateConversation(userId);
 });
 
-// ─── Messages Notifier ───────────────────────────────────────────────────────
+//  Messages Notifier 
 
 class MessagesNotifier extends AutoDisposeAsyncNotifier<List<MessageModel>> {
   RealtimeChannel? _channel;

@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import '../../../../core/i18n/strings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,11 +8,9 @@ import 'package:go_router/go_router.dart';
 import '../../domain/entities/application.dart';
 import '../providers/application_providers.dart';
 
-const _kBg     = Color(0xFFF4F6FB);
 const _kNavy   = Color(0xFF1A1D2E);
 const _kBlue   = Color(0xFF4880FF);
 const _kGrey   = Color(0xFF9CA3AF);
-const _kBorder = Color(0xFFE5E7EB);
 
 class ApplicationsPage extends ConsumerWidget {
   const ApplicationsPage({super.key});
@@ -21,11 +20,9 @@ class ApplicationsPage extends ConsumerWidget {
     final applicationsAsync = ref.watch(myApplicationsProvider);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
+      value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _kBg,
-        body: SafeArea(
-        child: applicationsAsync.when(
+        body: applicationsAsync.when(
           loading: () => const Center(
               child: CircularProgressIndicator(color: _kBlue)),
           error: (e, _) => Center(
@@ -38,7 +35,7 @@ class ApplicationsPage extends ConsumerWidget {
           data: (apps) => CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
-                child: _buildHeader(apps)
+                child: _buildHeader(context, apps)
                     .animate()
                     .fadeIn(duration: 400.ms)
                     .slideY(begin: -0.06),
@@ -57,7 +54,7 @@ class ApplicationsPage extends ConsumerWidget {
                       child: _buildEmptyState(context),
                     )
                   : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
+                      padding: EdgeInsets.fromLTRB(16, 10, 16, MediaQuery.of(context).padding.bottom + 90),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (ctx, i) => _ApplicationCard(app: apps[i])
@@ -79,54 +76,41 @@ class ApplicationsPage extends ConsumerWidget {
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 
-  // ─── Header card (même pattern que ProgramsPage) ──────────────────────────
+  //  Header card (même pattern que ProgramsPage) 
 
-  Widget _buildHeader(List<Application> apps) {
+  Widget _buildHeader(BuildContext context, List<Application> apps) {
     final total     = apps.length;
     final enCours   = apps.where((a) => a.isActive).length;
     final acceptees =
         apps.where((a) => a.status == ApplicationStatus.accepted).length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF0D1F42),
-              Color(0xFF1565C0),
-              Color(0xFF1E5298),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0D1F42).withValues(alpha: 0.28),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF08122E), Color(0xFF153EA8), Color(0xFF1A67D6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Cercles décoratifs
-            const Positioned(
-              right: -16, top: -16,
-              child: _DecorCircle(size: 110, opacity: 0.08),
-            ),
-            const Positioned(
-              right: 50, bottom: -20,
-              child: _DecorCircle(size: 70, opacity: 0.06),
-            ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Positioned(
+                right: -20, top: -20,
+                child: _DecorCircle(size: 130, opacity: 0.07),
+              ),
+              const Positioned(
+                right: 60, bottom: -30,
+                child: _DecorCircle(size: 80, opacity: 0.05),
+              ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -142,8 +126,8 @@ class ApplicationsPage extends ConsumerWidget {
                         color: Colors.white, size: 20),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Dossiers',
+                  Text(
+                    context.s.navDossiers,
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 13,
@@ -153,8 +137,8 @@ class ApplicationsPage extends ConsumerWidget {
                   ),
                 ]),
                 const SizedBox(height: 14),
-                const Text(
-                  'Mes candidatures',
+                Text(
+                  context.s.myApplications,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -188,10 +172,11 @@ class ApplicationsPage extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
-  // ─── Empty state ────────────────────────────────────────────────────────────
+  //  Empty state 
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
@@ -211,14 +196,14 @@ class ApplicationsPage extends ConsumerWidget {
                   size: 36, color: _kBlue),
             ),
             const SizedBox(height: 20),
-            const Text('Aucune candidature',
+            Text(context.s.noApplications,
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: _kNavy)),
             const SizedBox(height: 8),
-            const Text(
-              'Explorez les programmes et soumettez\nvotre première candidature.',
+            Text(
+              context.s.noApplicationsDesc,
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 14, color: _kGrey, height: 1.5),
@@ -230,7 +215,7 @@ class ApplicationsPage extends ConsumerWidget {
   }
 }
 
-// ─── Application card ─────────────────────────────────────────────────────────
+//  Application card 
 
 class _ApplicationCard extends StatelessWidget {
   final Application app;
@@ -254,26 +239,22 @@ class _ApplicationCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kBorder),
-          boxShadow: [
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? _statusColor.withValues(alpha: 0.20)
+                : _statusColor.withValues(alpha: 0.15),
+            width: 1.5,
+          ),
+          boxShadow: Theme.of(context).brightness == Brightness.dark ? [] : [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: _statusColor.withValues(alpha: 0.06),
+              blurRadius: 12, offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(children: [
-          Container(
-            height: 3,
-            decoration: BoxDecoration(
-              color: _statusColor,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(14)),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -362,7 +343,7 @@ class _ApplicationCard extends StatelessWidget {
       '${dt.year}';
 }
 
-// ─── Header helpers (même que ProgramsPage) ───────────────────────────────────
+//  Header helpers (même que ProgramsPage) 
 
 class _DecorCircle extends StatelessWidget {
   final double size;
@@ -407,15 +388,15 @@ class _NewCandidatureButton extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(14),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.add_circle_outline, size: 18, color: Colors.white),
                 SizedBox(width: 8),
                 Text(
-                  'Nouvelle candidature',
+                  context.s.newApplication,
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,

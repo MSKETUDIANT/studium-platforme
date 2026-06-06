@@ -1,23 +1,23 @@
-﻿import 'package:flutter/material.dart';
+import '../../../../core/i18n/strings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../profile/presentation/providers/profile_providers.dart';
-import '../../../messaging/presentation/providers/messaging_providers.dart';
+import '../../../notifications/presentation/providers/notifications_providers.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
 
-// ─── Palette ─────────────────────────────────────────────────────────────────
-const _kNavy   = Color(0xFF0D1F42);
-const _kBlue   = Color(0xFF1A3C6E);
+//  Palette 
+const _kNavy   = Color(0xFF08122E);
+const _kBlue   = Color(0xFF153EA8);
 const _kAccent = Color(0xFF4880FF);
-const _kBg     = Color(0xFFF4F6FB);
 const _kText   = Color(0xFF1A1D2E);
 const _kMuted  = Color(0xFF9CA3AF);
 const _kDanger = Color(0xFFEF4444);
 
-// ─── DashboardPage ────────────────────────────────────────────────────────────
+//  DashboardPage 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
 
@@ -28,7 +28,6 @@ class DashboardPage extends ConsumerWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _kBg,
         body: SafeArea(
           top: false,
         child: AnimatedSwitcher(
@@ -61,20 +60,20 @@ class DashboardPage extends ConsumerWidget {
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
 
-                          // ── Complétion du profil ──
+                          //  Complétion du profil 
                           _ProfileCompletionCard(score: score)
                             .animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                           const SizedBox(height: 30),
 
-                          // ── Actions rapides ──
-                          const _SectionLabel(title: 'Actions rapides'),
+                          //  Actions rapides 
+                          _SectionLabel(title: context.s.quickActions),
                           const SizedBox(height: 14),
                           _QuickActionsGrid(score: score, docCount: docCount)
                             .animate().fadeIn(duration: 400.ms, delay: 80.ms).slideY(begin: 0.08, end: 0),
                           const SizedBox(height: 30),
 
-                          // ── Mes espaces ──
-                          const _SectionLabel(title: 'Mes espaces'),
+                          //  Mes espaces 
+                          _SectionLabel(title: context.s.mySpaces),
                           const SizedBox(height: 14),
                           ..._buildSpaces(context, docCount)
                             .asMap()
@@ -100,8 +99,8 @@ class DashboardPage extends ConsumerWidget {
   List<Widget> _buildSpaces(BuildContext context, int docCount) => [
     _SpaceCard(
       icon: Icons.folder_outlined,
-      label: 'Mes Documents',
-      description: 'CV, relevés de notes, recommandations',
+      label: context.s.myDocuments,
+      description: context.s.documentsDesc,
       color: const Color(0xFFF59E0B),
       badge: docCount > 0 ? '$docCount' : null,
       onTap: () => context.push('/documents'),
@@ -109,16 +108,16 @@ class DashboardPage extends ConsumerWidget {
     const SizedBox(height: 10),
     _SpaceCard(
       icon: Icons.send_outlined,
-      label: 'Mes Candidatures',
-      description: "Suivez l'état de vos dossiers",
+      label: context.s.myApplications,
+      description: context.s.applicationsDesc,
       color: const Color(0xFF10B981),
       onTap: () => context.go('/applications'),
     ),
     const SizedBox(height: 10),
     _SpaceCard(
       icon: Icons.chat_bubble_outline_rounded,
-      label: 'Messages',
-      description: 'Communiquer avec votre équipe',
+      label: context.s.navMessages,
+      description: context.s.messagesDesc,
       color: _kAccent,
       onTap: () => context.go('/messages'),
     ),
@@ -126,7 +125,7 @@ class DashboardPage extends ConsumerWidget {
   ];
 }
 
-// ─── Header ───────────────────────────────────────────────────────────────────
+//  Header 
 class _Header extends ConsumerWidget {
   final dynamic profile;
   final int     docCount;
@@ -144,8 +143,8 @@ class _Header extends ConsumerWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end:   Alignment.bottomRight,
-          colors: [_kNavy, _kBlue, Color(0xFF1E5298)],
-          stops:  [0.0, 0.55, 1.0],
+          colors: [_kNavy, _kBlue, Color(0xFF1A67D6)],
+          stops:  [0.0, 0.50, 1.0],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft:  Radius.circular(36),
@@ -174,7 +173,7 @@ class _Header extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Top bar ──
+                //  Top bar 
                 Row(children: [
                   GestureDetector(
                     onTap: () => context.push('/profile/edit'),
@@ -198,8 +197,8 @@ class _Header extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text('Studium',
-                    style: TextStyle(
+                  Text(context.s.appName,
+                    style: const TextStyle(
                       fontSize: 18, fontWeight: FontWeight.w800,
                       color: Colors.white, letterSpacing: 0.4,
                     )),
@@ -209,9 +208,9 @@ class _Header extends ConsumerWidget {
 
                 const SizedBox(height: 28),
 
-                // ── Greeting ──
+                //  Greeting 
                 Text(
-                  'Bonjour, ${firstName?.isNotEmpty == true ? firstName : 'Étudiant'}',
+                  '${context.s.hello}, ${firstName?.isNotEmpty == true ? firstName : context.s.student}',
                   style: const TextStyle(
                     fontSize: 26, fontWeight: FontWeight.w800,
                     color: Colors.white, height: 1.2,
@@ -219,7 +218,7 @@ class _Header extends ConsumerWidget {
                 ).animate().fadeIn(duration: 500.ms, delay: 80.ms).slideY(begin: 0.08, end: 0),
                 const SizedBox(height: 7),
                 Text(
-                  "Continuez à avancer vers vos objectifs académiques.",
+                  context.s.continueGoals,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.white.withValues(alpha: 0.72),
@@ -229,7 +228,7 @@ class _Header extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // ── Stats glass card ──
+                //  Stats glass card 
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                   decoration: BoxDecoration(
@@ -255,7 +254,7 @@ class _Header extends ConsumerWidget {
                     _StatChip(
                       icon: Icons.send_outlined,
                       label: 'Candidatures',
-                      value: appCount != null ? '$appCount' : '…',
+                      value: appCount != null ? '$appCount' : '',
                     ),
                   ]),
                 ).animate().fadeIn(duration: 500.ms, delay: 200.ms).slideY(begin: 0.06, end: 0),
@@ -326,19 +325,19 @@ class _StatDivider extends StatelessWidget {
   );
 }
 
-// ─── Notification bell ────────────────────────────────────────────────────────
+//  Notification bell 
 class _NotificationBell extends ConsumerWidget {
   const _NotificationBell();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final unread = ref.watch(unreadStudentProvider).valueOrNull ?? 0;
+    final unread = ref.watch(unreadNotificationsProvider).valueOrNull ?? 0;
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
         IconButton(
-          onPressed: () => context.go('/messages'),
+          onPressed: () => context.push('/notifications'),
           splashRadius: 22,
           icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
         ),
@@ -370,7 +369,7 @@ class _NotificationBell extends ConsumerWidget {
   }
 }
 
-// ─── Section label ────────────────────────────────────────────────────────────
+//  Section label 
 class _SectionLabel extends StatelessWidget {
   final String title;
   const _SectionLabel({required this.title});
@@ -387,7 +386,7 @@ class _SectionLabel extends StatelessWidget {
   );
 }
 
-// ─── Quick actions 2×2 grid ───────────────────────────────────────────────────
+//  Quick actions 2×2 grid 
 class _QuickActionsGrid extends StatelessWidget {
   final int score;
   final int docCount;
@@ -458,57 +457,79 @@ class _ActionTile extends StatelessWidget {
   const _ActionTile({required this.item});
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: item.onTap,
-      child: Ink(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
+  Widget build(BuildContext context) {
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
+    final surface   = Theme.of(context).colorScheme.surface;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: item.onTap,
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark
+                  ? item.color.withValues(alpha: 0.20)
+                  : const Color(0xFFECEEF5),
+              width: 1.2,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 46, height: 46,
-              decoration: BoxDecoration(
-                color: item.color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
+            boxShadow: isDark ? [] : [
+              BoxShadow(
+                color: item.color.withValues(alpha: 0.06),
+                blurRadius: 14, offset: const Offset(0, 4),
               ),
-              child: Icon(item.icon, color: item.color, size: 22),
-            ),
-            const Spacer(),
-            Text(item.label,
-              style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-                color: _kText,
-              )),
-            const SizedBox(height: 3),
-            Text(item.value,
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: _kMuted,
-                fontWeight: FontWeight.w500,
-              )),
-          ],
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          item.color.withValues(alpha: isDark ? 0.22 : 0.14),
+                          item.color.withValues(alpha: isDark ? 0.10 : 0.07),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(item.icon, color: item.color, size: 22),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.arrow_outward_rounded,
+                      color: item.color.withValues(alpha: 0.40), size: 16),
+                ],
+              ),
+              const Spacer(),
+              Text(item.label,
+                style: TextStyle(
+                  fontSize: 13.5, fontWeight: FontWeight.w700,
+                  color: onSurface,
+                )),
+              const SizedBox(height: 3),
+              Text(item.value,
+                style: const TextStyle(
+                  fontSize: 11.5, color: _kMuted, fontWeight: FontWeight.w500,
+                )),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
-// ─── Space card ───────────────────────────────────────────────────────────────
+//  Space card 
 class _SpaceCard extends StatelessWidget {
   final IconData icon;
   final String   label;
@@ -527,98 +548,101 @@ class _SpaceCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Ink(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+  Widget build(BuildContext context) {
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
+    final surface   = Theme.of(context).colorScheme.surface;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark
+                  ? color.withValues(alpha: 0.20)
+                  : const Color(0xFFECEEF5),
+              width: 1.2,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // accent bar
-            Container(
-              width: 4,
-              height: 70,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(18),
-                ),
+            boxShadow: isDark ? [] : [
+              BoxShadow(
+                color: color.withValues(alpha: 0.06),
+                blurRadius: 12, offset: const Offset(0, 3),
               ),
-            ),
-            const SizedBox(width: 14),
-
-            // icon box
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(width: 14),
-
-            // text
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: _kText,
-                    )),
-                  const SizedBox(height: 3),
-                  Text(description,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: _kMuted,
-                      height: 1.35,
-                    )),
-                ],
-              ),
-            ),
-
-            // badge ou chevron
-            if (badge != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(badge!,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                  )),
-              ),
-            ] else ...[
-              Icon(Icons.chevron_right_rounded, color: color.withValues(alpha: 0.40), size: 22),
             ],
-            const SizedBox(width: 14),
-          ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                // icon box
+                Container(
+                  width: 46, height: 46,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        color.withValues(alpha: isDark ? 0.22 : 0.14),
+                        color.withValues(alpha: isDark ? 0.10 : 0.07),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(icon, color: color, size: 23),
+                ),
+                const SizedBox(width: 14),
+
+                // text
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: onSurface,
+                        )),
+                      const SizedBox(height: 3),
+                      Text(description,
+                        style: const TextStyle(
+                          fontSize: 12, color: _kMuted, height: 1.35,
+                        )),
+                    ],
+                  ),
+                ),
+
+                // badge ou chevron
+                const SizedBox(width: 8),
+                if (badge != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(badge!,
+                      style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w800, color: color,
+                      )),
+                  )
+                else
+                  Icon(Icons.chevron_right_rounded,
+                      color: color.withValues(alpha: 0.40), size: 20),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
-// ─── Profile completion card ──────────────────────────────────────────────────
+//  Profile completion card 
 class _ProfileCompletionCard extends StatelessWidget {
   final int score;
   const _ProfileCompletionCard({required this.score});
@@ -640,23 +664,24 @@ class _ProfileCompletionCard extends StatelessWidget {
     final String msg = safe == 0
         ? 'Commencez à compléter votre profil'
         : safe < 50
-            ? 'Continuez — vous êtes bien parti.'
+            ? 'Continuez  vous êtes bien parti.'
             : safe < 80
                 ? 'Bon travail, encore un effort.'
                 : safe < 100
                     ? 'Presque terminé, continuez.'
                     : 'Profil complet.';
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
+        border: isDark ? Border.all(color: const Color(0xFF1E2A52)) : null,
+        boxShadow: isDark ? [] : [
           BoxShadow(
             color: accent.withValues(alpha: 0.10),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            blurRadius: 24, offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -675,7 +700,7 @@ class _ProfileCompletionCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      isOk ? '✓ COMPLET' : 'EN COURS',
+                      isOk ? ' COMPLET' : 'EN COURS',
                       style: TextStyle(
                         fontSize: 10, fontWeight: FontWeight.w800,
                         color: accent, letterSpacing: 0.8,
@@ -801,7 +826,7 @@ class _ProfileCompletionCard extends StatelessWidget {
   }
 }
 
-// ─── Loading ──────────────────────────────────────────────────────────────────
+//  Loading 
 class _LoadingView extends StatelessWidget {
   const _LoadingView({super.key});
 
@@ -811,7 +836,7 @@ class _LoadingView extends StatelessWidget {
   );
 }
 
-// ─── Error ────────────────────────────────────────────────────────────────────
+//  Error 
 class _ErrorView extends StatelessWidget {
   final String       error;
   final VoidCallback onRetry;

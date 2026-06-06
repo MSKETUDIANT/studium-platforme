@@ -59,7 +59,7 @@ class StudentProfileModel extends StudentProfile {
     };
   }
 
-  /// Pour UPDATE — sans id
+  /// Pour UPDATE  sans id
   Map<String, dynamic> toUpdateJson() {
     final json = toJson()..remove('id');
     return json;

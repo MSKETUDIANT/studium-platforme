@@ -4,7 +4,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/entities/academic_background.dart';
 import '../../domain/entities/experience.dart';
 import '../../domain/entities/student_profile.dart';
@@ -12,7 +11,7 @@ import '../providers/profile_providers.dart';
 import 'add_academic_page.dart';
 import 'add_experience_page.dart';
 
-// ─── Date helpers ────────────────────────────────────────────────────────────
+//  Date helpers 
 String _fmt(DateTime? date) {
   if (date == null) return '';
   const months = [
@@ -29,10 +28,10 @@ String _fmtFull(DateTime? date) {
       '${date.month.toString().padLeft(2, '0')}/${date.year}';
 }
 
-// ─────────────────────────────────────────────
+// 
 // Stylized floating SnackBar helper
-// ─── ProfilePage ─────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────
+//  ProfilePage 
+// 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
@@ -56,11 +55,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     return profileAsync.when(
       loading: () => const Scaffold(
-        backgroundColor: _AppColors.background,
+
         body: Center(child: CircularProgressIndicator()),
       ),
       error: (e, _) => Scaffold(
-        backgroundColor: _AppColors.background,
+
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -81,7 +80,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         return AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle.light,
           child: Scaffold(
-            backgroundColor: _AppColors.background,
+
             body: Column(
               children: [
                 _GradientProfileBanner(
@@ -125,7 +124,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 }
 
-// ─── Gradient Profile Banner ─────────────────────────────────────────────────
+//  Gradient Profile Banner 
 
 class _GradientProfileBanner extends StatelessWidget {
   final StudentProfile? profile;
@@ -148,7 +147,8 @@ class _GradientProfileBanner extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF0B1A3D), Color(0xFF1250A8), Color(0xFF1A4FA0)],
+          colors: [Color(0xFF08122E), Color(0xFF153EA8), Color(0xFF1A67D6)],
+          stops:  [0.0, 0.50, 1.0],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -176,9 +176,22 @@ class _GradientProfileBanner extends StatelessWidget {
 
             Column(
               children: [
-                // ── Avatar + nom + score ──
+                //  Bouton paramètres (top-right) 
+                Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 10, right: 10),
+                    child: IconButton(
+                      icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 22),
+                      onPressed: () => context.push('/settings'),
+                      tooltip: 'Paramètres',
+                    ),
+                  ),
+                ),
+
+                //  Avatar + nom + score 
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -264,7 +277,7 @@ class _GradientProfileBanner extends StatelessWidget {
                             const SizedBox(height: 5),
                             Text(
                               score >= 80
-                                  ? '✓ Profil complet'
+                                  ? ' Profil complet'
                                   : '$score% complété',
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.70),
@@ -316,7 +329,7 @@ class _GradientProfileBanner extends StatelessWidget {
                   ),
                 ),
 
-                // ── Tab bar ──
+                //  Tab bar 
                 Container(
                   decoration: BoxDecoration(
                     border: Border(
@@ -420,7 +433,7 @@ class _StepTab extends StatelessWidget {
   }
 }
 
-// ─── Step 1 : Infos ───────────────────────────────────────────────────────────
+//  Step 1 : Infos 
 
 class _InfosStep extends ConsumerWidget {
   final StudentProfile? profile;
@@ -483,7 +496,7 @@ class _InfosStep extends ConsumerWidget {
           ],
           const SizedBox(height: 20),
 
-          // ── Bouton modifier ──
+          //  Bouton modifier 
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -503,33 +516,6 @@ class _InfosStep extends ConsumerWidget {
               ),
             ),
           ).animate().fadeIn(delay: 280.ms).slideY(begin: .04),
-          const SizedBox(height: 10),
-
-          // ── Bouton déconnexion ──
-          Consumer(builder: (context, ref, _) {
-            return SizedBox(
-              width: double.infinity,
-              child: TextButton.icon(
-                onPressed: () async {
-                  await ref.read(authStateProvider.notifier).signOut();
-                  if (!context.mounted) return;
-                  context.go('/login');
-                },
-                icon: const Icon(Icons.logout_rounded,
-                    size: 17, color: Color(0xFFEF4444)),
-                label: const Text(
-                  'Se déconnecter',
-                  style: TextStyle(
-                      color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
-                ),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-              ),
-            );
-          }).animate().fadeIn(delay: 320.ms).slideY(begin: .04),
           const SizedBox(height: 8),
         ],
       ),
@@ -537,7 +523,7 @@ class _InfosStep extends ConsumerWidget {
   }
 }
 
-// ─── Step 2 : Parcours ────────────────────────────────────────────────────────
+//  Step 2 : Parcours 
 
 class _AcademicStep extends ConsumerWidget {
   const _AcademicStep();
@@ -606,7 +592,7 @@ class _AcademicStep extends ConsumerWidget {
   }
 }
 
-// ─── Step 3 : Expériences ─────────────────────────────────────────────────────
+//  Step 3 : Expériences 
 
 class _ExperienceStep extends ConsumerWidget {
   const _ExperienceStep();
@@ -675,7 +661,7 @@ class _ExperienceStep extends ConsumerWidget {
   }
 }
 
-// ─── Locked Step ─────────────────────────────────────────────────────────────
+//  Locked Step 
 
 class _LockedStep extends StatelessWidget {
   final String message;
@@ -716,7 +702,7 @@ class _LockedStep extends StatelessWidget {
   }
 }
 
-// ─── Widget helpers ───────────────────────────────────────────────────────────
+//  Widget helpers 
 
 class _StepTitle extends StatelessWidget {
   final String text;
@@ -977,7 +963,7 @@ class _AcademicCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(context),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1144,7 +1130,7 @@ class _ExperienceCard extends ConsumerWidget {
                   _DetailRow(
                       icon: Icons.calendar_today_outlined,
                       label: 'Période',
-                      value: '$start → $end'),
+                      value: '$start  $end'),
                 if (experience.description != null &&
                     experience.description!.isNotEmpty) ...[
                   const SizedBox(height: 16),
@@ -1235,7 +1221,7 @@ class _ExperienceCard extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(context),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1265,7 +1251,7 @@ class _ExperienceCard extends ConsumerWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         _Chip(Icons.calendar_today_outlined,
-                            '$start → $end'),
+                            '$start  $end'),
                         if (experience.isCurrent)
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -1455,7 +1441,7 @@ class _EmptyStateCard extends StatelessWidget {
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(18),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(context),
       child: Column(
         children: [
           Container(
@@ -1488,13 +1474,15 @@ class _EmptyStateCard extends StatelessWidget {
   }
 }
 
-// ─── Shared helpers ───────────────────────────────────────────────────────────
+//  Shared helpers 
 
-BoxDecoration _cardDecoration() {
+BoxDecoration _cardDecoration(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
   return BoxDecoration(
-    color: Colors.white,
+    color: Theme.of(context).colorScheme.surface,
     borderRadius: BorderRadius.circular(18),
-    boxShadow: [
+    border: isDark ? Border.all(color: const Color(0xFF1E2A52)) : null,
+    boxShadow: isDark ? [] : [
       BoxShadow(
         color: Colors.black.withValues(alpha: 0.04),
         blurRadius: 10,
@@ -1535,7 +1523,7 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-// ─── Shared decorative helpers ───────────────────────────────────────────────
+//  Shared decorative helpers 
 
 class _DecorCircle extends StatelessWidget {
   final double size;
@@ -1555,10 +1543,9 @@ class _DecorCircle extends StatelessWidget {
       );
 }
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+//  Design tokens 
 
 class _AppColors {
-  static const Color background  = Color(0xFFF4F6FB);
   static const Color primary     = Color(0xFF4880FF);
   static const Color primaryDark = Color(0xFF1A3C6E);
   static const Color success     = Color(0xFF10B981);

@@ -2,7 +2,7 @@ import '../entities/student_profile.dart';
 import '../entities/academic_background.dart';
 import '../entities/experience.dart';
 
-// ─── Exceptions ───────────────────────────────────────────────────────────────
+//  Exceptions 
 
 enum ProfileErrorType {
   notFound,
@@ -26,7 +26,7 @@ class ProfileException implements Exception {
   String toString() => 'ProfileException(type: $type, message: $message)';
 }
 
-// ─── Repository interface ─────────────────────────────────────────────────────
+//  Repository interface 
 
 abstract interface class ProfileRepository {
   Future<StudentProfile> getProfile(String userId);

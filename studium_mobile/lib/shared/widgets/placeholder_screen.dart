@@ -3,7 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 
-/* ─── SplashScreen ───────────────────────────────────────────────────────── */
+/*  SplashScreen  */
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -23,7 +23,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF1A3C6E),
+    backgroundColor: const Color(0xFF153EA8),
     body: Stack(children: [
       Positioned.fill(child: CustomPaint(painter: _GridPainter())),
       Positioned(top: -80,  right: -80, child: _Orb(size: 300, opacity: 0.20)),
@@ -54,7 +54,7 @@ class _SplashScreenState extends State<SplashScreen> {
   );
 }
 
-/* ─── Stubs — à remplacer par feature ───────────────────────────────────── */
+/*  Stubs  à remplacer par feature  */
 
 class ApplicationsScreen extends StatelessWidget {
   const ApplicationsScreen({super.key});
@@ -76,7 +76,7 @@ class MessagesScreen extends StatelessWidget {
   );
 }
 
-/* ─── Placeholder générique ──────────────────────────────────────────────── */
+/*  Placeholder générique  */
 
 class _PlaceholderPage extends StatelessWidget {
   final String title;
@@ -167,7 +167,7 @@ class _PlaceholderPage extends StatelessWidget {
   );
 }
 
-/* ─── Helpers ────────────────────────────────────────────────────────────── */
+/*  Helpers  */
 
 class _Orb extends StatelessWidget {
   final double size, opacity;

@@ -7,7 +7,6 @@ import '../../domain/entities/program.dart';
 import '../providers/program_providers.dart';
 import 'program_detail_page.dart';
 
-const _kBg     = Color(0xFFF4F6FB);
 const _kNavy   = Color(0xFF1A1D2E);
 const _kGrey   = Color(0xFF9CA3AF);
 const _kBorder = Color(0xFFE5E7EB);
@@ -24,7 +23,6 @@ class FavoritesPage extends ConsumerWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: _kBg,
         body: SafeArea(
         child: programsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -181,7 +179,7 @@ class FavoritesPage extends ConsumerWidget {
       );
 }
 
-// ─── Favorite Card ────────────────────────────────────────────────────────────
+//  Favorite Card 
 
 class _FavoriteCard extends ConsumerWidget {
   final Program program;
@@ -295,7 +293,7 @@ class _FavoriteCard extends ConsumerWidget {
   }
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+//  Helpers 
 
 class _DecorCircle extends StatelessWidget {
   final double size;

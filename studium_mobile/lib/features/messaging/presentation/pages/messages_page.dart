@@ -1,3 +1,4 @@
+import '../../../../core/i18n/strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -7,15 +8,14 @@ import '../../../../core/constants/app_colors.dart';
 import '../../data/datasources/messaging_remote_datasource.dart';
 import '../providers/messaging_providers.dart';
 
-// ─── Palette (identique aux autres pages) ─────────────────────────────────────
-const _kNavy   = Color(0xFF0D1F42);
+//  Palette (identique aux autres pages) 
+const _kNavy   = Color(0xFF08122E);
 const _kAccent = Color(0xFF4880FF);
-const _kBg     = Color(0xFFF4F6FB);
 const _kText   = Color(0xFF1A1D2E);
 const _kMuted  = Color(0xFF9CA3AF);
 const _kBorder = Color(0xFFE5E7EB);
 
-// ─── MessagesPage ─────────────────────────────────────────────────────────────
+//  MessagesPage 
 class MessagesPage extends ConsumerStatefulWidget {
   const MessagesPage({super.key});
   @override
@@ -65,15 +65,14 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _kBg,
         body: SafeArea(
           top: false,
           child: Column(
             children: [
-              // ── Header gradient ──
+              //  Header gradient 
               _Header().animate().fadeIn(duration: 400.ms).slideY(begin: -0.06),
 
-              // ── Messages ──
+              //  Messages 
               Expanded(
                 child: messagesAsync.when(
                   loading: () => const Center(
@@ -107,7 +106,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                 ),
               ),
 
-              // ── Zone de saisie ──
+              //  Zone de saisie 
               _ReplyBox(
                 controller: _controller,
                 sending:    _sending,
@@ -121,7 +120,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   }
 }
 
-// ─── Header ───────────────────────────────────────────────────────────────────
+//  Header 
 class _Header extends StatelessWidget {
   const _Header();
 
@@ -131,7 +130,7 @@ class _Header extends StatelessWidget {
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF0D1F42), Color(0xFF1565C0), Color(0xFF1E5298)],
+          colors: [Color(0xFF08122E), Color(0xFF153EA8), Color(0xFF1A67D6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -156,8 +155,8 @@ class _Header extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Équipe Studium',
+                    Text(
+                      context.s.studiumTeam,
                       style: TextStyle(
                         color: Colors.white, fontWeight: FontWeight.w800,
                         fontSize: 17, letterSpacing: -0.3,
@@ -176,7 +175,7 @@ class _Header extends StatelessWidget {
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          'En ligne · répond généralement en 24h',
+                          context.s.online,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.75),
                             fontSize: 12, fontWeight: FontWeight.w500,
@@ -195,7 +194,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ─── État vide ────────────────────────────────────────────────────────────────
+//  État vide 
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 
@@ -218,13 +217,13 @@ class _EmptyState extends StatelessWidget {
               child: const Icon(Icons.chat_bubble_outline_rounded, color: _kAccent, size: 34),
             ).animate().scale(begin: const Offset(0.8, 0.8)).fadeIn(),
             const SizedBox(height: 20),
-            const Text(
-              'Démarrez la conversation',
+            Text(
+              context.s.noConversation,
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: _kText),
             ).animate().fadeIn(delay: 100.ms),
             const SizedBox(height: 8),
             Text(
-              'Posez vos questions à l\'équipe Studium.\nNous répondons sous 24h.',
+              context.s.noConversationDesc,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: _kMuted, height: 1.5),
             ).animate().fadeIn(delay: 150.ms),
@@ -235,7 +234,7 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ─── État erreur ──────────────────────────────────────────────────────────────
+//  État erreur 
 class _ErrorState extends StatelessWidget {
   final String       error;
   final VoidCallback onRetry;
@@ -279,7 +278,7 @@ class _ErrorState extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              '💡 Si l\'erreur mentionne "relation does not exist",\napplique les migrations SQL dans Supabase.',
+              ' Si l\'erreur mentionne "relation does not exist",\napplique les migrations SQL dans Supabase.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: _kMuted, height: 1.5),
             ),
@@ -289,7 +288,7 @@ class _ErrorState extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [_kNavy, Color(0xFF1565C0)]),
+                  gradient: const LinearGradient(colors: [_kNavy, Color(0xFF153EA8)]),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Row(
@@ -309,7 +308,7 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-// ─── Bulle de message ─────────────────────────────────────────────────────────
+//  Bulle de message 
 class _MessageBubble extends StatelessWidget {
   final MessageModel message;
   final bool isLast;
@@ -417,7 +416,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-// ─── Zone de saisie ───────────────────────────────────────────────────────────
+//  Zone de saisie 
 class _ReplyBox extends StatelessWidget {
   final TextEditingController controller;
   final bool         sending;
@@ -426,8 +425,9 @@ class _ReplyBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       padding: EdgeInsets.fromLTRB(12, 10, 12, MediaQuery.of(context).padding.bottom + 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -436,9 +436,9 @@ class _ReplyBox extends StatelessWidget {
             child: Container(
               constraints: const BoxConstraints(maxHeight: 120),
               decoration: BoxDecoration(
-                color: _kBg,
+                color: isDark ? const Color(0xFF0D1121) : const Color(0xFFF4F6FB),
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: _kBorder),
+                border: Border.all(color: isDark ? const Color(0xFF1E2A52) : _kBorder),
               ),
               child: TextField(
                 controller:      controller,
@@ -447,7 +447,7 @@ class _ReplyBox extends StatelessWidget {
                 style: const TextStyle(fontSize: 14.5, color: _kText),
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                  hintText:  'Écrivez un message…',
+                  hintText:  context.s.writeMessage,
                   hintStyle: TextStyle(color: _kMuted, fontSize: 14.5),
                   border:    InputBorder.none,
                 ),

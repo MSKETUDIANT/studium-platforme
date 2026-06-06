@@ -10,7 +10,6 @@ import '../providers/document_providers.dart';
 const _kNavy  = Color(0xFF1A1D2E);
 const _kBlue  = Color(0xFF4880FF);
 const _kGrey  = Color(0xFF9CA3AF);
-const _kBg    = Color(0xFFF4F6FB);
 
 class UploadDocumentPage extends ConsumerStatefulWidget {
   const UploadDocumentPage({super.key});
@@ -111,7 +110,6 @@ class _UploadDocumentPageState extends ConsumerState<UploadDocumentPage> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _kBg,
         body: Column(children: [
           _buildHeader(),
           Expanded(
@@ -214,7 +212,7 @@ class _UploadDocumentPageState extends ConsumerState<UploadDocumentPage> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF0D1F42), Color(0xFF1565C0), Color(0xFF1E5298)],
+          colors: [Color(0xFF08122E), Color(0xFF153EA8), Color(0xFF1A67D6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -270,7 +268,7 @@ class _UploadDocumentPageState extends ConsumerState<UploadDocumentPage> {
   }
 }
 
-// ─── Section Label ─────────────────────────────────────────────────────────────
+//  Section Label 
 
 class _SectionLabel extends StatelessWidget {
   final String text;
@@ -293,7 +291,7 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ─── Type Grid ─────────────────────────────────────────────────────────────────
+//  Type Grid 
 
 class _TypeGrid extends StatelessWidget {
   final DocumentType selected;
@@ -404,7 +402,7 @@ class _TypeGrid extends StatelessWidget {
   }
 }
 
-// ─── File Picker Zone ──────────────────────────────────────────────────────────
+//  File Picker Zone 
 
 class _FilePicker extends StatelessWidget {
   final String? fileName;
@@ -482,7 +480,7 @@ class _FilePicker extends StatelessWidget {
   }
 }
 
-// ─── Shared Helpers ───────────────────────────────────────────────────────────
+//  Shared Helpers 
 
 class _DecorCircle extends StatelessWidget {
   final double size;

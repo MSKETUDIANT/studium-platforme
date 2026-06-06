@@ -5,7 +5,7 @@ import '../../data/repositories/application_repository_impl.dart';
 import '../../domain/entities/application.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 
-// ─── Status History ───────────────────────────────────────────────────────────
+//  Status History 
 
 final statusHistoryProvider = FutureProvider.autoDispose
     .family<List<StatusHistoryEntry>, String>((ref, applicationId) {
@@ -14,7 +14,7 @@ final statusHistoryProvider = FutureProvider.autoDispose
       .fetchStatusHistory(applicationId);
 });
 
-// ─── Infrastructure ───────────────────────────────────────────────────────────
+//  Infrastructure 
 
 final applicationDatasourceProvider = Provider<ApplicationRemoteDatasource>(
   (ref) => ApplicationRemoteDatasource(ref.watch(supabaseClientProvider)),
@@ -24,7 +24,7 @@ final applicationRepositoryProvider = Provider<ApplicationRepositoryImpl>(
   (ref) => ApplicationRepositoryImpl(ref.watch(applicationDatasourceProvider)),
 );
 
-// ─── My Applications ─────────────────────────────────────────────────────────
+//  My Applications 
 
 final myApplicationsProvider =
     AsyncNotifierProvider.autoDispose<MyApplicationsNotifier, List<Application>>(

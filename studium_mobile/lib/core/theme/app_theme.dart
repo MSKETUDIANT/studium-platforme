@@ -95,14 +95,65 @@ abstract class AppTheme {
   );
 
   static ThemeData get dark => light.copyWith(
-    colorScheme: const ColorScheme.dark(
-      primary:   AppColors.blueLight,
-      onPrimary: Colors.white,
-      secondary: AppColors.blue,
-      surface:   AppColors.darkSurface,
-      onSurface: AppColors.darkText,
-      error:     AppColors.danger,
-    ),
+    brightness: Brightness.dark,
     scaffoldBackgroundColor: AppColors.darkBg,
+    colorScheme: const ColorScheme.dark(
+      primary:          AppColors.blueLight,
+      onPrimary:        Colors.white,
+      secondary:        AppColors.blue,
+      surface:          AppColors.darkSurface,
+      onSurface:        AppColors.darkText,
+      error:            AppColors.danger,
+      surfaceContainerHighest: AppColors.darkSurface,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.darkSurface,
+      foregroundColor: AppColors.darkText,
+      elevation: 0,
+      scrolledUnderElevation: 1,
+      titleTextStyle: TextStyle(
+        fontFamily: 'PlusJakartaSans',
+        fontSize: 17, fontWeight: FontWeight.w800,
+        color: AppColors.darkText, letterSpacing: -0.4,
+      ),
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    ),
+    cardTheme: CardThemeData(
+      color: AppColors.darkSurface,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppColors.darkBorder),
+      ),
+      margin: EdgeInsets.zero,
+    ),
+    dividerTheme: const DividerThemeData(color: AppColors.darkBorder, thickness: 1),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: AppColors.darkSurface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.darkBorder, width: 1.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.darkBorder, width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AppColors.blueLight, width: 2),
+      ),
+      hintStyle: const TextStyle(color: AppColors.darkTextMuted, fontSize: 14),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: AppColors.darkSurface,
+      contentTextStyle: const TextStyle(color: AppColors.darkText, fontSize: 13.5),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
   );
 }

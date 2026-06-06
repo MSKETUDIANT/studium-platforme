@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,14 +7,11 @@ import '../providers/program_providers.dart';
 import 'program_detail_page.dart';
 import 'favorites_page.dart';
 
-// ─── Constantes design ─────────────────────────────────────────────────────
+//  Constantes design 
 
 const _kBlue    = Color(0xFF4880FF);
-const _kNavy    = Color(0xFF1A1D2E);
-const _kBg      = Color(0xFFF4F6FB);
 const _kGrey    = Color(0xFF9CA3AF);
 const _kBorder  = Color(0xFFE5E7EB);
-const _kWhite   = Colors.white;
 
 const _kLevels = [
   {'value': '',         'label': 'Tous'},
@@ -25,10 +22,10 @@ const _kLevels = [
 
 const _kCostRanges = [
   {'value': 'free',  'label': 'Gratuit'},
-  {'value': '<1k',   'label': '< 1 000 €'},
-  {'value': '1-5k',  'label': '1 000 – 5 000 €'},
-  {'value': '5-15k', 'label': '5 000 – 15 000 €'},
-  {'value': '>15k',  'label': '> 15 000 €'},
+  {'value': '<1k',   'label': '< 1 000 '},
+  {'value': '1-5k',  'label': '1 000  5 000 '},
+  {'value': '5-15k', 'label': '5 000  15 000 '},
+  {'value': '>15k',  'label': '> 15 000 '},
 ];
 
 const _kDeadlines = [
@@ -78,7 +75,7 @@ String _levelLabel(String? level) => switch (level) {
   _          => '',
 };
 
-// ─── Page ──────────────────────────────────────────────────────────────────
+//  Page 
 
 class ProgramsPage extends ConsumerStatefulWidget {
   const ProgramsPage({super.key});
@@ -160,11 +157,9 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
     final programsAsync = ref.watch(programsProvider);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
+      value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _kBg,
-        body: SafeArea(
-          child: programsAsync.when(
+        body: programsAsync.when(
           loading: () =>
               const Center(child: CircularProgressIndicator(color: _kBlue)),
           error: (e, _) => Center(
@@ -191,7 +186,7 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
                   SliverFillRemaining(child: _buildEmpty())
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(context).padding.bottom + 90),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (_, i) => _ProgramCard(
@@ -215,8 +210,7 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
           },
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildHeader(List<Program> programs) {
@@ -224,38 +218,30 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
     final countries  = programs.map((p) => p.country).whereType<String>().toSet().length;
     final languages  = programs.map((p) => p.language).whereType<String>().toSet().length;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0D1F42), Color(0xFF1565C0), Color(0xFF1E5298)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0D1F42).withValues(alpha: 0.28),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF08122E), Color(0xFF153EA8), Color(0xFF1A67D6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // Décors cercles
-            Positioned(
-              right: -16, top: -16,
-              child: _DecorCircle(size: 110, opacity: 0.08),
-            ),
-            Positioned(
-              right: 50, bottom: -20,
-              child: _DecorCircle(size: 70, opacity: 0.06),
-            ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Positioned(
+                right: -20, top: -20,
+                child: _DecorCircle(size: 130, opacity: 0.07),
+              ),
+              const Positioned(
+                right: 60, bottom: -30,
+                child: _DecorCircle(size: 80, opacity: 0.05),
+              ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -351,7 +337,8 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildSearchBar() {
@@ -360,22 +347,24 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
       child: Container(
         height: 46,
         decoration: BoxDecoration(
-          color: _kWhite,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kBorder),
-          boxShadow: [
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFF1E2A52) : _kBorder,
+          ),
+          boxShadow: Theme.of(context).brightness == Brightness.dark ? [] : [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              blurRadius: 8, offset: const Offset(0, 2),
             ),
           ],
         ),
         child: TextField(
           controller: _searchCtrl,
-          style: const TextStyle(fontSize: 13, color: _kNavy),
+          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
           decoration: InputDecoration(
-            hintText: 'Rechercher une formation…',
+            hintText: 'Rechercher une formation',
             hintStyle: const TextStyle(fontSize: 13, color: _kGrey),
             prefixIcon: const Icon(Icons.search, size: 18, color: _kGrey),
             suffixIcon: _query.isNotEmpty
@@ -573,10 +562,10 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
                       ),
                       Text(
                         'Filtrer par $title',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: _kNavy),
+                            color: Theme.of(ctx).colorScheme.onSurface),
                       ),
                       const SizedBox(height: 8),
                     ],
@@ -592,7 +581,7 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 16),
                         title: const Text('Tous',
-                            style: TextStyle(fontSize: 14, color: _kNavy)),
+                            style: TextStyle(fontSize: 14)),
                         trailing: selected.isEmpty
                             ? const Icon(Icons.check_circle, color: _kBlue)
                             : const Icon(Icons.radio_button_unchecked,
@@ -607,8 +596,7 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
                           contentPadding:
                               const EdgeInsets.symmetric(horizontal: 16),
                           title: Text(labels?[opt] ?? opt,
-                              style: const TextStyle(
-                                  fontSize: 14, color: _kNavy)),
+                              style: const TextStyle(fontSize: 14)),
                           trailing: selected == opt
                               ? const Icon(Icons.check_circle, color: _kBlue)
                               : const Icon(Icons.radio_button_unchecked,
@@ -639,8 +627,9 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
               _query.isNotEmpty || _selectedLevel.isNotEmpty
                   ? 'Aucun programme trouvé'
                   : 'Aucun programme disponible',
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w600, color: _kNavy),
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -652,7 +641,7 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
       );
 }
 
-// ─── Filter widgets ─────────────────────────────────────────────────────────
+//  Filter widgets 
 
 class _FilterBtn extends StatelessWidget {
   final IconData icon;
@@ -671,26 +660,26 @@ class _FilterBtn extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: active ? _kBlue : _kNavy,
+            color: active ? _kBlue : const Color(0xFF1A1D2E),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: _kWhite),
+              Icon(icon, size: 14, color: Colors.white),
               const SizedBox(width: 6),
               Text(label,
                   style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: _kWhite)),
+                      color: Colors.white)),
             ],
           ),
         ),
       );
 }
 
-// ─── Drop Button (Pays / Niveau / Langue) ────────────────────────────────────
+//  Drop Button (Pays / Niveau / Langue) 
 
 class _DropBtn extends StatelessWidget {
   final String label;
@@ -699,37 +688,44 @@ class _DropBtn extends StatelessWidget {
   const _DropBtn({required this.label, required this.active, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: active ? _kBlue : _kWhite,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: active ? _kBlue : _kBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: active ? _kWhite : _kNavy,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down,
-                  size: 16, color: active ? _kWhite : _kGrey),
-            ],
+  Widget build(BuildContext context) {
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
+    final surface   = Theme.of(context).colorScheme.surface;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? _kBlue : surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? _kBlue : (isDark ? const Color(0xFF1E2A52) : _kBorder),
           ),
         ),
-      );
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: active ? Colors.white : onSurface,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.keyboard_arrow_down,
+                size: 16, color: active ? Colors.white : _kGrey),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-// ─── Programme Card ──────────────────────────────────────────────────────────
+//  Programme Card 
 
 class _ProgramCard extends ConsumerWidget {
   final Program program;
@@ -770,20 +766,21 @@ class _ProgramCard extends ConsumerWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: _kWhite,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(22),
-          boxShadow: [
+          border: Theme.of(context).brightness == Brightness.dark
+              ? Border.all(color: const Color(0xFF1E2A52)) : null,
+          boxShadow: Theme.of(context).brightness == Brightness.dark ? [] : [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.07),
-              blurRadius: 16,
-              offset: const Offset(0, 5),
+              blurRadius: 16, offset: const Offset(0, 5),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Bannière ────────────────────────────────────────────
+            //  Bannière 
             ClipRRect(
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(22)),
@@ -940,7 +937,7 @@ class _ProgramCard extends ConsumerWidget {
               ),
             ),
 
-            // ── Infos ───────────────────────────────────────────────
+            //  Infos 
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
               child: Column(
@@ -948,10 +945,10 @@ class _ProgramCard extends ConsumerWidget {
                 children: [
                   Text(
                     program.programName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: _kNavy,
+                      color: Theme.of(context).colorScheme.onSurface,
                       height: 1.3,
                     ),
                     maxLines: 2,
@@ -1029,7 +1026,7 @@ class _MetaChip extends StatelessWidget {
       );
 }
 
-// ─── Header helpers ──────────────────────────────────────────────────────────
+//  Header helpers 
 
 class _DecorCircle extends StatelessWidget {
   final double size;
@@ -1080,7 +1077,7 @@ class _StatPill extends StatelessWidget {
       );
 }
 
-// ─── Motif géométrique décoratif ────────────────────────────────────────────
+//  Motif géométrique décoratif 
 
 class _GeoShape extends StatelessWidget {
   final double size;

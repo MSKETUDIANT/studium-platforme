@@ -43,7 +43,7 @@ class Program {
   String get costLabel {
     if (cost == null) return 'Non précisé';
     if (cost == 0) return 'Gratuit';
-    return '${cost!.toStringAsFixed(0)} €';
+    return '${cost!.toStringAsFixed(0)} ';
   }
 
   String get deadlineLabel {

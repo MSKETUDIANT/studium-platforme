@@ -68,8 +68,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'Veuillez confirmer votre adresse email.';
     } else if (msg.contains('Google annulée')) {
       return 'Connexion Google annulée.';
+    } else if (msg.contains('timeout')) {
+      return 'Delai depassé. Verifiez votre connexion.';
     }
-    return 'Une erreur est survenue. Réessayez.';
+    assert(() { debugPrint('[AUTH ERROR] $e'); return true; }());
+    return 'Erreur : ${e.toString().length > 80 ? e.toString().substring(0, 80) : e.toString()}';
   }
 
   void _showError(Object e) {
@@ -314,7 +317,7 @@ class _LoginForm extends StatelessWidget {
           onFieldSubmitted: (_) => isLoading ? null : onSignIn(),
           style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
           decoration: InputDecoration(
-            hintText: '••••••••',
+            hintText: '',
             prefixIcon: Icon(Icons.lock_outlined, color: AppColors.textMuted, size: 20),
             prefixIconConstraints: const BoxConstraints(minWidth: 48),
             suffixIcon: IconButton(
@@ -458,7 +461,7 @@ class _LoginForm extends StatelessWidget {
         ).animate().fadeIn(duration: 400.ms, delay: 300.ms),
 
         const SizedBox(height: 24),
-        const Center(child: Text('© 2025 Studium Platform',
+        const Center(child: Text(' 2025 Studium Platform',
           style: TextStyle(fontSize: 11, color: AppColors.textMuted))),
       ],
     ),
@@ -541,7 +544,7 @@ class _LeftPanel extends StatelessWidget {
               const TextSpan(text: 'Espace réservé à '),
               const TextSpan(text: "l'équipe Studium",
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-              const TextSpan(text: ' — gestion et suivi\ndes dossiers académiques internationaux.'),
+              const TextSpan(text: '  gestion et suivi\ndes dossiers académiques internationaux.'),
             ],
           ), textAlign: TextAlign.center).animate().fadeIn(duration: 600.ms, delay: 180.ms),
         ]),

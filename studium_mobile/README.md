@@ -37,23 +37,23 @@ flutter run \
 
 ## Architecture
 lib/
-├── core/          → constantes, thème, erreurs, utilitaires
-├── features/      → modules fonctionnels (auth, profile, applications...)
-│   └── auth/
-│       ├── data/          → datasource, repository, models
-│       ├── domain/        → models métier, usecases
-│       └── presentation/  → screens, widgets, providers
-├── shared/        → widgets et services réutilisables
-├── router/        → configuration GoRouter
-└── main.dart
+ core/           constantes, thème, erreurs, utilitaires
+ features/       modules fonctionnels (auth, profile, applications...)
+    auth/
+        data/           datasource, repository, models
+        domain/         models métier, usecases
+        presentation/   screens, widgets, providers
+ shared/         widgets et services réutilisables
+ router/         configuration GoRouter
+ main.dart
 
 
 ## Conventions
 
-- Fichiers : `snake_case` → `auth_service.dart`
-- Classes : `PascalCase` → `AuthService`
-- Variables : `camelCase` → `studentProfile`
-- Providers : `camelCase + Provider` → `authStateProvider`
+- Fichiers : `snake_case`  `auth_service.dart`
+- Classes : `PascalCase`  `AuthService`
+- Variables : `camelCase`  `studentProfile`
+- Providers : `camelCase + Provider`  `authStateProvider`
 
 ## Modules
 
@@ -64,6 +64,6 @@ lib/
 | documents | Upload et gestion des documents |
 | programs | Catalogue et recherche de programmes |
 | applications | Création et suivi des candidatures |
-| messaging | Messagerie équipe ↔ étudiant |
+| messaging | Messagerie équipe  étudiant |
 | notifications | Notifications push et in-app |
 | ai | Intégrations IA (lettre motivation, score) |

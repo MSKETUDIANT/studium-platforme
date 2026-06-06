@@ -17,7 +17,7 @@ final programsProvider = FutureProvider.autoDispose<List<Program>>((ref) {
   return ref.read(programRepositoryProvider).getPrograms();
 });
 
-// ─── Favorites ────────────────────────────────────────────────────────────────
+//  Favorites 
 
 final favoriteProgramIdsProvider =
     AsyncNotifierProvider.autoDispose<FavoritesNotifier, Set<String>>(

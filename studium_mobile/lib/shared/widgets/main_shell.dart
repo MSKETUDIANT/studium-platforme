@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/i18n/strings.dart';
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
 class _NavItem {
   final IconData icon;
   final IconData activeIcon;
@@ -10,18 +10,17 @@ class _NavItem {
   const _NavItem(this.icon, this.activeIcon, this.label);
 }
 
-const _kItems = [
-  _NavItem(Icons.dashboard_outlined,       Icons.dashboard_rounded,       'Accueil'),
-  _NavItem(Icons.school_outlined,          Icons.school_rounded,          'Prog.'),
-  _NavItem(Icons.folder_outlined,          Icons.folder_rounded,          'Dossiers'),
-  _NavItem(Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded,  'Messages'),
-  _NavItem(Icons.person_outline_rounded,   Icons.person_rounded,          'Profil'),
+List<_NavItem> _navItems(AppStrings s) => [
+  _NavItem(Icons.dashboard_outlined,          Icons.dashboard_rounded,       s.navHome),
+  _NavItem(Icons.school_outlined,             Icons.school_rounded,          s.navPrograms),
+  _NavItem(Icons.folder_outlined,             Icons.folder_rounded,          s.navDossiers),
+  _NavItem(Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded,     s.navMessages),
+  _NavItem(Icons.person_outline_rounded,      Icons.person_rounded,          s.navProfile),
 ];
 
 const _kBlue     = Color(0xFF4880FF);
 const _kInactive = Color(0xFFB0B7C3);
 
-// ─── Shell ────────────────────────────────────────────────────────────────────
 class MainShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
   const MainShell({super.key, required this.navigationShell});
@@ -37,6 +36,11 @@ class MainShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
+    final items     = _navItems(context.s);
+    final barColor  = isDark
+        ? Theme.of(context).colorScheme.surface
+        : Colors.white;
 
     return Scaffold(
       extendBody: true,
@@ -47,28 +51,26 @@ class MainShell extends StatelessWidget {
         child: Container(
           height: 66,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: barColor,
             borderRadius: BorderRadius.circular(26),
-            boxShadow: [
+            border: isDark ? Border.all(color: const Color(0xFF1E2A52)) : null,
+            boxShadow: isDark ? [] : [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 28,
-                spreadRadius: 0,
-                offset: const Offset(0, 8),
+                blurRadius: 28, spreadRadius: 0, offset: const Offset(0, 8),
               ),
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                blurRadius: 8, offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Row(
-            children: List.generate(_kItems.length, (i) {
+            children: List.generate(items.length, (i) {
               final isActive = i == navigationShell.currentIndex;
               return Expanded(
                 child: _NavButton(
-                  item: _kItems[i],
+                  item: items[i],
                   isActive: isActive,
                   onTap: () => _onTap(i),
                 ),
@@ -81,7 +83,6 @@ class MainShell extends StatelessWidget {
   }
 }
 
-// ─── Bouton individuel ────────────────────────────────────────────────────────
 class _NavButton extends StatelessWidget {
   final _NavItem     item;
   final bool         isActive;
@@ -103,16 +104,12 @@ class _NavButton extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // icône dans une pill colorée
             AnimatedContainer(
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
-              width: 46,
-              height: 30,
+              width: 46, height: 30,
               decoration: BoxDecoration(
-                color: isActive
-                    ? _kBlue.withValues(alpha: 0.12)
-                    : Colors.transparent,
+                color: isActive ? _kBlue.withValues(alpha: 0.12) : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
@@ -128,7 +125,6 @@ class _NavButton extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            // label toujours visible
             Text(
               item.label,
               style: TextStyle(

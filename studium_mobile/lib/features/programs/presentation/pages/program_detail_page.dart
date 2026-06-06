@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../domain/entities/program.dart';
 import '../providers/program_providers.dart';
 
-const _kBg     = Color(0xFFF4F6FB);
 const _kText   = Color(0xFF1A1D2E);
 const _kGrey   = Color(0xFF9CA3AF);
 const _kBorder = Color(0xFFE5E7EB);
@@ -38,10 +37,9 @@ class ProgramDetailPage extends ConsumerWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _kBg,
         body: CustomScrollView(
           slivers: [
-            // ─── Gradient header ──────────────────────────────────────────
+            //  Gradient header 
             SliverAppBar(
               expandedHeight: 210,
               pinned: true,
@@ -138,7 +136,7 @@ class ProgramDetailPage extends ConsumerWidget {
               ),
             ),
 
-            // ─── Content ──────────────────────────────────────────────────
+            //  Content 
             SliverPadding(
               padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPad),
               sliver: SliverList(
@@ -360,7 +358,7 @@ class ProgramDetailPage extends ConsumerWidget {
 
 }
 
-/* ─── Widgets helpers ─────────────────────────────────────────────────────── */
+/*  Widgets helpers  */
 
 class _QuickStats extends StatelessWidget {
   final Program program;
@@ -370,9 +368,9 @@ class _QuickStats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = <_StatItem>[
-      _StatItem(Icons.location_on_outlined, program.country ?? '—'),
-      _StatItem(Icons.translate_outlined, program.language ?? '—'),
-      _StatItem(Icons.access_time_outlined, program.duration ?? '—'),
+      _StatItem(Icons.location_on_outlined, program.country ?? ''),
+      _StatItem(Icons.translate_outlined, program.language ?? ''),
+      _StatItem(Icons.access_time_outlined, program.duration ?? ''),
     ];
 
     return Row(
@@ -509,7 +507,7 @@ class _InfoRow extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                value ?? '—',
+                value ?? '',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,

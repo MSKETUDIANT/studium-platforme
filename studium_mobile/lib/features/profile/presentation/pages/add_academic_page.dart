@@ -259,7 +259,7 @@ class _AddAcademicPageState extends ConsumerState<AddAcademicPage> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF0D1F42), Color(0xFF1565C0), Color(0xFF1E5298)],
+          colors: [Color(0xFF08122E), Color(0xFF153EA8), Color(0xFF1A67D6)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

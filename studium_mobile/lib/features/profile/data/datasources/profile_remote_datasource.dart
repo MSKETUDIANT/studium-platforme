@@ -20,9 +20,9 @@ class ProfileRemoteDatasource {
 
   const ProfileRemoteDatasource(this._client);
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // 
   // STUDENT PROFILE
-  // ═══════════════════════════════════════════════════════════════════════════
+  // 
 
   Future<StudentProfileModel> getProfile(String userId) async {
   try {
@@ -115,9 +115,9 @@ class ProfileRemoteDatasource {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // 
   // ACADEMIC BACKGROUNDS
-  // ═══════════════════════════════════════════════════════════════════════════
+  // 
 
   Future<List<AcademicBackgroundModel>> getAcademicBackgrounds(
       String userId) async {
@@ -183,16 +183,16 @@ class ProfileRemoteDatasource {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // 
   // EXPERIENCES
-  // ═══════════════════════════════════════════════════════════════════════════
+  // 
 
  Future<List<ExperienceModel>> getExperiences(String userId) async {
   try {
     final data = await _client
         .from(_kExperiences)
         .select()
-        .eq('student_profile_id', userId)  // ← ici
+        .eq('student_profile_id', userId)  //  ici
         .order('start_date', ascending: false);
     return (data as List).map((e) => ExperienceModel.fromJson(e)).toList();
   } on PostgrestException catch (e) {

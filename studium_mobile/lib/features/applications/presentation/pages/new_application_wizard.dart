@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +13,7 @@ import '../providers/application_providers.dart';
 const _kNavy  = Color(0xFF1A1D2E);
 const _kBlue  = Color(0xFF4880FF);
 const _kGrey  = Color(0xFF9CA3AF);
-const _kBg    = Color(0xFFF4F6FB);
+
 const _kBorder = Color(0xFFE5E7EB);
 
 class NewApplicationWizard extends ConsumerStatefulWidget {
@@ -150,29 +150,57 @@ class _NewApplicationWizardState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _kBg,
-      appBar: AppBar(
-        backgroundColor: _kNavy,
-        elevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle.light,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text('Nouvelle candidature',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w700)),
-        centerTitle: true,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(68),
-          child: _StepIndicator(
-              current: _currentStep, labels: _steps),
-        ),
-      ),
-      body: PageView(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: Column(
+          children: [
+            //  Header gradient 
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF08122E), Color(0xFF153EA8), Color(0xFF1A67D6)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 12, 16, 8),
+                      child: Row(children: [
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
+                          onPressed: () => context.pop(),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Nouvelle candidature',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 44),
+                      ]),
+                    ),
+                    _StepIndicator(current: _currentStep, labels: _steps),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+
+            //  Pages 
+            Expanded(
+              child: PageView(
         controller:   _pageController,
         physics:      const NeverScrollableScrollPhysics(),
         children: [
@@ -201,7 +229,11 @@ class _NewApplicationWizardState
           ),
         ],
       ),
-      bottomNavigationBar: _buildBottomBar(),
+            ),
+          ],
+        ),
+        bottomNavigationBar: _buildBottomBar(),
+      ),
     );
   }
 
@@ -257,7 +289,7 @@ class _NewApplicationWizardState
             Expanded(
               child: _GradientButton(
                 onTap: busy ? null : _submit,
-                label: _submitting ? 'Envoi en cours…' : 'Soumettre',
+                label: _submitting ? 'Envoi en cours' : 'Soumettre',
                 loading: _submitting,
               ),
             ),
@@ -275,7 +307,7 @@ class _NewApplicationWizardState
   }
 }
 
-// ─── Step indicator ───────────────────────────────────────────────────────────
+//  Step indicator 
 
 class _StepIndicator extends StatelessWidget {
   final int current;
@@ -413,7 +445,7 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-// ─── Step 1: Programme ────────────────────────────────────────────────────────
+//  Step 1: Programme 
 
 class _StepProgram extends ConsumerWidget {
   final Program? selected;
@@ -432,7 +464,7 @@ class _StepProgram extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // If a program was pre-selected (coming from program detail), show it read-only
     if (selected != null) {
-      return _buildPreselected(selected!);
+      return _buildPreselected(context, selected!);
     }
 
     final programsAsync = ref.watch(programsProvider);
@@ -457,7 +489,7 @@ class _StepProgram extends ConsumerWidget {
             child: TextField(
               onChanged: onSearchChanged,
               decoration: InputDecoration(
-                hintText: 'Rechercher un programme…',
+                hintText: 'Rechercher un programme',
                 hintStyle: const TextStyle(color: _kGrey),
                 prefixIcon: const Icon(Icons.search, color: _kGrey),
                 filled: true,
@@ -500,7 +532,7 @@ class _StepProgram extends ConsumerWidget {
     );
   }
 
-  Widget _buildPreselected(Program p) {
+  Widget _buildPreselected(BuildContext context, Program p) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -516,7 +548,7 @@ class _StepProgram extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: _kBlue.withValues(alpha: 0.4), width: 2),
             ),
@@ -635,7 +667,7 @@ class _ProgramTile extends StatelessWidget {
   }
 }
 
-// ─── Step 2: Dossier documents ────────────────────────────────────────────────
+//  Step 2: Dossier documents 
 
 class _StepDocuments extends ConsumerWidget {
   final Set<String> selected;
@@ -821,7 +853,7 @@ class _DocumentRow extends StatelessWidget {
   }
 }
 
-// ─── Step 3: Récapitulatif ────────────────────────────────────────────────────
+//  Step 3: Récapitulatif 
 
 class _StepRecap extends StatelessWidget {
   final Program? program;
@@ -851,12 +883,15 @@ class _StepRecap extends StatelessWidget {
           // Programme recap
           if (program != null) ...[
             _SectionLabel('Programme'),
-            Container(
+            Builder(builder: (context) => Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _kBorder),
+                border: Border.all(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF1E2A52) : _kBorder,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -878,7 +913,7 @@ class _StepRecap extends StatelessWidget {
                   ],
                 ],
               ),
-            ),
+            )),
             const SizedBox(height: 20),
           ],
 
@@ -900,7 +935,7 @@ class _StepRecap extends StatelessWidget {
             maxLength: 800,
             decoration: InputDecoration(
               hintText:
-                  'Expliquez votre motivation pour ce programme…',
+                  'Expliquez votre motivation pour ce programme',
               hintStyle:
                   const TextStyle(color: _kGrey, fontSize: 13),
               filled: true,
@@ -1015,9 +1050,12 @@ class _ChecklistCardState extends State<_ChecklistCard> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kBorder),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF1E2A52) : _kBorder,
+        ),
       ),
       child: Column(
         children: items.map((item) {
@@ -1136,7 +1174,7 @@ class _Tag extends StatelessWidget {
   }
 }
 
-// ─── Gradient button ──────────────────────────────────────────────────────────
+//  Gradient button 
 
 class _GradientButton extends StatelessWidget {
   final VoidCallback? onTap;

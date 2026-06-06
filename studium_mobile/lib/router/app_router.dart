@@ -19,6 +19,8 @@ import '../features/programs/presentation/pages/programs_page.dart';
 import '../shared/widgets/main_shell.dart';
 import '../shared/widgets/placeholder_screen.dart';
 import '../features/messaging/presentation/pages/messages_page.dart';
+import '../features/notifications/presentation/pages/notifications_page.dart';
+import '../features/settings/presentation/pages/settings_page.dart';
 import '../main.dart';
 
 final isResettingPasswordProvider = StateProvider<bool>((ref) => false);
@@ -75,7 +77,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
 
     routes: [
-      // ─── Routes publiques ────────────────────────────────────────────────
+      //  Routes publiques 
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/login',  builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
@@ -90,11 +92,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // ─── Shell avec bottom nav ───────────────────────────────────────────
+      //  Shell avec bottom nav 
       StatefulShellRoute.indexedStack(
         builder: (_, __, shell) => MainShell(navigationShell: shell),
         branches: [
-          // Branche 0 — Accueil
+          // Branche 0  Accueil
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/home',
@@ -102,7 +104,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ]),
 
-          // Branche 1 — Programmes
+          // Branche 1  Programmes
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/programs',
@@ -110,7 +112,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ]),
 
-          // Branche 2 — Candidatures
+          // Branche 2  Candidatures
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/applications',
@@ -118,7 +120,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ]),
 
-          // Branche 3 — Messages
+          // Branche 3  Messages
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/messages',
@@ -126,7 +128,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ]),
 
-          // Branche 4 — Profil
+          // Branche 4  Profil
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/profile',
@@ -136,7 +138,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // ─── Routes hors shell (plein écran, sans bottom nav) ───────────────
+      //  Routes hors shell (plein écran, sans bottom nav) 
       GoRoute(
         path: '/profile/edit',
         parentNavigatorKey: navigatorKey,
@@ -162,6 +164,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final app = state.extra as Application;
           return ApplicationDetailPage(app: app);
         },
+      ),
+      GoRoute(
+        path: '/notifications',
+        parentNavigatorKey: navigatorKey,
+        builder: (_, __) => const NotificationsPage(),
+      ),
+      GoRoute(
+        path: '/settings',
+        parentNavigatorKey: navigatorKey,
+        builder: (_, __) => const SettingsPage(),
       ),
     ],
   );

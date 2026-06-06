@@ -9,7 +9,7 @@ import '../../domain/entities/experience.dart';
 import '../../domain/entities/student_profile.dart';
 import '../../domain/repositories/profile_repository.dart';
 
-// ─── Infrastructure ───────────────────────────────────────────────────────────
+//  Infrastructure 
 
 final supabaseClientProvider = Provider<SupabaseClient>(
   (ref) => Supabase.instance.client,
@@ -23,13 +23,13 @@ final profileRepositoryProvider = Provider<ProfileRepository>(
   (ref) => data_repo.ProfileRepositoryImpl(ref.watch(profileDatasourceProvider)),
 );
 
-// ─── Current user ID ─────────────────────────────────────────────────────────
+//  Current user ID 
 
 final currentUserIdProvider = Provider<String?>((ref) {
   return Supabase.instance.client.auth.currentUser?.id;
 });
 
-// ─── Student Profile ─────────────────────────────────────────────────────────
+//  Student Profile 
 
 final profileProvider = FutureProvider.autoDispose<StudentProfile?>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
@@ -131,7 +131,7 @@ class ProfileNotifier extends AutoDisposeAsyncNotifier<StudentProfile?> {
   }
 }
 
-// ─── Dashboard stats ─────────────────────────────────────────────────────────
+//  Dashboard stats 
 
 final documentCountProvider = FutureProvider.autoDispose<int>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
@@ -144,7 +144,7 @@ final documentCountProvider = FutureProvider.autoDispose<int>((ref) async {
   return (data as List).length;
 });
 
-// ─── Academic Backgrounds ────────────────────────────────────────────────────
+//  Academic Backgrounds 
 
 final academicBackgroundsProvider =
     AsyncNotifierProvider.autoDispose<AcademicBackgroundsNotifier, List<AcademicBackground>>(
@@ -182,7 +182,7 @@ class AcademicBackgroundsNotifier
   }
 }
 
-// ─── Experiences ─────────────────────────────────────────────────────────────
+//  Experiences 
 
 final experiencesProvider =
     AsyncNotifierProvider.autoDispose<ExperiencesNotifier, List<Experience>>(

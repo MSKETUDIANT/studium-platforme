@@ -48,19 +48,32 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   String _parseError(Object e) {
-    final msg = e.toString();
+    final msg = e.toString().toLowerCase();
     if (msg.contains('already registered') ||
         msg.contains('already_exists') ||
-        msg.contains('User already registered')) {
+        msg.contains('user already registered')) {
       return 'Cet email est déjà utilisé.';
-    } else if (msg.contains('weak_password')) {
-      return 'Mot de passe trop faible. Minimum 8 caractères.';
-    } else if (msg.contains('invalid_email') || msg.contains('Invalid email')) {
+    } else if (msg.contains('weak_password') || msg.contains('password should be')) {
+      return 'Mot de passe trop faible. Minimum 6 caractères.';
+    } else if (msg.contains('invalid_email') || msg.contains('invalid email') ||
+               msg.contains('unable to validate')) {
       return 'Adresse email invalide.';
-    } else if (msg.contains('network') || msg.contains('SocketException')) {
-      return 'Vérifiez votre connexion internet.';
+    } else if (msg.contains('email not confirmed') || msg.contains('email_not_confirmed')) {
+      return 'Email non confirmé. Vérifiez votre boite mail.';
+    } else if (msg.contains('rate limit') || msg.contains('too many requests')) {
+      return 'Trop de tentatives. Réessayez dans quelques minutes.';
+    } else if (msg.contains('network') || msg.contains('socketexception') ||
+               msg.contains('connection refused') || msg.contains('failed host lookup')) {
+      return 'Connexion impossible. Vérifiez votre réseau.';
+    } else if (msg.contains('timeout')) {
+      return 'Délai dépassé. Vérifiez votre connexion et réessayez.';
     }
-    return 'Une erreur est survenue. Réessayez.';
+    // En debug : afficher le vrai message pour diagnostiquer
+    assert(() {
+      debugPrint('[AUTH ERROR] $e');
+      return true;
+    }());
+    return 'Erreur : ${e.toString().length > 80 ? e.toString().substring(0, 80) : e.toString()}';
   }
 
   void _showError(Object e) {
@@ -232,7 +245,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   textInputAction: TextInputAction.next,
                   style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
                   decoration: InputDecoration(
-                    hintText: '••••••••',
+                    hintText: '',
                     prefixIcon: Icon(Icons.lock_outlined,
                         color: AppColors.textMuted, size: 20),
                     prefixIconConstraints: const BoxConstraints(minWidth: 48),
@@ -268,7 +281,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   onFieldSubmitted: (_) => _signUp(),
                   style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
                   decoration: InputDecoration(
-                    hintText: '••••••••',
+                    hintText: '',
                     prefixIcon: Icon(Icons.lock_outlined,
                         color: AppColors.textMuted, size: 20),
                     prefixIconConstraints: const BoxConstraints(minWidth: 48),
@@ -451,7 +464,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 const SizedBox(height: 20),
                 const Center(
-                  child: Text('© 2025 Studium Platform',
+                  child: Text(' 2025 Studium Platform',
                       style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
                 ),
               ],
@@ -463,7 +476,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 }
 
-/* ─── Widgets internes ───────────────────────────────────────────────────── */
+/*  Widgets internes  */
 
 class _BrandedHeader extends StatelessWidget {
   const _BrandedHeader();
