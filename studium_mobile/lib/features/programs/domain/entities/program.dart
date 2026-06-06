@@ -52,4 +52,10 @@ class Program {
         '${deadline!.month.toString().padLeft(2, '0')}/'
         '${deadline!.year}';
   }
+
+  bool get isExpired {
+    if (deadline == null) return false;
+    final today = DateTime.now();
+    return deadline!.isBefore(DateTime(today.year, today.month, today.day));
+  }
 }

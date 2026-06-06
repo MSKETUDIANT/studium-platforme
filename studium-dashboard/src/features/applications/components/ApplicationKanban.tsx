@@ -135,6 +135,7 @@ function KanbanCard({ app, accent, onDragStart, onDragEnd, onClick }: {
   onClick:     () => void;
 }) {
   const initials = app.student.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+  const isDeadlinePast = app.deadline ? new Date(app.deadline) < new Date() : false;
 
   return (
     <div
@@ -152,7 +153,7 @@ function KanbanCard({ app, accent, onDragStart, onDragEnd, onClick }: {
         borderLeft: `3px solid ${accent}`,
         transition: 'box-shadow .15s, transform .1s',
       }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = shadows.modal ?? '0 4px 16px rgba(0,0,0,0.12)'; }}
+      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = shadows.btn; }}
       onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = shadows.card; }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -200,6 +201,17 @@ function KanbanCard({ app, accent, onDragStart, onDragEnd, onClick }: {
           </span>
         )}
       </div>
+      {isDeadlinePast && (
+        <div style={{
+          marginTop: 6,
+          display: 'flex', alignItems: 'center', gap: 4,
+          background: 'rgba(220,38,38,0.08)',
+          borderRadius: 4, padding: '2px 6px',
+        }}>
+          <span style={{ fontSize: 10, color: colors.danger }}>⏰</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: colors.danger }}>Délai dépassé</span>
+        </div>
+      )}
     </div>
   );
 }

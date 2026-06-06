@@ -262,7 +262,24 @@ class _FavoriteCard extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (program.country != null) ...[
+                    if (program.isExpired) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Expirée',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFEF4444),
+                          ),
+                        ),
+                      ),
+                    ] else if (program.country != null) ...[
                       const SizedBox(height: 4),
                       Row(children: [
                         const Icon(Icons.location_on_outlined, size: 11, color: _kGrey),

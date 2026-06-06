@@ -58,12 +58,40 @@ class _NewApplicationWizardState
       );
       return;
     }
+    if (_currentStep == 0 && (_selectedProgram?.isExpired ?? false)) {
+      _showExpiredDialog();
+      return;
+    }
     if (_currentStep < _steps.length - 1) {
       setState(() => _currentStep++);
       _pageController.nextPage(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut);
     }
+  }
+
+  void _showExpiredDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.event_busy_rounded, color: Color(0xFFEF4444), size: 22),
+          SizedBox(width: 8),
+          Text('Délai dépassé', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+        ]),
+        content: Text(
+          'La date limite de candidature pour "${_selectedProgram?.programName}" est dépassée.\n\nIl n\'est plus possible de postuler à ce programme.',
+          style: const TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Compris', style: TextStyle(color: Color(0xFF4880FF), fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _back() {
@@ -112,6 +140,10 @@ class _NewApplicationWizardState
 
   Future<void> _submit() async {
     if (_selectedProgram == null) return;
+    if (_selectedProgram!.isExpired) {
+      _showExpiredDialog();
+      return;
+    }
     setState(() => _submitting = true);
     try {
       await ref.read(myApplicationsProvider.notifier).submit(

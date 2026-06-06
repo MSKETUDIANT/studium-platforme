@@ -51,6 +51,7 @@ export interface Application {
   score:          number;
   notes?:         string;
   contactEmail?:  string;
+  deadline?:      string | null;
 }
 
 // Kanban column definitions

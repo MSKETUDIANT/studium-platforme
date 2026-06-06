@@ -5,7 +5,7 @@ import type { Application, RawStatus } from '../types/application';
 const SELECT = `
   id, status, submitted_at, notes,
   student_profiles!student_profile_id ( id, first_name, last_name, nationality, completeness_score ),
-  programs!program_id                  ( id, program_name, university_name, country, level, program_contacts!left ( email ) )
+  programs!program_id                  ( id, program_name, university_name, country, level, deadline, program_contacts!left ( email ) )
 `;
 
 function mapRow(a: any): Application {
@@ -26,6 +26,7 @@ function mapRow(a: any): Application {
     score:        a.student_profiles?.completeness_score ?? 0,
     notes:        a.notes                        ?? undefined,
     contactEmail: contacts[0]?.email             ?? undefined,
+    deadline:     a.programs?.deadline           ?? null,
   };
 }
 
@@ -47,7 +48,7 @@ export async function fetchApplications(): Promise<Application[]> {
 }
 
 const STATUS_PUSH_MESSAGES: Partial<Record<RawStatus, { title: string; body: string }>> = {
-  needs_fix:        { title: '️ Correction demandée', body: 'Votre dossier nécessite des corrections. Consultez le message de l\'équipe.' },
+  needsfix:         { title: '️ Correction demandée', body: 'Votre dossier nécessite des corrections. Consultez le message de l\'équipe.' },
   verified:         { title: ' Dossier validé',       body: 'Votre candidature a été validée et sera bientôt envoyée.' },
   sent:             { title: ' Candidature envoyée',  body: 'Votre dossier a été soumis à l\'université.' },
   accepted:         { title: ' Félicitations !',      body: 'Votre candidature a été acceptée !' },

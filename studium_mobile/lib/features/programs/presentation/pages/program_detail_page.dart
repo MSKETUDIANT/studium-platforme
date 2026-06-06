@@ -305,48 +305,74 @@ class ProgramDetailPage extends ConsumerWidget {
                   const SizedBox(height: 24),
 
                   // Bouton candidater
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [_accentColor, _accentDark],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _accentColor.withValues(alpha: 0.35),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
+                  if (program.isExpired)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
                         borderRadius: BorderRadius.circular(14),
-                        onTap: () => context.push('/applications/new', extra: program),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.send_outlined,
-                                  size: 18, color: Colors.white),
-                              SizedBox(width: 10),
-                              Text(
-                                'Soumettre une candidature',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                  color: Colors.white,
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.block_rounded, size: 18, color: Color(0xFF9CA3AF)),
+                          SizedBox(width: 10),
+                          Text(
+                            'Candidature fermée — délai dépassé',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: Color(0xFF9CA3AF),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ).animate().fadeIn(delay: 340.ms).slideY(begin: .04)
+                  else
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [_accentColor, _accentDark],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _accentColor.withValues(alpha: 0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => context.push('/applications/new', extra: program),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.send_outlined,
+                                    size: 18, color: Colors.white),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Soumettre une candidature',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ).animate().fadeIn(delay: 340.ms).slideY(begin: .04),
+                    ).animate().fadeIn(delay: 340.ms).slideY(begin: .04),
                 ]),
               ),
             ),
