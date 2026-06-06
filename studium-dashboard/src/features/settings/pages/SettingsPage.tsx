@@ -44,14 +44,14 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('Templates email');
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f4f7fb', fontFamily: fonts.body }}>
+    <div style={{ fontFamily: fonts.body }}>
       <PageHeader
         title="Paramètres"
         subtitle="Templates email, règles de validation et configuration de la plateforme"
       />
 
       {/* Onglets */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 0' }}>
+      <div>
         <div style={{
           display: 'flex', gap: 4,
           background: 'white', borderRadius: 12, padding: 4,
@@ -78,7 +78,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '20px 24px 40px' }}>
+      <div style={{ padding: '20px 0 40px' }}>
         {activeTab === 'Templates email' && <TemplatesTab />}
         {activeTab === 'Règles & Limites' && <RulesTab />}
         {activeTab === 'Général'          && <GeneralTab />}

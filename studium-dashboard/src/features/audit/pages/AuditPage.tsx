@@ -10,45 +10,58 @@ const CSS = `
 
 
   .audit-filters {
-    display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:center;
+    background:white; border-radius:14px;
+    box-shadow:0 1px 4px rgba(11,24,82,0.04), 0 8px 24px rgba(11,24,82,0.07), 0 28px 60px rgba(11,24,82,0.08);
+    padding:14px 16px; margin-bottom:20px;
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center;
   }
   .audit-filter-select {
-    height:36px; padding:0 12px; border:1px solid ${colors.border};
-    border-radius:8px; font-size:13px; font-family:${fonts.body};
-    color:${colors.textPrimary}; background:white; cursor:pointer;
-    outline:none; min-width:160px;
+    height:38px; padding:0 12px;
+    border:1.5px solid ${colors.borderInput}; border-radius:10px;
+    font-size:13.5px; font-family:${fonts.body};
+    color:${colors.textPrimary}; background:${colors.inputBg}; cursor:pointer;
+    outline:none; min-width:160px; transition:border-color .18s;
   }
+  .audit-filter-select:focus { border-color:${colors.blue}; }
   .audit-filter-date {
-    height:36px; padding:0 10px; border:1px solid ${colors.border};
-    border-radius:8px; font-size:13px; font-family:${fonts.body};
-    color:${colors.textPrimary}; background:white; outline:none;
+    height:38px; padding:0 10px;
+    border:1.5px solid ${colors.borderInput}; border-radius:10px;
+    font-size:13.5px; font-family:${fonts.body};
+    color:${colors.textPrimary}; background:${colors.inputBg}; outline:none;
+    transition:border-color .18s;
   }
+  .audit-filter-date:focus { border-color:${colors.blue}; }
   .audit-reset-btn {
-    height:36px; padding:0 14px; border:1px solid ${colors.border};
-    border-radius:8px; font-size:13px; font-family:${fonts.body};
+    height:38px; padding:0 14px;
+    border:1.5px solid ${colors.borderInput}; border-radius:10px;
+    font-size:13px; font-family:${fonts.body};
     color:${colors.textSecondary}; background:white; cursor:pointer;
-    transition:background .15s, color .15s;
+    transition:all .15s;
   }
-  .audit-reset-btn:hover { background:${colors.pageBg}; color:${colors.navy}; }
+  .audit-reset-btn:hover { border-color:${colors.borderHover}; color:${colors.navy}; }
 
   .audit-table-wrap {
-    background:white; border-radius:14px; border:1px solid ${colors.border};
-    overflow:hidden; box-shadow:0 2px 8px rgba(11,24,82,0.05);
+    background:white; border-radius:14px; overflow:hidden;
+    box-shadow:0 1px 4px rgba(11,24,82,0.04), 0 8px 24px rgba(11,24,82,0.07), 0 28px 60px rgba(11,24,82,0.08);
   }
   .audit-table { width:100%; border-collapse:collapse; }
+  .audit-table thead tr {
+    background:linear-gradient(135deg, #f8faff 0%, ${colors.inputBg} 100%);
+    border-bottom:2px solid ${colors.border};
+  }
   .audit-table th {
-    background:${colors.pageBg}; padding:11px 16px;
+    padding:13px 16px;
     text-align:left; font-size:11px; font-weight:700;
     color:${colors.textSecondary}; text-transform:uppercase;
-    letter-spacing:.06em; border-bottom:1px solid ${colors.border};
-    white-space:nowrap;
+    letter-spacing:.6px; white-space:nowrap;
   }
   .audit-table td {
-    padding:12px 16px; border-bottom:1px solid ${colors.border};
+    padding:13px 16px; border-bottom:1px solid ${colors.border};
     font-size:13px; color:${colors.textPrimary}; vertical-align:top;
   }
-  .audit-table tr:last-child td { border-bottom:none; }
-  .audit-table tr:hover td { background:#f9fafb; }
+  .audit-table tbody tr:last-child td { border-bottom:none; }
+  .audit-table tbody tr { transition:background .12s; }
+  .audit-table tbody tr:hover td { background:#f5f7ff; }
 
   .audit-badge {
     display:inline-flex; align-items:center; padding:3px 9px;
@@ -80,19 +93,20 @@ const CSS = `
 
   .audit-pagination {
     display:flex; align-items:center; justify-content:space-between;
-    padding:14px 20px; border-top:1px solid ${colors.border};
-    background:${colors.pageBg};
+    padding:12px 20px; border-top:1px solid ${colors.border};
+    background:#fafbff;
   }
-  .audit-pag-info { font-size:13px; color:${colors.textSecondary}; }
-  .audit-pag-btns { display:flex; gap:6px; }
+  .audit-pag-info { font-size:12.5px; color:${colors.textMuted}; font-family:${fonts.body}; }
+  .audit-pag-btns { display:flex; gap:4px; }
   .audit-pag-btn {
-    height:32px; padding:0 14px; border:1px solid ${colors.border};
-    border-radius:7px; font-size:13px; font-family:${fonts.body};
-    background:white; cursor:pointer; color:${colors.textPrimary};
-    transition:background .15s;
+    height:32px; padding:0 12px;
+    border:1.5px solid ${colors.borderInput}; border-radius:8px;
+    font-size:12.5px; font-weight:600; font-family:${fonts.body};
+    background:white; cursor:pointer; color:${colors.textSecondary};
+    transition:all .15s; display:inline-flex; align-items:center; gap:4px;
   }
-  .audit-pag-btn:hover:not(:disabled) { background:${colors.pageBg}; }
-  .audit-pag-btn:disabled { opacity:.4; cursor:default; }
+  .audit-pag-btn:not(:disabled):hover { border-color:${colors.blue}; color:${colors.blue}; }
+  .audit-pag-btn:disabled { opacity:.4; cursor:not-allowed; }
 
   .audit-loading { text-align:center; padding:40px; color:${colors.textSecondary}; font-size:14px; }
 `;

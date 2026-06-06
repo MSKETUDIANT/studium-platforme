@@ -102,13 +102,13 @@ const CSS = `
   /* Stat card */
   .sp-stat {
     background:white; border-radius:${radius.lg}px;
-    box-shadow:${shadows.card}; overflow:hidden;
+    box-shadow:${shadows.card};
   }
   .sp-stat-inner {
-    padding:16px 20px; display:flex; align-items:center; gap:14px;
+    padding:18px 20px; display:flex; align-items:center; gap:16px;
   }
   .sp-stat-icon {
-    width:46px; height:46px; border-radius:13px;
+    width:44px; height:44px; border-radius:12px;
     display:flex; align-items:center; justify-content:center;
     flex-shrink:0;
   }
@@ -457,17 +457,16 @@ export default function StudentsPage() {
       {/*  Stats  */}
       <div className="sp-grid">
         {stats.map(s => (
-          <div key={s.label} className="sp-stat">
-            <div style={{ height: 3, background: s.accentColor }} />
+          <div key={s.label} className="sp-stat" style={{ borderLeft: `4px solid ${s.accentColor}` }}>
             <div className="sp-stat-inner">
               <div className="sp-stat-icon" style={{ background: s.iconBg, color: s.iconColor }}>
                 {statIcons[s.iconKey]}
               </div>
               <div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: s.accentColor, fontFamily: fonts.display, lineHeight: 1 }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: colors.navy, fontFamily: fonts.display, lineHeight: 1 }}>
                   {s.value}
                 </div>
-                <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, fontWeight: 500 }}>{s.label}</div>
+                <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 5, fontWeight: 500 }}>{s.label}</div>
               </div>
             </div>
           </div>

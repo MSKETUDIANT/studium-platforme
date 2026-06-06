@@ -35,13 +35,12 @@ const CSS = `
     background: white;
     border-radius: ${radius.lg}px;
     box-shadow: ${shadows.card};
-    overflow: hidden;
   }
   .ap-stat-inner {
-    padding: 16px 20px;
+    padding: 18px 20px;
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
   }
   .ap-stat-icon {
     width: 44px; height: 44px;
@@ -207,14 +206,13 @@ function StatCard({ label, value, sub, accent, iconBg, iconColor, icon }: {
   icon: React.ReactNode;
 }) {
   return (
-    <div className="ap-stat">
-      <div style={{ height: 3, background: accent }} />
+    <div className="ap-stat" style={{ borderLeft: `4px solid ${accent}` }}>
       <div className="ap-stat-inner">
         <div className="ap-stat-icon" style={{ background: iconBg, color: iconColor }}>{icon}</div>
         <div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: accent, fontFamily: fonts.display, lineHeight: 1 }}>{value}</div>
-          <div style={{ fontSize: 12.5, fontWeight: 600, color: colors.textPrimary, marginTop: 2 }}>{label}</div>
-          {sub && <div style={{ fontSize: 11.5, color: colors.textMuted, marginTop: 1 }}>{sub}</div>}
+          <div style={{ fontSize: 28, fontWeight: 800, color: colors.navy, fontFamily: fonts.display, lineHeight: 1 }}>{value}</div>
+          <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 5, fontWeight: 500 }}>{label}</div>
+          {sub && <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>{sub}</div>}
         </div>
       </div>
     </div>
@@ -363,7 +361,6 @@ export default function ApplicationsPage() {
       {/*  Vue tableau  */}
       {view === 'table' && (
         <div className="ap-table-card">
-          <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, #7c3aed)` }} />
 
           {/* Toolbar */}
           <div className="ap-toolbar">

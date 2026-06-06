@@ -61,7 +61,7 @@ export default function ReportingPage() {
     ? Math.round(((kpi.verified + kpi.sent + kpi.accepted) / kpi.totalApplications) * 100) : 0;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f4f7fb', fontFamily: fonts.body }}>
+    <div style={{ fontFamily: fonts.body }}>
       <PageHeader
         title="Rapports"
         subtitle="KPIs et statistiques de la plateforme"
@@ -84,7 +84,7 @@ export default function ReportingPage() {
         }
       />
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: colors.textMuted, fontSize: 14 }}>
             Chargement des donnees...
@@ -94,43 +94,43 @@ export default function ReportingPage() {
             {/* Ligne 1  4 KPIs principaux */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
               <MetricCard
-                icon={<IconTotal />}    iconBg="#eff6ff" iconColor={colors.blue}
+                icon={<IconTotal />}    iconBg="rgba(37,70,204,0.10)" iconColor={colors.blue} accent={colors.blue}
                 label="Total candidatures" value={kpi?.totalApplications ?? 0}
-                sub="Toutes periodes"
+                sub="Toutes périodes"
               />
               <MetricCard
-                icon={<IconPending />}  iconBg="#fffbeb" iconColor="#d97706"
+                icon={<IconPending />}  iconBg="rgba(217,119,6,0.10)" iconColor="#d97706" accent="#d97706"
                 label="En attente" value={kpi?.pendingReview ?? 0}
                 sub="Brouillons + soumises"
               />
               <MetricCard
-                icon={<IconSent />}     iconBg="#eff6ff" iconColor="#2546cc"
-                label="Envoyees" value={kpi?.sent ?? 0}
-                sub="Aux universites"
+                icon={<IconSent />}     iconBg="rgba(37,70,204,0.10)" iconColor="#2546cc" accent="#0891b2"
+                label="Envoyées" value={kpi?.sent ?? 0}
+                sub="Aux universités"
               />
               <MetricCard
-                icon={<IconAccepted />} iconBg="#f0fdf4" iconColor={colors.success}
-                label="Acceptees" value={kpi?.accepted ?? 0}
-                sub="Reponses positives"
+                icon={<IconAccepted />} iconBg="rgba(22,163,74,0.10)" iconColor={colors.success} accent={colors.success}
+                label="Acceptées" value={kpi?.accepted ?? 0}
+                sub="Réponses positives"
               />
             </div>
 
-            {/* Ligne 2  3 métriques secondaires */}
+            {/* Ligne 2 — 3 métriques secondaires */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
               <MetricCard
-                icon={<IconFix />}   iconBg="#fef2f2" iconColor="#ef4444"
+                icon={<IconFix />}   iconBg="rgba(220,38,38,0.10)" iconColor="#ef4444" accent="#ef4444"
                 label="Corrections requises" value={kpi?.needsFix ?? 0}
-                sub="Dossiers a completer"
+                sub="Dossiers à compléter"
               />
               <MetricCard
-                icon={<IconRate />}  iconBg="#f0f4ff" iconColor={colors.navy}
+                icon={<IconRate />}  iconBg="rgba(11,24,82,0.08)" iconColor={colors.navy} accent={colors.navy}
                 label="Taux de validation" value={`${verifiedRate}%`}
-                sub="Verifiees + envoyees + acceptees"
+                sub="Vérifiées + envoyées + acceptées"
               />
               <MetricCard
-                icon={<IconScore />} iconBg="#ecfeff" iconColor="#0891b2"
+                icon={<IconScore />} iconBg="rgba(8,145,178,0.10)" iconColor="#0891b2" accent="#0891b2"
                 label="Score profil moyen" value={`${kpi?.avgCompletenessScore ?? 0}%`}
-                sub="Completude moyenne des dossiers"
+                sub="Complétude moyenne des dossiers"
               />
             </div>
 
@@ -201,29 +201,32 @@ export default function ReportingPage() {
 
 /*  Components  */
 
-function MetricCard({ icon, iconBg, iconColor, label, value, sub }: {
+const CARD_SHADOW = '0 1px 4px rgba(11,24,82,0.04), 0 8px 24px rgba(11,24,82,0.07), 0 28px 60px rgba(11,24,82,0.08)';
+
+function MetricCard({ icon, iconBg, iconColor, label, value, sub, accent }: {
   icon: React.ReactNode; iconBg: string; iconColor: string;
-  label: string; value: number | string; sub: string;
+  label: string; value: number | string; sub: string; accent?: string;
 }) {
   return (
     <div style={{
-      background: 'white', borderRadius: 14, padding: '20px 22px',
-      boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04)',
-      display: 'flex', alignItems: 'flex-start', gap: 14,
+      background: 'white', borderRadius: 14, padding: '18px 20px',
+      boxShadow: CARD_SHADOW,
+      display: 'flex', alignItems: 'center', gap: 16,
+      borderLeft: accent ? `4px solid ${accent}` : undefined,
     }}>
       <div style={{
-        width: 44, height: 44, borderRadius: 11, flexShrink: 0,
+        width: 44, height: 44, borderRadius: 12, flexShrink: 0,
         background: iconBg, color: iconColor,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         {icon}
       </div>
       <div>
-        <div style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', lineHeight: 1.1, fontFamily: fonts.display }}>
+        <div style={{ fontSize: 28, fontWeight: 800, color: colors.navy, lineHeight: 1, fontFamily: fonts.display }}>
           {value}
         </div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginTop: 3 }}>{label}</div>
-        <div style={{ fontSize: 11.5, color: colors.textMuted, marginTop: 2 }}>{sub}</div>
+        <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 5, fontWeight: 500 }}>{label}</div>
+        {sub && <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>{sub}</div>}
       </div>
     </div>
   );
@@ -233,9 +236,9 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   return (
     <div style={{
       background: 'white', borderRadius: 14, padding: '22px 24px',
-      boxShadow: '0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04)',
+      boxShadow: CARD_SHADOW,
     }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: colors.navy, marginBottom: 18 }}>{title}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: colors.navy, marginBottom: 18, fontFamily: fonts.display }}>{title}</div>
       {children}
     </div>
   );
