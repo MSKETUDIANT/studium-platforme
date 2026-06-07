@@ -410,6 +410,81 @@ const CSS = `
   }
   .pp-gratuit-btn:hover { border-color: ${colors.success}; }
 
+  /*  Section divider  */
+  .pp-section-sep {
+    grid-column: 1 / -1;
+    border: none;
+    border-top: 1px solid ${colors.border};
+    margin: 2px 0;
+  }
+  .pp-section-label {
+    grid-column: 1 / -1;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: ${colors.textMuted};
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    margin-top: 2px;
+  }
+
+  /*  Tag input (documents requis)  */
+  .pp-tags-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1.5px solid ${colors.borderInput};
+    border-radius: ${radius.md}px;
+    background: ${colors.inputBg};
+    transition: border-color .18s;
+    min-height: 42px;
+  }
+  .pp-tags-wrap:focus-within { border-color: ${colors.blue}; background: white; }
+  .pp-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px 3px 10px;
+    background: rgba(37,70,204,0.09); color: ${colors.blue};
+    border-radius: 20px; font-size: 12px; font-weight: 600; font-family: ${fonts.body};
+  }
+  .pp-tag-x {
+    background: none; border: none; cursor: pointer; padding: 0; line-height: 1;
+    color: ${colors.blue}; opacity: .7; display: flex; align-items: center;
+  }
+  .pp-tag-x:hover { opacity: 1; }
+  .pp-tag-field {
+    border: none; outline: none; background: transparent;
+    font-size: 13px; font-family: ${fonts.body}; color: ${colors.textPrimary};
+    flex: 1; min-width: 140px;
+  }
+  .pp-tag-hint { font-size: 11px; color: ${colors.textMuted}; margin-top: 4px; }
+
+  /*  Toggle switch  */
+  .pp-toggle-row {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-radius: 10px;
+    border: 1.5px solid ${colors.borderInput};
+    background: ${colors.inputBg};
+    transition: all .15s;
+  }
+  .pp-toggle-row.active { background: rgba(22,163,74,0.05); border-color: ${colors.success}; }
+  .pp-toggle-label { font-size: 13px; font-weight: 600; color: ${colors.textPrimary}; }
+  .pp-toggle-sub { font-size: 11.5px; color: ${colors.textMuted}; margin-top: 1px; }
+  .pp-toggle { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+  .pp-toggle input { opacity: 0; width: 0; height: 0; }
+  .pp-toggle-track {
+    position: absolute; inset: 0; border-radius: 11px;
+    background: ${colors.borderInput}; cursor: pointer; transition: background .2s;
+  }
+  .pp-toggle input:checked + .pp-toggle-track { background: ${colors.success}; }
+  .pp-toggle-track::after {
+    content: ''; position: absolute; width: 16px; height: 16px;
+    border-radius: 50%; background: white; top: 3px; left: 3px;
+    transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  }
+  .pp-toggle input:checked + .pp-toggle-track::after { transform: translateX(18px); }
+
   /*  Toast  */
   .pp-toast {
     position: fixed;
@@ -646,6 +721,7 @@ function ProgramModal({
   const [form, setForm] = useState<FormData>(initial);
   const [submitted, setSubmitted] = useState(false);
   const [costCurrency, setCostCurrency] = useState('EUR');
+  const [reqInput, setReqInput] = useState('');
   const set = (k: keyof FormData, v: unknown) => setForm(f => ({ ...f, [k]: v }));
   const isGratuit = form.cost === 0;
 
@@ -659,17 +735,43 @@ function ProgramModal({
     onSave(form);
   }
 
+  const addReq = () => {
+    const val = reqInput.trim();
+    if (!val) return;
+    const current = form.requirements ?? [];
+    if (!current.includes(val)) set('requirements', [...current, val]);
+    setReqInput('');
+  };
+  const removeReq = (idx: number) => {
+    const updated = (form.requirements ?? []).filter((_, i) => i !== idx);
+    set('requirements', updated.length ? updated : null);
+  };
+
   return (
     <div className="pp-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="pp-modal">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, fontFamily: fonts.display, color: colors.textPrimary }}>
-            {initial.program_name ? 'Modifier le programme' : 'Nouveau programme'}
-          </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: colors.textMuted }}></button>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22, paddingBottom: 16, borderBottom: `1px solid ${colors.border}` }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: colors.blue, textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 3 }}>
+              {initial.program_name ? 'Modification' : 'Nouveau programme'}
+            </div>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, fontFamily: fonts.display, color: colors.navy, lineHeight: 1.2 }}>
+              {initial.program_name || 'Informations du programme'}
+            </h2>
+          </div>
+          <button onClick={onClose} style={{ background: colors.inputBg, border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.textMuted, flexShrink: 0 }}>
+            <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
 
         <div className="pp-form-grid">
+
+          {/* -- Section : Identification -- */}
+          <div className="pp-section-label">Identification</div>
+
           <div className="pp-field pp-form-full">
             <label className="pp-label">Nom du programme *</label>
             <input
@@ -681,10 +783,10 @@ function ProgramModal({
             {submitted && nameEmpty && <span className="pp-field-error">Ce champ est obligatoire</span>}
           </div>
           <div className="pp-field pp-form-full">
-            <label className="pp-label">Université *</label>
+            <label className="pp-label">Universite *</label>
             <input
               className={`pp-input${submitted && univEmpty ? ' error' : ''}`}
-              placeholder="Ex : Université Paris-Saclay"
+              placeholder="Ex : Universite Paris-Saclay"
               value={form.university_name}
               onChange={e => set('university_name', e.target.value)}
             />
@@ -694,67 +796,63 @@ function ProgramModal({
           <div className="pp-field">
             <label className="pp-label">Niveau</label>
             <select className="pp-form-select" value={form.level ?? ''} onChange={e => set('level', e.target.value || null)}>
-              <option value=""> Sélectionner </option>
+              <option value="">Selectionner</option>
               {LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div className="pp-field">
             <label className="pp-label">Pays</label>
             <select className="pp-form-select" value={form.country ?? ''} onChange={e => set('country', e.target.value || null)}>
-              <option value=""> Sélectionner </option>
+              <option value="">Selectionner</option>
               {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-
           <div className="pp-field">
             <label className="pp-label">Langue</label>
             <select className="pp-form-select" value={form.language ?? ''} onChange={e => set('language', e.target.value || null)}>
-              <option value=""> Sélectionner </option>
+              <option value="">Selectionner</option>
               {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
           <div className="pp-field">
-            <label className="pp-label">Durée</label>
+            <label className="pp-label">Duree</label>
             <select className="pp-form-select" value={form.duration ?? ''} onChange={e => set('duration', e.target.value || null)}>
-              <option value=""> Sélectionner </option>
+              <option value="">Selectionner</option>
               {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
 
+          <hr className="pp-section-sep" />
+
+          {/* -- Section : Financier & Candidature -- */}
+          <div className="pp-section-label">Financier et candidature</div>
+
           <div className="pp-field">
             <label className="pp-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Coût</span>
+              <span>Cout</span>
               <button
                 type="button"
                 className={`pp-gratuit-btn${isGratuit ? ' active' : ''}`}
                 onClick={() => set('cost', isGratuit ? null : 0)}
               >
-                {isGratuit ? ' Gratuit' : 'Gratuit ?'}
+                {isGratuit ? 'Gratuit' : 'Gratuit ?'}
               </button>
             </label>
             {!isGratuit ? (
               <div className="pp-cost-group">
-                <select
-                  className="pp-cost-currency"
-                  value={costCurrency}
-                  onChange={e => setCostCurrency(e.target.value)}
-                >
-                  {CURRENCIES.map(c => (
-                    <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
-                  ))}
+                <select className="pp-cost-currency" value={costCurrency} onChange={e => setCostCurrency(e.target.value)}>
+                  {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
                 </select>
                 <input
                   className="pp-cost-amount"
-                  type="number"
-                  min={1}
-                  placeholder="Ex : 5 000"
+                  type="number" min={1} placeholder="Ex : 5 000"
                   value={form.cost ?? ''}
                   onChange={e => set('cost', e.target.value ? Number(e.target.value) : null)}
                 />
               </div>
             ) : (
               <div style={{ padding: '9px 12px', background: 'rgba(22,163,74,0.06)', border: `1.5px solid ${colors.success}`, borderRadius: radius.md, fontSize: 13.5, color: colors.success, fontWeight: 600 }}>
-                 Programme gratuit
+                Programme gratuit
               </div>
             )}
           </div>
@@ -763,24 +861,27 @@ function ProgramModal({
             <input className="pp-input" type="date" value={form.deadline ?? ''} onChange={e => set('deadline', e.target.value || null)} />
           </div>
 
+          <hr className="pp-section-sep" />
+
+          {/* -- Section : Details -- */}
+          <div className="pp-section-label">Details</div>
+
           <div className="pp-field pp-form-full">
             <label className="pp-label">Description</label>
-            <textarea className="pp-textarea" placeholder="Présentation du programme..." value={form.description ?? ''} onChange={e => set('description', e.target.value || null)} />
+            <textarea className="pp-textarea" placeholder="Presentation du programme..." value={form.description ?? ''} onChange={e => set('description', e.target.value || null)} />
           </div>
 
           <div className="pp-field">
             <label className="pp-label">Domaine</label>
             <select className="pp-form-select" value={form.domain ?? ''} onChange={e => set('domain', e.target.value || null)}>
-              <option value=""> Sélectionner </option>
+              <option value="">Selectionner</option>
               {DOMAINS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
-
           <div className="pp-field">
             <label className="pp-label">Email de contact</label>
             <input
-              className="pp-input"
-              type="email"
+              className="pp-input" type="email"
               placeholder="Ex : admissions@universite.fr"
               value={form.contact_email ?? ''}
               onChange={e => set('contact_email', e.target.value || null)}
@@ -788,22 +889,42 @@ function ProgramModal({
           </div>
 
           <div className="pp-field pp-form-full">
-            <label className="pp-label">Documents requis <span style={{ fontWeight: 400, color: '#9ca3af' }}>(un par ligne)</span></label>
-            <textarea
-              className="pp-textarea"
-              placeholder={"CV\nRelevé de notes\nLettre de motivation\nPasseport"}
-              value={form.requirements?.join('\n') ?? ''}
-              onChange={e => {
-                const lines = e.target.value.split('\n').map(l => l.trim()).filter(Boolean);
-                set('requirements', lines.length ? lines : null);
-              }}
-            />
+            <label className="pp-label">Documents requis</label>
+            <div className="pp-tags-wrap">
+              {(form.requirements ?? []).map((req, i) => (
+                <span key={i} className="pp-tag">
+                  {req}
+                  <button type="button" className="pp-tag-x" onClick={() => removeReq(i)}>
+                    <svg width={10} height={10} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </span>
+              ))}
+              <input
+                className="pp-tag-field"
+                placeholder={(form.requirements ?? []).length === 0 ? 'Ex: CV, Lettre de motivation...' : 'Ajouter...'}
+                value={reqInput}
+                onChange={e => setReqInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addReq(); } }}
+                onBlur={addReq}
+              />
+            </div>
+            <div className="pp-tag-hint">Appuyer sur Entree pour confirmer chaque document</div>
           </div>
 
-          <div className="pp-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <input type="checkbox" id="pp-active" checked={form.is_active} onChange={e => set('is_active', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer' }} />
-            <label htmlFor="pp-active" className="pp-label" style={{ cursor: 'pointer', fontSize: 13 }}>Programme actif (visible par les étudiants)</label>
+          {/* Toggle actif */}
+          <div className={`pp-toggle-row${form.is_active ? ' active' : ''}`}>
+            <div>
+              <div className="pp-toggle-label">Programme actif</div>
+              <div className="pp-toggle-sub">Visible par les etudiants dans l'app mobile</div>
+            </div>
+            <label className="pp-toggle">
+              <input type="checkbox" checked={form.is_active} onChange={e => set('is_active', e.target.checked)} />
+              <span className="pp-toggle-track" />
+            </label>
           </div>
+
         </div>
 
         {error && (
