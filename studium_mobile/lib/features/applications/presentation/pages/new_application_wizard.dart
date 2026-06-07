@@ -10,11 +10,14 @@ import '../../../programs/domain/entities/program.dart';
 import '../../../programs/presentation/providers/program_providers.dart';
 import '../providers/application_providers.dart';
 
-const _kNavy  = Color(0xFF1A1D2E);
-const _kBlue  = Color(0xFF4880FF);
-const _kGrey  = Color(0xFF9CA3AF);
-
+// Design tokens
+const _kNavy   = Color(0xFF0B1852);
+const _kBlue   = Color(0xFF4880FF);
+const _kGreen  = Color(0xFF10B981);
+const _kOrange = Color(0xFFF59E0B);
+const _kGrey   = Color(0xFF9CA3AF);
 const _kBorder = Color(0xFFE5E7EB);
+const _kBg     = Color(0xFFF7F8FC);
 
 class NewApplicationWizard extends ConsumerStatefulWidget {
   final Program? program;
@@ -25,18 +28,17 @@ class NewApplicationWizard extends ConsumerStatefulWidget {
       _NewApplicationWizardState();
 }
 
-class _NewApplicationWizardState
-    extends ConsumerState<NewApplicationWizard> {
-  final _pageController    = PageController();
-  final _motivationCtrl    = TextEditingController();
+class _NewApplicationWizardState extends ConsumerState<NewApplicationWizard> {
+  final _pageController = PageController();
+  final _motivationCtrl = TextEditingController();
   Program? _selectedProgram;
-  int _currentStep         = 0;
-  bool _submitting         = false;
-  bool _savingDraft        = false;
+  int     _currentStep  = 0;
+  bool    _submitting   = false;
+  bool    _savingDraft  = false;
   String? _programSearchQ;
   final Set<String> _selectedDocIds = {};
 
-  static const _steps = ['Programme', 'Dossier', 'Récapitulatif'];
+  static const _steps = ['Programme', 'Dossier', 'Recapitulatif'];
 
   @override
   void initState() {
@@ -54,7 +56,7 @@ class _NewApplicationWizardState
   void _next() {
     if (_currentStep == 0 && _selectedProgram == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner un programme')),
+        _snack('Veuillez selectionner un programme', isError: true),
       );
       return;
     }
@@ -65,8 +67,17 @@ class _NewApplicationWizardState
     if (_currentStep < _steps.length - 1) {
       setState(() => _currentStep++);
       _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut);
+          duration: const Duration(milliseconds: 320), curve: Curves.easeInOut);
+    }
+  }
+
+  void _back() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+      _pageController.previousPage(
+          duration: const Duration(milliseconds: 320), curve: Curves.easeInOut);
+    } else {
+      context.pop();
     }
   }
 
@@ -74,35 +85,22 @@ class _NewApplicationWizardState
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [
-          Icon(Icons.event_busy_rounded, color: Color(0xFFEF4444), size: 22),
-          SizedBox(width: 8),
-          Text('Délai dépassé', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-        ]),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Delai depasse',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: _kNavy)),
         content: Text(
-          'La date limite de candidature pour "${_selectedProgram?.programName}" est dépassée.\n\nIl n\'est plus possible de postuler à ce programme.',
-          style: const TextStyle(fontSize: 14, height: 1.5),
+          'La date limite de candidature pour "${_selectedProgram?.programName}" est depassee.\nIl n\'est plus possible de postuler.',
+          style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF4B5563)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Compris', style: TextStyle(color: Color(0xFF4880FF), fontWeight: FontWeight.w700)),
+            child: const Text('Compris',
+                style: TextStyle(color: _kBlue, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
     );
-  }
-
-  void _back() {
-    if (_currentStep > 0) {
-      setState(() => _currentStep--);
-      _pageController.previousPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut);
-    } else {
-      context.pop();
-    }
   }
 
   Future<void> _saveDraft() async {
@@ -115,24 +113,14 @@ class _NewApplicationWizardState
       if (mounted) {
         context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(children: [
-              Icon(Icons.bookmark_outlined, color: Colors.white, size: 18),
-              SizedBox(width: 10),
-              Text('Brouillon enregistré'),
-            ]),
-            backgroundColor: const Color(0xFF6366F1),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
-          ),
+          _snack('Brouillon enregistre', color: const Color(0xFF6366F1)),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _savingDraft = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+          _snack(e.toString(), isError: true),
         );
       }
     }
@@ -140,10 +128,7 @@ class _NewApplicationWizardState
 
   Future<void> _submit() async {
     if (_selectedProgram == null) return;
-    if (_selectedProgram!.isExpired) {
-      _showExpiredDialog();
-      return;
-    }
+    if (_selectedProgram!.isExpired) { _showExpiredDialog(); return; }
     setState(() => _submitting = true);
     try {
       await ref.read(myApplicationsProvider.notifier).submit(
@@ -152,332 +137,319 @@ class _NewApplicationWizardState
       if (mounted) {
         context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(children: [
-              Icon(Icons.check_circle_outline,
-                  color: Colors.white, size: 18),
-              SizedBox(width: 10),
-              Text('Candidature soumise avec succès'),
-            ]),
-            backgroundColor: const Color(0xFF10B981),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
-          ),
+          _snack('Candidature soumise avec succes', color: _kGreen),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
+          _snack(e.toString(), isError: true),
         );
       }
     }
   }
+
+  SnackBar _snack(String msg, {bool isError = false, Color? color}) => SnackBar(
+    content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
+    backgroundColor: isError ? const Color(0xFFEF4444) : (color ?? _kGreen),
+    behavior: SnackBarBehavior.floating,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    margin: const EdgeInsets.all(16),
+  );
 
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        body: Column(
-          children: [
-            //  Header gradient 
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF08122E), Color(0xFF153EA8), Color(0xFF1A67D6)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+        backgroundColor: _kBg,
+        body: Column(children: [
+          // Header gradient
+          _WizardHeader(
+            currentStep: _currentStep,
+            steps: _steps,
+            onClose: () => context.pop(),
+          ),
+          // Body
+          Expanded(
+            child: PageView(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _StepProgram(
+                  selected: _selectedProgram,
+                  searchQuery: _programSearchQ ?? '',
+                  onSearchChanged: (q) => setState(() => _programSearchQ = q),
+                  onSelect: (p) => setState(() => _selectedProgram = p),
                 ),
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 12, 16, 8),
-                      child: Row(children: [
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
-                          onPressed: () => context.pop(),
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Nouvelle candidature',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 44),
-                      ]),
-                    ),
-                    _StepIndicator(current: _currentStep, labels: _steps),
-                    const SizedBox(height: 8),
-                  ],
+                _StepDocuments(
+                  program: _selectedProgram,
+                  selected: _selectedDocIds,
+                  onToggle: (id) => setState(() {
+                    if (_selectedDocIds.contains(id)) {
+                      _selectedDocIds.remove(id);
+                    } else {
+                      _selectedDocIds.add(id);
+                    }
+                  }),
                 ),
-              ),
+                _StepRecap(
+                  program: _selectedProgram,
+                  motivationCtrl: _motivationCtrl,
+                  selectedDocIds: _selectedDocIds,
+                ),
+              ],
             ),
-
-            //  Pages 
-            Expanded(
-              child: PageView(
-        controller:   _pageController,
-        physics:      const NeverScrollableScrollPhysics(),
-        children: [
-          _StepProgram(
-            selected:   _selectedProgram,
-            searchQuery: _programSearchQuery,
-            onSearchChanged: (q) =>
-                setState(() => _programSearchQ = q),
-            onSelect: (p) =>
-                setState(() => _selectedProgram = p),
           ),
-          _StepDocuments(
-            selected: _selectedDocIds,
-            onToggle: (id) => setState(() {
-              if (_selectedDocIds.contains(id)) {
-                _selectedDocIds.remove(id);
-              } else {
-                _selectedDocIds.add(id);
-              }
-            }),
-          ),
-          _StepRecap(
-            program:        _selectedProgram,
-            motivationCtrl: _motivationCtrl,
-            selectedDocIds: _selectedDocIds,
-          ),
-        ],
-      ),
-            ),
-          ],
-        ),
+        ]),
         bottomNavigationBar: _buildBottomBar(),
       ),
     );
   }
 
-  String get _programSearchQuery => _programSearchQ ?? '';
-
   Widget _buildBottomBar() {
     final isLast = _currentStep == _steps.length - 1;
     final busy   = _submitting || _savingDraft;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-        child: Row(children: [
-          if (_currentStep > 0) ...[
-            OutlinedButton(
-              onPressed: busy ? null : _back,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 14),
-                side: const BorderSide(color: _kBorder),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: Row(children: [
+            if (_currentStep > 0) ...[
+              OutlinedButton(
+                onPressed: busy ? null : _back,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  side: const BorderSide(color: _kBorder, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  foregroundColor: _kNavy,
+                ),
+                child: const Text('Retour',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
               ),
-              child: const Text('Retour',
-                  style: TextStyle(color: _kNavy)),
-            ),
-            const SizedBox(width: 12),
-          ],
-          // Sur le dernier step : bouton Brouillon + bouton Soumettre
-          if (isLast) ...[
-            OutlinedButton(
-              onPressed: busy ? null : _saveDraft,
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
-                side: const BorderSide(color: _kBorder),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+              const SizedBox(width: 12),
+            ],
+            if (isLast) ...[
+              OutlinedButton(
+                onPressed: busy ? null : _saveDraft,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                  side: const BorderSide(color: _kBorder, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  foregroundColor: _kNavy,
+                ),
+                child: _savingDraft
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: _kNavy))
+                    : const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.bookmark_outline, size: 16),
+                        SizedBox(width: 6),
+                        Text('Brouillon',
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      ]),
               ),
-              child: _savingDraft
-                  ? const SizedBox(
-                      width: 16, height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: _kNavy))
-                  : const Row(children: [
-                      Icon(Icons.bookmark_outline,
-                          size: 16, color: _kNavy),
-                      SizedBox(width: 6),
-                      Text('Brouillon',
-                          style: TextStyle(color: _kNavy)),
-                    ]),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _GradientButton(
-                onTap: busy ? null : _submit,
-                label: _submitting ? 'Envoi en cours' : 'Soumettre',
-                loading: _submitting,
+              const SizedBox(width: 10),
+              Expanded(
+                child: _GradientButton(
+                  onTap: busy ? null : _submit,
+                  label: _submitting ? 'Envoi...' : 'Soumettre',
+                  loading: _submitting,
+                ),
               ),
-            ),
-          ] else
-            Expanded(
-              child: _GradientButton(
-                onTap: busy ? null : _next,
-                label: 'Suivant',
-                loading: false,
+            ] else
+              Expanded(
+                child: _GradientButton(
+                  onTap: busy ? null : _next,
+                  label: 'Suivant',
+                  icon: Icons.arrow_forward_rounded,
+                ),
               ),
-            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Header avec step indicator ──────────────────────────────────────────────
+
+class _WizardHeader extends StatelessWidget {
+  final int currentStep;
+  final List<String> steps;
+  final VoidCallback onClose;
+  const _WizardHeader({
+    required this.currentStep,
+    required this.steps,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF07112B), Color(0xFF1A3A8F), Color(0xFF1A67D6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 10, 16, 6),
+            child: Row(children: [
+              IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
+                onPressed: onClose,
+              ),
+              const Expanded(
+                child: Text(
+                  'Nouvelle candidature',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white, fontSize: 17,
+                    fontWeight: FontWeight.w800, letterSpacing: -0.3,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 44),
+            ]),
+          ),
+          _StepIndicator(current: currentStep, labels: steps),
+          const SizedBox(height: 10),
         ]),
       ),
     );
   }
 }
 
-//  Step indicator 
+// ─── Step indicator ───────────────────────────────────────────────────────────
 
 class _StepIndicator extends StatelessWidget {
   final int current;
   final List<String> labels;
   const _StepIndicator({required this.current, required this.labels});
 
-  static const _gradientActive = LinearGradient(
-    colors: [Color(0xFF4880FF), Color(0xFF2563EB)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  static const _gradientDone = LinearGradient(
-    colors: [Color(0xFF10B981), Color(0xFF059669)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
-          child: Row(
-            children: List.generate(labels.length, (i) {
-              final done   = i < current;
-              final active = i == current;
-              return Expanded(
-                child: Row(children: [
-                  if (i > 0) ...[
-                    Expanded(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 350),
-                        height: 2,
-                        decoration: BoxDecoration(
-                          gradient: done ? _gradientDone : null,
-                          color: done ? null : Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(1),
-                        ),
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(28, 8, 28, 4),
+        child: Row(
+          children: List.generate(labels.length, (i) {
+            final done   = i < current;
+            final active = i == current;
+            return Expanded(
+              child: Row(children: [
+                if (i > 0) ...[
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 350),
+                      height: 2.5,
+                      decoration: BoxDecoration(
+                        color: done
+                            ? _kGreen
+                            : Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    const SizedBox(width: 6),
-                  ],
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 350),
-                        width: 30, height: 30,
-                        decoration: BoxDecoration(
-                          gradient: done
-                              ? _gradientDone
-                              : active
-                                  ? _gradientActive
-                                  : null,
-                          color: (done || active) ? null : Colors.transparent,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: (done || active)
-                                ? Colors.transparent
-                                : Colors.white.withValues(alpha: 0.30),
-                            width: 2,
-                          ),
-                          boxShadow: active
-                              ? [BoxShadow(
-                                  color: const Color(0xFF4880FF).withValues(alpha: 0.55),
-                                  blurRadius: 12,
-                                  spreadRadius: 0,
-                                  offset: const Offset(0, 2),
-                                )]
-                              : null,
-                        ),
-                        child: done
-                            ? const Icon(Icons.check, color: Colors.white, size: 15)
-                            : Center(
-                                child: Text(
-                                  '${i + 1}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: active
-                                        ? Colors.white
-                                        : Colors.white.withValues(alpha: 0.38),
-                                  ),
-                                ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Column(mainAxisSize: MainAxisSize.min, children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 350),
+                    width: 32, height: 32,
+                    decoration: BoxDecoration(
+                      color: done
+                          ? _kGreen
+                          : active
+                              ? Colors.white
+                              : Colors.transparent,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: done
+                            ? _kGreen
+                            : active
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.25),
+                        width: 2,
+                      ),
+                      boxShadow: active
+                          ? [BoxShadow(
+                              color: Colors.white.withValues(alpha: 0.35),
+                              blurRadius: 10, spreadRadius: 0,
+                            )]
+                          : null,
+                    ),
+                    child: Center(
+                      child: done
+                          ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                          : Text(
+                              '${i + 1}',
+                              style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w800,
+                                color: active
+                                    ? _kBlue
+                                    : Colors.white.withValues(alpha: 0.35),
                               ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        labels[i],
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                          color: done
-                              ? const Color(0xFF10B981)
-                              : active
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: 0.38),
-                          letterSpacing: active ? 0.3 : 0,
-                        ),
-                      ),
-                    ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    labels[i],
+                    style: TextStyle(
+                      fontSize: 10, fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                      color: done
+                          ? _kGreen
+                          : active
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.35),
+                    ),
                   ),
                 ]),
-              );
-            }),
+              ]),
+            );
+          }),
+        ),
+      ),
+      // Barre de progression
+      Stack(children: [
+        Container(height: 3, color: Colors.white.withValues(alpha: 0.08)),
+        AnimatedFractionallySizedBox(
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeInOut,
+          widthFactor: (current + 1) / labels.length,
+          alignment: Alignment.centerLeft,
+          child: Container(
+            height: 3,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [_kGreen, Color(0xFF34D399)]),
+            ),
           ),
         ),
-        // Barre de progression
-        Stack(
-          children: [
-            Container(
-              height: 2,
-              color: Colors.white.withValues(alpha: 0.10),
-            ),
-            AnimatedFractionallySizedBox(
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOut,
-              widthFactor: (current + 1) / labels.length,
-              alignment: Alignment.centerLeft,
-              child: Container(
-                height: 2,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF4880FF), Color(0xFF60A5FA)],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
+      ]),
+    ]);
   }
 }
 
-//  Step 1: Programme 
+// ─── Step 1 : Programme ───────────────────────────────────────────────────────
 
 class _StepProgram extends ConsumerWidget {
   final Program? selected;
@@ -494,17 +466,14 @@ class _StepProgram extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // If a program was pre-selected (coming from program detail), show it read-only
-    if (selected != null) {
-      return _buildPreselected(context, selected!);
-    }
+    if (selected != null) return _buildPreselected(selected!);
 
     final programsAsync = ref.watch(programsProvider);
     return programsAsync.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator(color: _kBlue)),
-      error: (e, _) =>
-          Center(child: Text(e.toString())),
+      loading: () => const Center(child: CircularProgressIndicator(color: _kBlue)),
+      error: (e, _) => Center(
+        child: Text(e.toString(), style: const TextStyle(color: _kGrey)),
+      ),
       data: (programs) {
         final filtered = searchQuery.isEmpty
             ? programs
@@ -516,124 +485,173 @@ class _StepProgram extends ConsumerWidget {
               }).toList();
 
         return Column(children: [
+          // Barre de recherche
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
             child: TextField(
               onChanged: onSearchChanged,
+              style: const TextStyle(fontSize: 14, color: _kNavy),
               decoration: InputDecoration(
-                hintText: 'Rechercher un programme',
-                hintStyle: const TextStyle(color: _kGrey),
-                prefixIcon: const Icon(Icons.search, color: _kGrey),
+                hintText: 'Rechercher un programme...',
+                hintStyle: const TextStyle(color: _kGrey, fontSize: 14),
+                prefixIcon: const Icon(Icons.search_rounded, color: _kGrey, size: 20),
                 filled: true,
                 fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                   borderSide: const BorderSide(color: _kBorder),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                   borderSide: const BorderSide(color: _kBorder),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide:
-                      const BorderSide(color: _kBlue, width: 2),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: _kBlue, width: 2),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
               ),
             ),
           ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              itemCount: filtered.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (ctx, i) {
-                final p = filtered[i];
-                return _ProgramTile(
-                  program:  p,
-                  selected: selected?.id == p.id,
-                  onTap:    () => onSelect(p),
-                );
-              },
+          if (filtered.isEmpty)
+            Expanded(
+              child: Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.search_off_rounded, size: 48, color: _kGrey.withValues(alpha: 0.5)),
+                  const SizedBox(height: 12),
+                  const Text('Aucun programme trouve',
+                      style: TextStyle(color: _kGrey, fontSize: 14)),
+                ]),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                itemCount: filtered.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, i) => _ProgramTile(
+                  program: filtered[i],
+                  selected: selected?.id == filtered[i].id,
+                  onTap: () => onSelect(filtered[i]),
+                ),
+              ),
             ),
-          ),
         ]);
       },
     );
   }
 
-  Widget _buildPreselected(BuildContext context, Program p) {
+  Widget _buildPreselected(Program p) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Programme sélectionné',
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: _kGrey))
-              .animate().fadeIn(delay: 60.ms),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _kBlue.withValues(alpha: 0.4), width: 2),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(p.programName,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: _kNavy)),
-                const SizedBox(height: 4),
-                Text(p.universityName,
-                    style: const TextStyle(
-                        fontSize: 14, color: _kGrey)),
-                if (p.country != null) ...[
-                  const SizedBox(height: 4),
-                  Text(p.country!,
-                      style: const TextStyle(
-                          fontSize: 13, color: _kGrey)),
-                ],
-                const SizedBox(height: 12),
-                Wrap(spacing: 8, runSpacing: 6, children: [
-                  if (p.level != null) _Tag(p.levelLabel),
-                  if (p.language != null) _Tag(p.language!),
-                  _Tag(p.costLabel),
-                ]),
-              ],
-            ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const _SectionLabel('Programme selectionne'),
+        _ProgramCard(program: p).animate().fadeIn(delay: 60.ms).slideY(begin: .03),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          decoration: BoxDecoration(
+            color: _kGreen.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _kGreen.withValues(alpha: 0.25)),
           ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
+          child: Row(children: [
+            Container(
+              width: 28, height: 28,
+              decoration: BoxDecoration(
+                color: _kGreen.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_rounded, color: _kGreen, size: 16),
             ),
-            child: const Row(children: [
-              Icon(Icons.check_circle_outline,
-                  color: Color(0xFF10B981), size: 18),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Appuyez sur "Suivant" pour continuer avec ce programme.',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF059669),
-                      fontWeight: FontWeight.w500),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Programme pret. Appuyez sur Suivant pour continuer.',
+                style: TextStyle(
+                  fontSize: 13.5, color: Color(0xFF065F46),
+                  fontWeight: FontWeight.w600, height: 1.4,
+                ),
+              ),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _ProgramCard extends StatelessWidget {
+  final Program program;
+  const _ProgramCard({required this.program});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Bandeau haut
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0B1852), Color(0xFF1A3A8F)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                program.programName,
+                style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w800,
+                  color: Colors.white, height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                program.universityName,
+                style: TextStyle(
+                  fontSize: 13, color: Colors.white.withValues(alpha: 0.75),
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ]),
           ),
-        ],
+          // Infos bas
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (program.country != null)
+                Row(children: [
+                  const Icon(Icons.location_on_outlined, size: 14, color: _kGrey),
+                  const SizedBox(width: 4),
+                  Text(program.country!,
+                      style: const TextStyle(fontSize: 13, color: _kGrey)),
+                ]),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, runSpacing: 6, children: [
+                if (program.level != null) _LevelTag(program.levelLabel),
+                if (program.language != null) _Tag(program.language!, color: _kBlue),
+                _Tag(program.costLabel, color: const Color(0xFF059669)),
+              ]),
+            ]),
+          ),
+        ]),
       ),
     );
   }
@@ -643,154 +661,215 @@ class _ProgramTile extends StatelessWidget {
   final Program program;
   final bool selected;
   final VoidCallback onTap;
-  const _ProgramTile(
-      {required this.program,
-      required this.selected,
-      required this.onTap});
+  const _ProgramTile({required this.program, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          color: selected ? _kBlue.withValues(alpha: 0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-              color: selected
-                  ? _kBlue
-                  : _kBorder,
-              width: selected ? 2 : 1),
+            color: selected ? _kBlue : _kBorder,
+            width: selected ? 2 : 1,
+          ),
+          boxShadow: selected
+              ? [BoxShadow(color: _kBlue.withValues(alpha: 0.12), blurRadius: 10)]
+              : [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6)],
         ),
         child: Row(children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(program.programName,
-                    style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: _kNavy),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 3),
-                Text(program.universityName,
-                    style: const TextStyle(
-                        fontSize: 12, color: _kGrey),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                if (program.country != null) ...[
-                  const SizedBox(height: 2),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(program.programName,
+                  style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w700,
+                    color: selected ? _kBlue : _kNavy,
+                  ),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 3),
+              Text(program.universityName,
+                  style: const TextStyle(fontSize: 12, color: _kGrey),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (program.country != null) ...[
+                const SizedBox(height: 2),
+                Row(children: [
+                  const Icon(Icons.location_on_outlined, size: 11, color: _kGrey),
+                  const SizedBox(width: 2),
                   Text(program.country!,
-                      style: const TextStyle(
-                          fontSize: 11, color: _kGrey)),
-                ],
+                      style: const TextStyle(fontSize: 11, color: _kGrey)),
+                ]),
               ],
-            ),
+              const SizedBox(height: 8),
+              Wrap(spacing: 6, runSpacing: 4, children: [
+                if (program.level != null) _LevelTag(program.levelLabel),
+                _Tag(program.costLabel, color: const Color(0xFF059669)),
+              ]),
+            ]),
           ),
-          if (selected)
-            const Icon(Icons.check_circle,
-                color: _kBlue, size: 20),
+          const SizedBox(width: 10),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 26, height: 26,
+            decoration: BoxDecoration(
+              color: selected ? _kBlue : Colors.transparent,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? _kBlue : _kBorder, width: 1.5,
+              ),
+            ),
+            child: selected
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
+                : null,
+          ),
         ]),
       ),
     );
   }
 }
 
-//  Step 2: Dossier documents 
+// ─── Step 2 : Dossier ─────────────────────────────────────────────────────────
 
 class _StepDocuments extends ConsumerWidget {
+  final Program? program;
   final Set<String> selected;
   final ValueChanged<String> onToggle;
-  const _StepDocuments({required this.selected, required this.onToggle});
+  const _StepDocuments({
+    required this.program,
+    required this.selected,
+    required this.onToggle,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final docsAsync = ref.watch(documentsProvider);
-
     return docsAsync.when(
-      loading: () =>
-          const Center(child: CircularProgressIndicator(color: _kBlue)),
-      error: (_, __) => const Center(
-          child: Text('Impossible de charger les documents')),
-      data: (docs) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Votre dossier',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: _kNavy),
-              ).animate().fadeIn(delay: 60.ms).slideY(begin: .04),
-              const SizedBox(height: 6),
-              const Text(
-                'Sélectionnez les documents à joindre à votre candidature.',
-                style: TextStyle(
-                    fontSize: 13, color: _kGrey, height: 1.5),
-              ),
-              const SizedBox(height: 20),
-              if (docs.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: const Color(0xFFFDE68A)),
-                  ),
-                  child: const Row(children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: Color(0xFFD97706), size: 20),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Aucun document uploadé. Ajoutez des documents dans votre profil avant de soumettre.',
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF92400E)),
-                      ),
-                    ),
-                  ]),
-                )
-              else ...[
-                ...docs.map((d) => _DocumentRow(
-                      doc: d,
-                      isSelected: selected.contains(d.id),
-                      onToggle: onToggle,
-                    )),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _kBlue.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBlue.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.info_outline, color: _kBlue, size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${selected.length} document(s) sélectionné(s)',
-                        style: const TextStyle(
-                            fontSize: 13,
-                            color: _kBlue,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ]),
-                ),
-              ],
-            ],
+      loading: () => const Center(child: CircularProgressIndicator(color: _kBlue)),
+      error: (_, __) => const Center(child: Text('Impossible de charger les documents')),
+      data: (docs) => SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const _SectionLabel('Votre dossier'),
+          const Text(
+            'Selectionnez les documents a joindre a votre candidature.',
+            style: TextStyle(fontSize: 13.5, color: _kGrey, height: 1.5),
           ),
-        );
-      },
+          const SizedBox(height: 20),
+
+          if (docs.isEmpty) ...[
+            // Etat vide avec guidance
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(
+                    width: 34, height: 34,
+                    decoration: BoxDecoration(
+                      color: _kOrange.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.folder_open_outlined,
+                        color: _kOrange, size: 18),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Aucun document disponible',
+                      style: TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700,
+                        color: Color(0xFF92400E),
+                      ),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                const Text(
+                  'Ajoutez vos documents dans votre profil avant de soumettre une candidature.',
+                  style: TextStyle(
+                    fontSize: 13, color: Color(0xFF92400E), height: 1.5,
+                  ),
+                ),
+                if (program?.requirements != null &&
+                    program!.requirements!.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  const Text('Documents requis pour ce programme :',
+                      style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700,
+                        color: Color(0xFF78350F),
+                      )),
+                  const SizedBox(height: 8),
+                  ...program!.requirements!.map((r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 5),
+                    child: Row(children: [
+                      Container(
+                        width: 5, height: 5,
+                        decoration: const BoxDecoration(
+                          color: _kOrange, shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(r,
+                          style: const TextStyle(
+                              fontSize: 12.5, color: Color(0xFF92400E))),
+                    ]),
+                  )),
+                ],
+              ]),
+            ),
+          ] else ...[
+            // Liste des documents
+            ...docs.map((d) => _DocumentRow(
+              doc: d,
+              isSelected: selected.contains(d.id),
+              onToggle: onToggle,
+            )),
+            const SizedBox(height: 14),
+            // Compteur
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: selected.isEmpty
+                    ? _kGrey.withValues(alpha: 0.08)
+                    : _kBlue.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected.isEmpty
+                      ? _kBorder
+                      : _kBlue.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(children: [
+                Icon(
+                  selected.isEmpty
+                      ? Icons.info_outline_rounded
+                      : Icons.check_circle_outline_rounded,
+                  color: selected.isEmpty ? _kGrey : _kBlue,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  selected.isEmpty
+                      ? 'Aucun document selectionne'
+                      : '${selected.length} document(s) selectionne(s)',
+                  style: TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w600,
+                    color: selected.isEmpty ? _kGrey : _kBlue,
+                  ),
+                ),
+              ]),
+            ),
+          ],
+        ]),
+      ),
     );
   }
 }
@@ -799,11 +878,7 @@ class _DocumentRow extends StatelessWidget {
   final Document doc;
   final bool isSelected;
   final ValueChanged<String> onToggle;
-  const _DocumentRow({
-    required this.doc,
-    required this.isSelected,
-    required this.onToggle,
-  });
+  const _DocumentRow({required this.doc, required this.isSelected, required this.onToggle});
 
   IconData get _icon => switch (doc.type) {
     DocumentType.cv             => Icons.description_outlined,
@@ -814,9 +889,9 @@ class _DocumentRow extends StatelessWidget {
   };
 
   Color get _statusColor => switch (doc.status) {
-    DocumentStatus.approved   => const Color(0xFF10B981),
-    DocumentStatus.rejected   => const Color(0xFFEF4444),
-    DocumentStatus.underReview => const Color(0xFFF59E0B),
+    DocumentStatus.approved    => _kGreen,
+    DocumentStatus.rejected    => const Color(0xFFEF4444),
+    DocumentStatus.underReview => _kOrange,
     _                          => _kGrey,
   };
 
@@ -824,60 +899,70 @@ class _DocumentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => onToggle(doc.id),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected ? _kBlue.withValues(alpha: 0.05) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected ? _kBlue : _kBorder,
-            width: isSelected ? 1.5 : 1,
+            width: isSelected ? 2 : 1,
           ),
         ),
         child: Row(children: [
-          Icon(_icon, color: isSelected ? _kBlue : _kGrey, size: 20),
+          Container(
+            width: 38, height: 38,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? _kBlue.withValues(alpha: 0.12)
+                  : _kGrey.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(_icon,
+                color: isSelected ? _kBlue : _kGrey, size: 18),
+          ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(doc.typeLabel,
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? _kNavy : _kNavy)),
-                Text(doc.fileName,
-                    style: const TextStyle(
-                        fontSize: 11, color: _kGrey),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ],
-            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(doc.typeLabel,
+                  style: TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w700,
+                    color: isSelected ? _kNavy : _kNavy,
+                  )),
+              const SizedBox(height: 2),
+              Text(doc.fileName,
+                  style: const TextStyle(fontSize: 11.5, color: _kGrey),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ]),
           ),
+          const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: _statusColor.withValues(alpha: 0.12),
+              color: _statusColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(
-              doc.statusLabel,
-              style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: _statusColor),
-            ),
+            child: Text(doc.statusLabel,
+                style: TextStyle(
+                    fontSize: 10, fontWeight: FontWeight.w700,
+                    color: _statusColor)),
           ),
           const SizedBox(width: 8),
-          Checkbox(
-            value: isSelected,
-            onChanged: (_) => onToggle(doc.id),
-            activeColor: _kBlue,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4)),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: 22, height: 22,
+            decoration: BoxDecoration(
+              color: isSelected ? _kBlue : Colors.transparent,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isSelected ? _kBlue : _kBorder, width: 1.5,
+              ),
+            ),
+            child: isSelected
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 13)
+                : null,
           ),
         ]),
       ),
@@ -885,7 +970,7 @@ class _DocumentRow extends StatelessWidget {
   }
 }
 
-//  Step 3: Récapitulatif 
+// ─── Step 3 : Récapitulatif ───────────────────────────────────────────────────
 
 class _StepRecap extends StatelessWidget {
   final Program? program;
@@ -901,124 +986,76 @@ class _StepRecap extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Récapitulatif',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: _kNavy))
-              .animate().fadeIn(delay: 60.ms).slideY(begin: .04),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const _SectionLabel('Recapitulatif').animate().fadeIn(delay: 50.ms),
+
+        // Programme
+        if (program != null) ...[
+          _ProgramCard(program: program!).animate().fadeIn(delay: 80.ms).slideY(begin: .03),
           const SizedBox(height: 20),
-
-          // Programme recap
-          if (program != null) ...[
-            _SectionLabel('Programme'),
-            Builder(builder: (context) => Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF1E2A52) : _kBorder,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(program!.programName,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: _kNavy)),
-                  const SizedBox(height: 3),
-                  Text(program!.universityName,
-                      style:
-                          const TextStyle(fontSize: 13, color: _kGrey)),
-                  if (program!.country != null) ...[
-                    const SizedBox(height: 2),
-                    Text(program!.country!,
-                        style: const TextStyle(
-                            fontSize: 12, color: _kGrey)),
-                  ],
-                ],
-              ),
-            )),
-            const SizedBox(height: 20),
-          ],
-
-          // Checklist de complétude (US-5.4)
-          _SectionLabel('Checklist de complétude'),
-          _ChecklistCard(
-            program: program,
-            docCount: selectedDocIds.length,
-            hasMotivation: motivationCtrl.text.trim().isNotEmpty,
-            motivationCtrl: motivationCtrl,
-          ),
-          const SizedBox(height: 20),
-
-          // Motivation optionnelle
-          _SectionLabel('Message de motivation (optionnel)'),
-          TextField(
-            controller: motivationCtrl,
-            maxLines: 5,
-            maxLength: 800,
-            decoration: InputDecoration(
-              hintText:
-                  'Expliquez votre motivation pour ce programme',
-              hintStyle:
-                  const TextStyle(color: _kGrey, fontSize: 13),
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _kBorder),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _kBorder),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: _kBlue, width: 2),
-              ),
-              contentPadding: const EdgeInsets.all(14),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Confirmation message
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: _kBlue.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: _kBlue.withValues(alpha: 0.2)),
-            ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.info_outline,
-                    color: _kBlue, size: 18),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'En soumettant, vous confirmez que vos informations sont exactes et vos documents à jour.',
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: _kBlue,
-                        height: 1.5),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
-      ),
+
+        // Checklist
+        const _SectionLabel('Checklist de completude'),
+        _ChecklistCard(
+          program: program,
+          docCount: selectedDocIds.length,
+          motivationCtrl: motivationCtrl,
+        ).animate().fadeIn(delay: 120.ms),
+        const SizedBox(height: 20),
+
+        // Message de motivation
+        const _SectionLabel('Message de motivation'),
+        TextField(
+          controller: motivationCtrl,
+          maxLines: 5,
+          maxLength: 800,
+          style: const TextStyle(fontSize: 14, color: _kNavy, height: 1.5),
+          decoration: InputDecoration(
+            hintText: 'Expliquez votre motivation pour ce programme (optionnel)...',
+            hintStyle: const TextStyle(color: _kGrey, fontSize: 13.5),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.all(16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: _kBorder),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: _kBorder),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: _kBlue, width: 2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Note de confirmation
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _kBlue.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _kBlue.withValues(alpha: 0.18)),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.shield_outlined, color: _kBlue, size: 18),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'En soumettant, vous confirmez que vos informations sont exactes et vos documents a jour.',
+                style: TextStyle(
+                  fontSize: 13, color: _kBlue, height: 1.5,
+                ),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 8),
+      ]),
     );
   }
 }
@@ -1026,12 +1063,10 @@ class _StepRecap extends StatelessWidget {
 class _ChecklistCard extends StatefulWidget {
   final Program? program;
   final int docCount;
-  final bool hasMotivation;
   final TextEditingController motivationCtrl;
   const _ChecklistCard({
     required this.program,
     required this.docCount,
-    required this.hasMotivation,
     required this.motivationCtrl,
   });
 
@@ -1043,110 +1078,118 @@ class _ChecklistCardState extends State<_ChecklistCard> {
   @override
   void initState() {
     super.initState();
-    widget.motivationCtrl.addListener(_onMotivationChanged);
+    widget.motivationCtrl.addListener(_rebuild);
   }
 
   @override
   void dispose() {
-    widget.motivationCtrl.removeListener(_onMotivationChanged);
+    widget.motivationCtrl.removeListener(_rebuild);
     super.dispose();
   }
 
-  void _onMotivationChanged() => setState(() {});
+  void _rebuild() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
-    final hasMotivation =
-        widget.motivationCtrl.text.trim().isNotEmpty;
+    final hasMotivation = widget.motivationCtrl.text.trim().isNotEmpty;
     final items = [
-      _CheckItem(
-        label: 'Programme sélectionné',
+      (
+        label: 'Programme selectionne',
+        detail: widget.program?.programName ?? 'Aucun programme',
         done: widget.program != null,
-        detail: widget.program?.programName,
-      ),
-      _CheckItem(
-        label: 'Documents joints',
-        done: widget.docCount > 0,
-        detail: widget.docCount > 0
-            ? '${widget.docCount} document(s) sélectionné(s)'
-            : 'Aucun document sélectionné',
         optional: false,
       ),
-      _CheckItem(
+      (
+        label: 'Documents joints',
+        detail: widget.docCount > 0
+            ? '${widget.docCount} document(s)'
+            : 'Aucun document selectionne',
+        done: widget.docCount > 0,
+        optional: false,
+      ),
+      (
         label: 'Message de motivation',
+        detail: hasMotivation ? 'Redige' : 'Non renseigne',
         done: hasMotivation,
-        detail: hasMotivation ? 'Rédigé' : 'Non renseigné',
         optional: true,
       ),
     ];
+
     return Container(
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? const Color(0xFF1E2A52) : _kBorder,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10, offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
-        children: items.map((item) {
-          final icon = item.done
-              ? Icons.check_circle_rounded
-              : item.optional
-                  ? Icons.radio_button_unchecked
-                  : Icons.cancel_rounded;
+        children: items.asMap().entries.map((entry) {
+          final i    = entry.key;
+          final item = entry.value;
           final iconColor = item.done
-              ? const Color(0xFF10B981)
+              ? _kGreen
               : item.optional
                   ? _kGrey
-                  : const Color(0xFFF59E0B);
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, size: 18, color: iconColor),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(children: [
-                        Text(
-                          item.label,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: item.done ? _kNavy : _kGrey,
-                          ),
-                        ),
-                        if (item.optional) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: _kGrey.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text('optionnel',
-                                style: TextStyle(
-                                    fontSize: 9,
-                                    color: _kGrey,
-                                    fontWeight: FontWeight.w600)),
-                          ),
-                        ],
-                      ]),
-                      if (item.detail != null)
-                        Text(item.detail!,
-                            style: const TextStyle(
-                                fontSize: 11, color: _kGrey)),
-                    ],
-                  ),
-                ),
-              ],
+                  : _kOrange;
+
+          return Container(
+            decoration: BoxDecoration(
+              border: i < items.length - 1
+                  ? const Border(bottom: BorderSide(color: _kBorder))
+                  : null,
             ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  item.done
+                      ? Icons.check_circle_rounded
+                      : item.optional
+                          ? Icons.radio_button_unchecked_rounded
+                          : Icons.warning_amber_rounded,
+                  color: iconColor, size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Text(item.label,
+                        style: TextStyle(
+                          fontSize: 13.5, fontWeight: FontWeight.w700,
+                          color: item.done ? _kNavy : _kGrey,
+                        )),
+                    if (item.optional) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _kGrey.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('optionnel',
+                            style: TextStyle(
+                                fontSize: 9.5, color: _kGrey,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ]),
+                  const SizedBox(height: 2),
+                  Text(item.detail,
+                      style: const TextStyle(fontSize: 12, color: _kGrey)),
+                ]),
+              ),
+            ]),
           );
         }).toList(),
       ),
@@ -1154,18 +1197,7 @@ class _ChecklistCardState extends State<_ChecklistCard> {
   }
 }
 
-class _CheckItem {
-  final String label;
-  final bool done;
-  final String? detail;
-  final bool optional;
-  const _CheckItem({
-    required this.label,
-    required this.done,
-    this.detail,
-    this.optional = false,
-  });
-}
+// ─── Widgets communs ──────────────────────────────────────────────────────────
 
 class _SectionLabel extends StatelessWidget {
   final String text;
@@ -1174,62 +1206,109 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(text,
-          style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: _kGrey)),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(children: [
+        Container(
+          width: 3, height: 14,
+          decoration: BoxDecoration(
+            color: _kBlue,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(text,
+            style: const TextStyle(
+              fontSize: 13.5, fontWeight: FontWeight.w800,
+              color: _kNavy, letterSpacing: -0.2,
+            )),
+      ]),
     );
   }
 }
 
 class _Tag extends StatelessWidget {
   final String label;
-  const _Tag(this.label);
+  final Color color;
+  const _Tag(this.label, {this.color = _kBlue});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: _kBlue.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(label,
-          style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: _kBlue)),
+          style: TextStyle(
+              fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
     );
   }
 }
 
-//  Gradient button 
+class _LevelTag extends StatelessWidget {
+  final String label;
+  const _LevelTag(this.label);
+
+  Color get _color {
+    if (label.toLowerCase().contains('master')) { return const Color(0xFF7C3AED); }
+    if (label.toLowerCase().contains('licence') ||
+        label.toLowerCase().contains('bachelor')) { return const Color(0xFF0891B2); }
+    if (label.toLowerCase().contains('doctorat') ||
+        label.toLowerCase().contains('phd')) { return const Color(0xFFDB2777); }
+    return _kBlue;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: _color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              fontSize: 11.5, fontWeight: FontWeight.w700, color: _color)),
+    );
+  }
+}
 
 class _GradientButton extends StatelessWidget {
   final VoidCallback? onTap;
   final String label;
   final bool loading;
-  const _GradientButton(
-      {required this.onTap, required this.label, this.loading = false});
+  final IconData? icon;
+  const _GradientButton({
+    required this.onTap,
+    required this.label,
+    this.loading = false,
+    this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 52,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-            colors: [Color(0xFF4880FF), Color(0xFF2563EB)]),
+        gradient: onTap != null
+            ? const LinearGradient(
+                colors: [Color(0xFF4880FF), Color(0xFF2D56E0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: onTap == null ? _kBorder : null,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: _kBlue.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: onTap != null
+            ? [
+                BoxShadow(
+                  color: _kBlue.withValues(alpha: 0.35),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ]
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -1241,12 +1320,18 @@ class _GradientButton extends StatelessWidget {
                 ? const SizedBox(
                     width: 20, height: 20,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                : Text(label,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15)),
+                        color: Colors.white, strokeWidth: 2.5))
+                : Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(label,
+                        style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w800,
+                          fontSize: 15, letterSpacing: -0.2,
+                        )),
+                    if (icon != null) ...[
+                      const SizedBox(width: 6),
+                      Icon(icon, color: Colors.white, size: 18),
+                    ],
+                  ]),
           ),
         ),
       ),
