@@ -159,6 +159,7 @@ export default function MessagingPage() {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     setLoadError(null);
 
+    // Requete complete (avec tags et dernier message)
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -168,11 +169,40 @@ export default function MessagingPage() {
       `)
       .order('updated_at', { ascending: false });
 
-    if (error) {
-      console.error('[MessagingPage] loadConversations error:', error);
-      setLoadError(error.message);
-    } else {
+    if (!error) {
       setConversations((data ?? []).map(mapConv));
+      if (isRefresh) setRefreshing(false); else setLoading(false);
+      return;
+    }
+
+    console.warn('[MessagingPage] full query failed, trying fallback:', error.message);
+
+    // Fallback sans tags ni messages imbriques (migration peut-etre pas appliquee)
+    const { data: data2, error: error2 } = await supabase
+      .from('conversations')
+      .select(`
+        id, updated_at, unread_staff,
+        student_profiles!student_profile_id(id, first_name, last_name, nationality)
+      `)
+      .order('updated_at', { ascending: false });
+
+    if (error2) {
+      console.error('[MessagingPage] fallback error:', error2.message);
+      setLoadError(`${error.message} | ${error2.message}`);
+    } else {
+      setConversations((data2 ?? []).map((c: any) => ({
+        id:          c.id,
+        updatedAt:   c.updated_at,
+        unreadStaff: c.unread_staff ?? 0,
+        student: {
+          id:          c.student_profiles?.id ?? '',
+          firstName:   c.student_profiles?.first_name ?? null,
+          lastName:    c.student_profiles?.last_name ?? null,
+          nationality: c.student_profiles?.nationality ?? null,
+        },
+        lastMessage: null,
+        tags:        [],
+      })));
     }
 
     if (isRefresh) setRefreshing(false); else setLoading(false);
@@ -376,11 +406,14 @@ export default function MessagingPage() {
                 <div className="mp-dot" /><div className="mp-dot" /><div className="mp-dot" />
               </div>
             ) : loadError ? (
-              <div className="mp-error-box">
-                <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                Impossible de charger les conversations
+              <div className="mp-error-box" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  Erreur de chargement
+                </div>
+                <div style={{ fontSize: 11, opacity: .8, wordBreak: 'break-all' }}>{loadError}</div>
               </div>
             ) : filtered.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center' }}>
