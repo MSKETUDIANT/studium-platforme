@@ -18,7 +18,7 @@ const ALL_TAGS = [
   { key: 'doc_manquant', label: 'Doc manquant',   color: '#f59e0b', bg: 'rgba(245,158,11,0.10)' },
   { key: 'paiement',     label: 'Paiement',       color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)' },
   { key: 'technique',    label: 'Technique',      color: '#0891b2', bg: 'rgba(8,145,178,0.10)'  },
-  { key: 'resolu',       label: 'Résolu',         color: '#10b981', bg: 'rgba(16,185,129,0.10)' },
+  { key: 'resolu',       label: 'Resolu',         color: '#10b981', bg: 'rgba(16,185,129,0.10)' },
 ];
 
 interface Message {
@@ -30,7 +30,7 @@ interface Message {
 
 /*  Helpers  */
 const fullName = (s: Conversation['student']) =>
-  [s.firstName, s.lastName].filter(Boolean).join(' ') || 'Étudiant';
+  [s.firstName, s.lastName].filter(Boolean).join(' ') || 'Etudiant';
 
 const initials = (s: Conversation['student']) =>
   `${s.firstName?.[0] ?? ''}${s.lastName?.[0] ?? ''}`.toUpperCase() || '?';
@@ -56,14 +56,23 @@ const fmtTime = (iso: string) => {
 
 /*  CSS  */
 const CSS = `
-  .mp-layout { display:grid; grid-template-columns:320px 1fr; height:calc(100vh - 140px); gap:0; background:white; border-radius:16px; box-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04); overflow:hidden; }
+  .mp-layout { display:grid; grid-template-columns:320px 1fr; height:calc(100vh - 140px); gap:0; background:white; border-radius:16px; box-shadow:0 1px 4px rgba(11,24,82,0.04),0 8px 24px rgba(11,24,82,0.07),0 28px 60px rgba(11,24,82,0.08); overflow:hidden; }
   @media(max-width:900px){ .mp-layout{ grid-template-columns:1fr; } }
 
-  /* Sidebar conversations */
-  .mp-sidebar { border-right:1px solid ${colors.border}; display:flex; flex-direction:column; overflow:hidden; }
+  /* Sidebar */
+  .mp-sidebar { border-right:1px solid ${colors.border}; display:flex; flex-direction:column; overflow:hidden; background:#fafbff; }
   .mp-sidebar-head { padding:14px 16px; border-bottom:1px solid ${colors.border}; flex-shrink:0; }
-  .mp-search { width:100%; padding:8px 12px 8px 34px; border:1.5px solid ${colors.borderInput}; border-radius:8px; font-size:13px; color:${colors.textPrimary}; background:${colors.inputBg}; outline:none; box-sizing:border-box; font-family:${fonts.body}; transition:border-color .18s; }
-  .mp-search:focus { border-color:${colors.blue}; background:white; }
+  .mp-sidebar-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .mp-sidebar-title { font-size:13px; font-weight:700; color:${colors.navy}; font-family:${fonts.display}; }
+
+  .mp-refresh-btn { width:28px; height:28px; border-radius:8px; border:1.5px solid ${colors.borderInput}; background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; color:${colors.textMuted}; transition:all .15s; }
+  .mp-refresh-btn:hover { border-color:${colors.blue}; color:${colors.blue}; }
+  .mp-refresh-btn.spinning svg { animation:mp-spin .7s linear infinite; }
+  @keyframes mp-spin { to { transform: rotate(360deg); } }
+
+  .mp-search-wrap { position:relative; }
+  .mp-search { width:100%; padding:8px 12px 8px 34px; border:1.5px solid ${colors.borderInput}; border-radius:8px; font-size:13px; color:${colors.textPrimary}; background:white; outline:none; box-sizing:border-box; font-family:${fonts.body}; transition:border-color .18s; }
+  .mp-search:focus { border-color:${colors.blue}; }
 
   .mp-conv-list { flex:1; overflow-y:auto; }
   .mp-conv-item { display:flex; gap:12px; align-items:flex-start; padding:14px 16px; cursor:pointer; border-bottom:1px solid ${colors.border}; transition:background .12s; position:relative; }
@@ -72,12 +81,12 @@ const CSS = `
   .mp-conv-item:last-child { border-bottom:none; }
 
   .mp-avatar { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; font-family:${fonts.body}; flex-shrink:0; }
-  .mp-unread { position:absolute; top:12px; right:14px; min-width:18px; height:18px; border-radius:9px; background:${colors.blue}; color:white; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px; }
+  .mp-unread-badge { position:absolute; top:12px; right:14px; min-width:18px; height:18px; border-radius:9px; background:${colors.blue}; color:white; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px; }
 
   /* Thread */
-  .mp-thread { display:flex; flex-direction:column; overflow:hidden; }
-  .mp-thread-head { padding:14px 20px; border-bottom:1px solid ${colors.border}; display:flex; align-items:center; gap:12px; flex-shrink:0; }
-  .mp-messages { flex:1; overflow-y:auto; padding:20px 20px 8px; display:flex; flex-direction:column; gap:12px; }
+  .mp-thread { display:flex; flex-direction:column; overflow:hidden; background:white; }
+  .mp-thread-head { padding:14px 20px; border-bottom:1px solid ${colors.border}; display:flex; align-items:flex-start; gap:12px; flex-shrink:0; }
+  .mp-messages { flex:1; overflow-y:auto; padding:20px 20px 8px; display:flex; flex-direction:column; gap:12px; background:#fafbff; }
   .mp-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:${colors.textMuted}; font-size:14px; }
 
   .mp-bubble-wrap { display:flex; flex-direction:column; }
@@ -86,20 +95,29 @@ const CSS = `
 
   .mp-bubble { max-width:72%; padding:10px 14px; border-radius:14px; font-size:13.5px; line-height:1.5; word-break:break-word; }
   .mp-bubble--staff { background:${colors.blue}; color:white; border-bottom-right-radius:4px; }
-  .mp-bubble--student { background:${colors.inputBg}; color:${colors.textPrimary}; border:1px solid ${colors.border}; border-bottom-left-radius:4px; }
+  .mp-bubble--student { background:white; color:${colors.textPrimary}; border:1px solid ${colors.border}; border-bottom-left-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
   .mp-bubble-time { font-size:10.5px; color:${colors.textMuted}; margin-top:3px; }
 
   /* Reply box */
-  .mp-reply { padding:14px 20px; border-top:1px solid ${colors.border}; display:flex; flex-direction:column; gap:8px; flex-shrink:0; }
+  .mp-reply { padding:14px 20px; border-top:1px solid ${colors.border}; display:flex; flex-direction:column; gap:8px; flex-shrink:0; background:white; }
   .mp-textarea { width:100%; padding:10px 14px; border:1.5px solid ${colors.borderInput}; border-radius:10px; font-size:13.5px; color:${colors.textPrimary}; background:${colors.inputBg}; font-family:${fonts.body}; resize:none; outline:none; box-sizing:border-box; transition:border-color .18s; }
   .mp-textarea:focus { border-color:${colors.blue}; background:white; }
-  .mp-send { align-self:flex-end; padding:8px 18px; border-radius:8px; border:none; background:linear-gradient(135deg,${colors.navy} 0%,#1e40af 100%); color:white; font-weight:700; font-size:13px; cursor:pointer; font-family:${fonts.body}; display:flex; align-items:center; gap:7px; transition:opacity .2s; }
+  .mp-reply-actions { display:flex; align-items:center; justify-content:space-between; }
+  .mp-reply-hint { font-size:11px; color:${colors.textMuted}; }
+  .mp-send { padding:8px 18px; border-radius:8px; border:none; background:linear-gradient(135deg,${colors.navy} 0%,#1e40af 100%); color:white; font-weight:700; font-size:13px; cursor:pointer; font-family:${fonts.body}; display:flex; align-items:center; gap:7px; transition:opacity .2s; }
   .mp-send:disabled { opacity:.45; cursor:not-allowed; }
+  .mp-send:not(:disabled):hover { opacity:.88; }
+
+  /* States */
+  .mp-dot-loader { display:flex; gap:5px; align-items:center; padding:28px; justify-content:center; }
+  .mp-dot { width:7px; height:7px; border-radius:50%; background:${colors.blue}; opacity:.3; animation:mp-dotPulse 1.2s infinite; }
+  .mp-dot:nth-child(2) { animation-delay:.2s; }
+  .mp-dot:nth-child(3) { animation-delay:.4s; }
+  @keyframes mp-dotPulse { 0%,80%,100%{opacity:.3} 40%{opacity:1} }
+
+  .mp-error-box { margin:12px; padding:12px 14px; background:rgba(239,68,68,0.07); border:1.5px solid rgba(239,68,68,0.18); border-radius:10px; font-size:12.5px; color:#dc2626; display:flex; align-items:center; gap:8px; }
 `;
 
-/* 
-   MessagingPage
-    */
 export default function MessagingPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [filtered,      setFiltered]      = useState<Conversation[]>([]);
@@ -108,13 +126,40 @@ export default function MessagingPage() {
   const [messages,      setMessages]      = useState<Message[]>([]);
   const [reply,         setReply]         = useState('');
   const [loading,       setLoading]       = useState(true);
+  const [refreshing,    setRefreshing]    = useState(false);
   const [msgLoading,    setMsgLoading]    = useState(false);
   const [sending,       setSending]       = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [loadError,     setLoadError]     = useState<string | null>(null);
+  const bottomRef   = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef<Conversation | null>(null);
+  selectedRef.current = selected;
+
+  /*  Mapper une conversation brute  */
+  const mapConv = useCallback((c: any): Conversation => {
+    const msgs: any[] = c.messages ?? [];
+    const last = msgs.sort((a: any, b: any) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+    return {
+      id:          c.id,
+      updatedAt:   c.updated_at,
+      unreadStaff: c.unread_staff ?? 0,
+      student: {
+        id:          c.student_profiles?.id ?? '',
+        firstName:   c.student_profiles?.first_name ?? null,
+        lastName:    c.student_profiles?.last_name ?? null,
+        nationality: c.student_profiles?.nationality ?? null,
+      },
+      lastMessage: last?.content ?? null,
+      tags:        c.tags ?? [],
+    };
+  }, []);
 
   /*  Charger conversations  */
-  const loadConversations = useCallback(async () => {
-    const { data } = await supabase
+  const loadConversations = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    setLoadError(null);
+
+    const { data, error } = await supabase
       .from('conversations')
       .select(`
         id, updated_at, unread_staff, tags,
@@ -123,30 +168,40 @@ export default function MessagingPage() {
       `)
       .order('updated_at', { ascending: false });
 
-    const mapped: Conversation[] = (data ?? []).map((c: any) => {
-      const msgs: any[] = c.messages ?? [];
-      const last = msgs.sort((a: any, b: any) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-      return {
-        id:          c.id,
-        updatedAt:   c.updated_at,
-        unreadStaff: c.unread_staff,
-        student:     {
-          id:          c.student_profiles?.id ?? '',
-          firstName:   c.student_profiles?.first_name ?? null,
-          lastName:    c.student_profiles?.last_name ?? null,
-          nationality: c.student_profiles?.nationality ?? null,
-        },
-        lastMessage: last?.content ?? null,
-        tags:        c.tags ?? [],
-      };
-    });
+    if (error) {
+      console.error('[MessagingPage] loadConversations error:', error);
+      setLoadError(error.message);
+    } else {
+      setConversations((data ?? []).map(mapConv));
+    }
 
-    setConversations(mapped);
-    setLoading(false);
-  }, []);
+    if (isRefresh) setRefreshing(false); else setLoading(false);
+  }, [mapConv]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
+
+  /*  Realtime — nouvelles conversations et nouveaux messages  */
+  useEffect(() => {
+    const channel = supabase
+      .channel('mp-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, () => {
+        loadConversations(true);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const msg = payload.new as any;
+        if (selectedRef.current?.id === msg.conversation_id && msg.sender_type === 'student') {
+          setMessages(prev => [...prev, {
+            id:         msg.id,
+            senderType: msg.sender_type,
+            content:    msg.content,
+            createdAt:  msg.created_at,
+          }]);
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [loadConversations]);
 
   /*  Filtre search  */
   useEffect(() => {
@@ -178,21 +233,24 @@ export default function MessagingPage() {
     setMsgLoading(true);
     setMessages([]);
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('messages')
       .select('id, sender_type, content, created_at')
       .eq('conversation_id', conv.id)
       .order('created_at', { ascending: true });
 
-    setMessages((data ?? []).map((m: any) => ({
-      id:         m.id,
-      senderType: m.sender_type,
-      content:    m.content,
-      createdAt:  m.created_at,
-    })));
+    if (error) {
+      console.error('[MessagingPage] loadMessages error:', error);
+    } else {
+      setMessages((data ?? []).map((m: any) => ({
+        id:         m.id,
+        senderType: m.sender_type,
+        content:    m.content,
+        createdAt:  m.created_at,
+      })));
+    }
     setMsgLoading(false);
 
-    // Marquer comme lus
     if (conv.unreadStaff > 0) {
       await supabase
         .from('conversations')
@@ -217,7 +275,7 @@ export default function MessagingPage() {
     setReply('');
 
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: msg } = await supabase
+    const { data: msg, error } = await supabase
       .from('messages')
       .insert({
         conversation_id: selected.id,
@@ -228,7 +286,9 @@ export default function MessagingPage() {
       .select('id, sender_type, content, created_at')
       .single();
 
-    if (msg) {
+    if (error) {
+      console.error('[MessagingPage] sendReply error:', error);
+    } else if (msg) {
       setMessages(prev => [...prev, {
         id:         msg.id,
         senderType: msg.sender_type,
@@ -241,13 +301,12 @@ export default function MessagingPage() {
           : c
         ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       );
-      // Push notification à l'étudiant
       supabase.functions.invoke('send-push-notification', {
         body: {
           user_ids: [selected.student.id],
-          title: ' Nouveau message  Équipe Studium',
-          body:  content.length > 80 ? content.substring(0, 80) + '' : content,
-          data:  { type: 'message', conversation_id: selected.id },
+          title:    'Nouveau message - Equipe Studium',
+          body:     content.length > 100 ? content.substring(0, 97) + '...' : content,
+          data:     { type: 'message', conversation_id: selected.id },
         },
       }).catch(console.error);
     }
@@ -277,14 +336,34 @@ export default function MessagingPage() {
         {/*  Sidebar  */}
         <div className="mp-sidebar">
           <div className="mp-sidebar-head">
-            <div style={{ position: 'relative' }}>
+            <div className="mp-sidebar-top">
+              <span className="mp-sidebar-title">
+                Conversations
+                {conversations.length > 0 && (
+                  <span style={{ marginLeft: 7, fontSize: 11, fontWeight: 700, color: colors.textMuted, background: colors.inputBg, padding: '1px 7px', borderRadius: 20 }}>
+                    {conversations.length}
+                  </span>
+                )}
+              </span>
+              <button
+                className={`mp-refresh-btn${refreshing ? ' spinning' : ''}`}
+                onClick={() => loadConversations(true)}
+                title="Actualiser"
+              >
+                <svg width={13} height={13} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+              </button>
+            </div>
+            <div className="mp-search-wrap">
               <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: colors.textMuted }}
                 width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
               <input
                 className="mp-search"
-                placeholder="Rechercher un étudiant"
+                placeholder="Rechercher un etudiant"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -293,12 +372,24 @@ export default function MessagingPage() {
 
           <div className="mp-conv-list">
             {loading ? (
-              <div style={{ padding: 40, textAlign: 'center', color: colors.textMuted, fontSize: 13 }}>
-                Chargement
+              <div className="mp-dot-loader">
+                <div className="mp-dot" /><div className="mp-dot" /><div className="mp-dot" />
+              </div>
+            ) : loadError ? (
+              <div className="mp-error-box">
+                <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                Impossible de charger les conversations
               </div>
             ) : filtered.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: colors.textMuted, fontSize: 13 }}>
-                Aucune conversation
+              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                <svg width={32} height={32} fill="none" viewBox="0 0 24 24" stroke={colors.textMuted} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 10px' }}>
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span style={{ fontSize: 13, color: colors.textMuted }}>
+                  {search ? 'Aucun resultat' : 'Aucune conversation'}
+                </span>
               </div>
             ) : filtered.map(conv => {
               const [fg, bg] = avatarColor(fullName(conv.student));
@@ -328,7 +419,8 @@ export default function MessagingPage() {
                     )}
                     {conv.lastMessage && (
                       <div style={{
-                        fontSize: 12, color: conv.unreadStaff > 0 ? colors.textPrimary : colors.textMuted,
+                        fontSize: 12,
+                        color: conv.unreadStaff > 0 ? colors.textPrimary : colors.textMuted,
                         marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         fontWeight: conv.unreadStaff > 0 ? 600 : 400,
                       }}>
@@ -351,7 +443,7 @@ export default function MessagingPage() {
                     )}
                   </div>
                   {conv.unreadStaff > 0 && (
-                    <div className="mp-unread">{conv.unreadStaff}</div>
+                    <div className="mp-unread-badge">{conv.unreadStaff}</div>
                   )}
                 </div>
               );
@@ -365,7 +457,7 @@ export default function MessagingPage() {
             <div className="mp-empty">
               <div style={{
                 width: 72, height: 72, borderRadius: 20,
-                background: 'linear-gradient(135deg, rgba(37,70,204,0.10), rgba(124,58,237,0.10))',
+                background: 'linear-gradient(135deg, rgba(37,70,204,0.08), rgba(124,58,237,0.08))',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <svg width={32} height={32} fill="none" viewBox="0 0 24 24" stroke={colors.blue} strokeWidth={1.5}>
@@ -373,10 +465,10 @@ export default function MessagingPage() {
                 </svg>
               </div>
               <div style={{ fontWeight: 700, fontSize: 15, color: colors.textSecondary }}>
-                Sélectionnez une conversation
+                Selectionnez une conversation
               </div>
               <div style={{ fontSize: 12, color: colors.textMuted }}>
-                pour lire et répondre aux messages
+                pour lire et repondre aux messages
               </div>
             </div>
           ) : (
@@ -386,12 +478,12 @@ export default function MessagingPage() {
                 {(() => {
                   const [fg, bg] = avatarColor(fullName(selected.student));
                   return (
-                    <div className="mp-avatar" style={{ background: bg, color: fg }}>
+                    <div className="mp-avatar" style={{ background: bg, color: fg, flexShrink: 0 }}>
                       {initials(selected.student)}
                     </div>
                   );
                 })()}
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15, color: colors.navy }}>
                     {fullName(selected.student)}
                   </div>
@@ -400,7 +492,6 @@ export default function MessagingPage() {
                       {selected.student.nationality}
                     </div>
                   )}
-                  {/* Sélecteur de tags */}
                   <div style={{ display: 'flex', gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
                     {ALL_TAGS.map(t => {
                       const active = selected.tags.includes(t.key);
@@ -425,8 +516,8 @@ export default function MessagingPage() {
               {/* Messages */}
               <div className="mp-messages">
                 {msgLoading ? (
-                  <div style={{ textAlign: 'center', color: colors.textMuted, fontSize: 13, padding: 32 }}>
-                    Chargement
+                  <div className="mp-dot-loader">
+                    <div className="mp-dot" /><div className="mp-dot" /><div className="mp-dot" />
                   </div>
                 ) : messages.length === 0 ? (
                   <div style={{ textAlign: 'center', color: colors.textMuted, fontSize: 13, padding: 32 }}>
@@ -448,22 +539,25 @@ export default function MessagingPage() {
                 <textarea
                   className="mp-textarea"
                   rows={3}
-                  placeholder="Écrire un message (Ctrl+Entrée pour envoyer)"
+                  placeholder="Ecrire un message..."
                   value={reply}
                   onChange={e => setReply(e.target.value)}
                   onKeyDown={handleKeyDown}
                 />
-                <button
-                  className="mp-send"
-                  disabled={!reply.trim() || sending}
-                  onClick={sendReply}
-                >
-                  <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
-                    <line x1="22" y1="2" x2="11" y2="13"/>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                  </svg>
-                  {sending ? 'Envoi' : 'Envoyer'}
-                </button>
+                <div className="mp-reply-actions">
+                  <span className="mp-reply-hint">Ctrl+Entree pour envoyer</span>
+                  <button
+                    className="mp-send"
+                    disabled={!reply.trim() || sending}
+                    onClick={sendReply}
+                  >
+                    <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                      <line x1="22" y1="2" x2="11" y2="13"/>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                    {sending ? 'Envoi...' : 'Envoyer'}
+                  </button>
+                </div>
               </div>
             </>
           )}

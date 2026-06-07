@@ -230,10 +230,8 @@ const CSS = `
   }
 
   .pp-table tbody tr:last-child td { border-bottom: none; }
-  .pp-table tbody tr { transition: background .15s; }
-  .pp-table tbody tr:hover td { background: rgba(37,70,204,0.04); }
-  .pp-table tbody tr:hover td:first-child { border-left: 3px solid ${colors.blue}; padding-left: 13px; }
-  .pp-table tbody td:first-child { border-left: 3px solid transparent; }
+  .pp-table tbody tr { transition: background .12s; }
+  .pp-table tbody tr:hover td { background: #f5f7ff; }
 
   .pp-prog-name {
     font-weight: 600;
@@ -1051,15 +1049,12 @@ export default function ProgramsPage() {
             <tbody>
               {paginated.map(p => {
                 const lvlCfg = p.level ? (LEVEL_CFG[p.level] ?? null) : null;
-                const deadlineSoon = p.deadline
-                  ? (new Date(p.deadline).getTime() - Date.now()) / 86400000 < 30
+                const today = new Date(); today.setHours(0,0,0,0);
+                const dl = p.deadline ? new Date(p.deadline) : null;
+                const deadlinePast = dl ? dl < today : false;
+                const deadlineSoon = dl && !deadlinePast
+                  ? (dl.getTime() - today.getTime()) / 86400000 < 30
                   : false;
-                const deadlinePast = p.deadline
-                  ? new Date(p.deadline) < new Date()
-                  : false;
-                const deadlineColor = deadlinePast
-                  ? colors.danger
-                  : deadlineSoon ? colors.warning : colors.textPrimary;
 
                 return (
                   <tr key={p.id}>
@@ -1074,35 +1069,56 @@ export default function ProgramsPage() {
                         <span className="pp-level-badge" style={{ color: lvlCfg.color, background: lvlCfg.bg }}>
                           {LEVEL_LABEL[p.level] ?? p.level}
                         </span>
-                      ) : <span style={{ color: colors.textMuted }}></span>}
+                      ) : <span style={{ color: colors.textMuted }}>—</span>}
                     </td>
                     <td>
                       <div style={{ fontSize: 13, color: colors.textSecondary }}>
-                        {p.country && <span>{p.country}</span>}
+                        {p.country || '—'}
                       </div>
                       <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
                         {p.language ?? ''}
                       </div>
                     </td>
                     <td style={{ color: colors.textSecondary, fontSize: 13 }}>
-                      {p.duration ?? ''}
+                      {p.duration ?? '—'}
                     </td>
                     <td>
-                      <span style={{
-                        fontSize: 13, fontWeight: 600,
-                        color: p.cost === 0 ? colors.success : p.cost ? colors.textPrimary : colors.textMuted,
-                      }}>
-                        {p.cost === 0 ? 'Gratuit' : p.cost
-                          ? `${new Intl.NumberFormat('fr-FR').format(p.cost)} `
-                          : ''}
-                      </span>
+                      {p.cost === 0 ? (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: colors.success, background: 'rgba(22,163,74,0.08)', padding: '2px 8px', borderRadius: 20 }}>
+                          Gratuit
+                        </span>
+                      ) : p.cost ? (
+                        <span style={{ fontSize: 13, fontWeight: 600, color: colors.textPrimary }}>
+                          {new Intl.NumberFormat('fr-FR').format(p.cost)}
+                          <span style={{ fontSize: 11, fontWeight: 500, color: colors.textMuted, marginLeft: 3 }}>EUR</span>
+                        </span>
+                      ) : (
+                        <span style={{ color: colors.textMuted }}>—</span>
+                      )}
                     </td>
                     <td>
                       {p.deadline ? (
-                        <span style={{ fontSize: 13, color: deadlineColor, fontWeight: deadlineSoon ? 600 : 400 }}>
-                          {fmtDate(p.deadline)}
-                        </span>
-                      ) : <span style={{ color: colors.textMuted }}></span>}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{
+                            fontSize: 13,
+                            color: deadlinePast ? colors.textMuted : deadlineSoon ? colors.warning : colors.textPrimary,
+                            fontWeight: deadlineSoon ? 600 : 400,
+                            textDecoration: deadlinePast ? 'line-through' : 'none',
+                          }}>
+                            {fmtDate(p.deadline)}
+                          </span>
+                          {deadlinePast && (
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: colors.danger, background: 'rgba(220,38,38,0.08)', padding: '1px 6px', borderRadius: 4, width: 'fit-content' }}>
+                              Expirée
+                            </span>
+                          )}
+                          {deadlineSoon && (
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: colors.warning, background: 'rgba(217,119,6,0.08)', padding: '1px 6px', borderRadius: 4, width: 'fit-content' }}>
+                              Bientôt
+                            </span>
+                          )}
+                        </div>
+                      ) : <span style={{ color: colors.textMuted }}>—</span>}
                     </td>
                     <td>
                       <span
@@ -1111,12 +1127,12 @@ export default function ProgramsPage() {
                           ? { color: colors.success, background: 'rgba(22,163,74,0.10)' }
                           : { color: colors.textMuted, background: colors.inputBg }}
                       >
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: p.is_active ? colors.success : colors.textMuted, display: 'inline-block' }} />
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: p.is_active ? colors.success : colors.textMuted, display: 'inline-block', flexShrink: 0 }} />
                         {p.is_active ? 'Actif' : 'Archivé'}
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', alignItems: 'center' }}>
                         <button
                           className="pp-icon-btn pp-action-edit"
                           title="Modifier"
