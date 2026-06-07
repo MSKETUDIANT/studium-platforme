@@ -721,9 +721,9 @@ function ProgramModal({
   const [form, setForm] = useState<FormData>(initial);
   const [submitted, setSubmitted] = useState(false);
   const [costCurrency, setCostCurrency] = useState('EUR');
-  const [reqInput, setReqInput] = useState('');
   const set = (k: keyof FormData, v: unknown) => setForm(f => ({ ...f, [k]: v }));
   const isGratuit = form.cost === 0;
+  const isEdit = !!initial.program_name;
 
   const nameEmpty = form.program_name.trim() === '';
   const univEmpty = form.university_name.trim() === '';
@@ -735,45 +735,42 @@ function ProgramModal({
     onSave(form);
   }
 
-  const addReq = () => {
-    const val = reqInput.trim();
-    if (!val) return;
-    const current = form.requirements ?? [];
-    if (!current.includes(val)) set('requirements', [...current, val]);
-    setReqInput('');
-  };
-  const removeReq = (idx: number) => {
-    const updated = (form.requirements ?? []).filter((_, i) => i !== idx);
-    set('requirements', updated.length ? updated : null);
-  };
-
   return (
     <div className="pp-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="pp-modal">
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22, paddingBottom: 16, borderBottom: `1px solid ${colors.border}` }}>
+      <div className="pp-modal" style={{ maxWidth: 620 }}>
+
+        {/* Bande couleur + header */}
+        <div style={{
+          margin: '-28px -28px 24px',
+          padding: '20px 24px 18px',
+          background: `linear-gradient(135deg, ${colors.navy} 0%, #1e3a8a 100%)`,
+          borderRadius: '16px 16px 0 0',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: colors.blue, textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 3 }}>
-              {initial.program_name ? 'Modification' : 'Nouveau programme'}
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.55)', letterSpacing: '.6px', textTransform: 'uppercase', marginBottom: 4 }}>
+              {isEdit ? 'Modification' : 'Creation'}
             </div>
-            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, fontFamily: fonts.display, color: colors.navy, lineHeight: 1.2 }}>
-              {initial.program_name || 'Informations du programme'}
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800, fontFamily: fonts.display, color: 'white', lineHeight: 1.2 }}>
+              {isEdit ? initial.program_name : 'Nouveau programme'}
             </h2>
           </div>
-          <button onClick={onClose} style={{ background: colors.inputBg, border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.textMuted, flexShrink: 0 }}>
-            <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+          <button onClick={onClose} style={{
+            background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.18)',
+            borderRadius: 8, width: 34, height: 34, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'white', flexShrink: 0, transition: 'background .15s',
+          }}>
+            <svg width={13} height={13} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
         </div>
 
         <div className="pp-form-grid">
-
-          {/* -- Section : Identification -- */}
-          <div className="pp-section-label">Identification</div>
-
+          {/* Nom */}
           <div className="pp-field pp-form-full">
-            <label className="pp-label">Nom du programme *</label>
+            <label className="pp-label">Nom du programme <span style={{ color: colors.danger }}>*</span></label>
             <input
               className={`pp-input${submitted && nameEmpty ? ' error' : ''}`}
               placeholder="Ex : Master Informatique"
@@ -782,8 +779,10 @@ function ProgramModal({
             />
             {submitted && nameEmpty && <span className="pp-field-error">Ce champ est obligatoire</span>}
           </div>
+
+          {/* Universite */}
           <div className="pp-field pp-form-full">
-            <label className="pp-label">Universite *</label>
+            <label className="pp-label">Universite <span style={{ color: colors.danger }}>*</span></label>
             <input
               className={`pp-input${submitted && univEmpty ? ' error' : ''}`}
               placeholder="Ex : Universite Paris-Saclay"
@@ -793,6 +792,7 @@ function ProgramModal({
             {submitted && univEmpty && <span className="pp-field-error">Ce champ est obligatoire</span>}
           </div>
 
+          {/* Niveau / Pays */}
           <div className="pp-field">
             <label className="pp-label">Niveau</label>
             <select className="pp-form-select" value={form.level ?? ''} onChange={e => set('level', e.target.value || null)}>
@@ -807,6 +807,8 @@ function ProgramModal({
               {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+
+          {/* Langue / Duree */}
           <div className="pp-field">
             <label className="pp-label">Langue</label>
             <select className="pp-form-select" value={form.language ?? ''} onChange={e => set('language', e.target.value || null)}>
@@ -822,19 +824,11 @@ function ProgramModal({
             </select>
           </div>
 
-          <hr className="pp-section-sep" />
-
-          {/* -- Section : Financier & Candidature -- */}
-          <div className="pp-section-label">Financier et candidature</div>
-
+          {/* Cout / Deadline */}
           <div className="pp-field">
             <label className="pp-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Cout</span>
-              <button
-                type="button"
-                className={`pp-gratuit-btn${isGratuit ? ' active' : ''}`}
-                onClick={() => set('cost', isGratuit ? null : 0)}
-              >
+              <button type="button" className={`pp-gratuit-btn${isGratuit ? ' active' : ''}`} onClick={() => set('cost', isGratuit ? null : 0)}>
                 {isGratuit ? 'Gratuit' : 'Gratuit ?'}
               </button>
             </label>
@@ -844,8 +838,7 @@ function ProgramModal({
                   {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
                 </select>
                 <input
-                  className="pp-cost-amount"
-                  type="number" min={1} placeholder="Ex : 5 000"
+                  className="pp-cost-amount" type="number" min={1} placeholder="Ex : 5 000"
                   value={form.cost ?? ''}
                   onChange={e => set('cost', e.target.value ? Number(e.target.value) : null)}
                 />
@@ -861,16 +854,13 @@ function ProgramModal({
             <input className="pp-input" type="date" value={form.deadline ?? ''} onChange={e => set('deadline', e.target.value || null)} />
           </div>
 
-          <hr className="pp-section-sep" />
-
-          {/* -- Section : Details -- */}
-          <div className="pp-section-label">Details</div>
-
+          {/* Description pleine largeur */}
           <div className="pp-field pp-form-full">
             <label className="pp-label">Description</label>
-            <textarea className="pp-textarea" placeholder="Presentation du programme..." value={form.description ?? ''} onChange={e => set('description', e.target.value || null)} />
+            <textarea className="pp-textarea" placeholder="Presentation du programme, debouches, points forts..." rows={3} value={form.description ?? ''} onChange={e => set('description', e.target.value || null)} />
           </div>
 
+          {/* Domaine / Email */}
           <div className="pp-field">
             <label className="pp-label">Domaine</label>
             <select className="pp-form-select" value={form.domain ?? ''} onChange={e => set('domain', e.target.value || null)}>
@@ -880,37 +870,25 @@ function ProgramModal({
           </div>
           <div className="pp-field">
             <label className="pp-label">Email de contact</label>
-            <input
-              className="pp-input" type="email"
-              placeholder="Ex : admissions@universite.fr"
-              value={form.contact_email ?? ''}
-              onChange={e => set('contact_email', e.target.value || null)}
-            />
+            <input className="pp-input" type="email" placeholder="Ex : admissions@universite.fr" value={form.contact_email ?? ''} onChange={e => set('contact_email', e.target.value || null)} />
           </div>
 
+          {/* Documents requis */}
           <div className="pp-field pp-form-full">
-            <label className="pp-label">Documents requis</label>
-            <div className="pp-tags-wrap">
-              {(form.requirements ?? []).map((req, i) => (
-                <span key={i} className="pp-tag">
-                  {req}
-                  <button type="button" className="pp-tag-x" onClick={() => removeReq(i)}>
-                    <svg width={10} height={10} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} strokeLinecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                  </button>
-                </span>
-              ))}
-              <input
-                className="pp-tag-field"
-                placeholder={(form.requirements ?? []).length === 0 ? 'Ex: CV, Lettre de motivation...' : 'Ajouter...'}
-                value={reqInput}
-                onChange={e => setReqInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addReq(); } }}
-                onBlur={addReq}
-              />
-            </div>
-            <div className="pp-tag-hint">Appuyer sur Entree pour confirmer chaque document</div>
+            <label className="pp-label">
+              Documents requis
+              <span style={{ fontWeight: 400, color: colors.textMuted, marginLeft: 6, fontSize: 11 }}>(un par ligne)</span>
+            </label>
+            <textarea
+              className="pp-textarea"
+              rows={4}
+              placeholder={"CV\nReleve de notes\nLettre de motivation\nPasseport"}
+              value={form.requirements?.join('\n') ?? ''}
+              onChange={e => {
+                const lines = e.target.value.split('\n').map(l => l.trim()).filter(Boolean);
+                set('requirements', lines.length ? lines : null);
+              }}
+            />
           </div>
 
           {/* Toggle actif */}
@@ -924,7 +902,6 @@ function ProgramModal({
               <span className="pp-toggle-track" />
             </label>
           </div>
-
         </div>
 
         {error && (
@@ -932,10 +909,15 @@ function ProgramModal({
             {error}
           </div>
         )}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 16 }}>
+
+        {/* Footer */}
+        <div style={{
+          display: 'flex', gap: 10, justifyContent: 'flex-end',
+          marginTop: 20, paddingTop: 16, borderTop: `1px solid ${colors.border}`,
+        }}>
           <Button variant="secondary" onClick={onClose} disabled={saving}>Annuler</Button>
           <Button onClick={handleSubmit} disabled={saving}>
-            {saving ? 'Enregistrement...' : 'Enregistrer'}
+            {saving ? 'Enregistrement...' : isEdit ? 'Enregistrer les modifications' : 'Creer le programme'}
           </Button>
         </div>
       </div>
