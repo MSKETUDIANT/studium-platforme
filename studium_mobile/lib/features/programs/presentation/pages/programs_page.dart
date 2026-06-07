@@ -6,6 +6,7 @@ import '../../domain/entities/program.dart';
 import '../providers/program_providers.dart';
 import 'program_detail_page.dart';
 import 'favorites_page.dart';
+import '../../../../core/services/cache_service.dart';
 
 //  Constantes design 
 
@@ -168,8 +169,16 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
           ),
           data: (programs) {
             final filtered = _filter(programs);
-            return CustomScrollView(
-              slivers: [
+            return RefreshIndicator(
+              color: _kBlue,
+              backgroundColor: Colors.white,
+              onRefresh: () async {
+                await CacheService.instance.remove(CacheKeys.programs);
+                ref.invalidate(programsProvider);
+              },
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
                 SliverToBoxAdapter(
                   child: _buildHeader(programs)
                       .animate().fadeIn(duration: 400.ms).slideY(begin: -0.06),
@@ -205,7 +214,8 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
                       ),
                     ),
                   ),
-              ],
+                ],
+              ),
             );
           },
         ),
