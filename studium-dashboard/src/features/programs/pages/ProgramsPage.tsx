@@ -891,17 +891,6 @@ function ProgramModal({
             />
           </div>
 
-          {/* Toggle actif */}
-          <div className={`pp-toggle-row${form.is_active ? ' active' : ''}`}>
-            <div>
-              <div className="pp-toggle-label">Programme actif</div>
-              <div className="pp-toggle-sub">Visible par les etudiants dans l'app mobile</div>
-            </div>
-            <label className="pp-toggle">
-              <input type="checkbox" checked={form.is_active} onChange={e => set('is_active', e.target.checked)} />
-              <span className="pp-toggle-track" />
-            </label>
-          </div>
         </div>
 
         {error && (
