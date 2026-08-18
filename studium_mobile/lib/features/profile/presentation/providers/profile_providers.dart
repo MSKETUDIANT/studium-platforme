@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -8,6 +9,7 @@ import '../../domain/entities/academic_background.dart';
 import '../../domain/entities/experience.dart';
 import '../../domain/entities/student_profile.dart';
 import '../../domain/repositories/profile_repository.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 //  Infrastructure 
 
@@ -25,8 +27,14 @@ final profileRepositoryProvider = Provider<ProfileRepository>(
 
 //  Current user ID 
 
+// Dérivé de authStateProvider (réactif aux login/logout) plutôt que lu
+// directement depuis Supabase.instance.client : sinon, après un changement
+// de compte dans la même session app (logout puis login sous un autre
+// utilisateur), cette valeur restait figée sur l'ancien id tant que ce
+// provider n'était pas recréé, causant des écritures avec un id qui ne
+// correspond plus à auth.uid() côté serveur -> violations RLS aléatoires.
 final currentUserIdProvider = Provider<String?>((ref) {
-  return Supabase.instance.client.auth.currentUser?.id;
+  return ref.watch(authStateProvider).valueOrNull?.id;
 });
 
 //  Student Profile 
@@ -42,7 +50,8 @@ final profileNotifierProvider =
   ProfileNotifier.new,
 );
 
-int _computeCompletenessScore({
+@visibleForTesting
+int computeCompletenessScore({
   required StudentProfile profile,
   required int academicsCount,
   required int experiencesCount,
@@ -76,7 +85,11 @@ class ProfileNotifier extends AutoDisposeAsyncNotifier<StudentProfile?> {
       if (next.hasValue) refreshScore();
     });
 
-    return ref.read(profileRepositoryProvider).getProfile(userId);
+    final profile = await ref.read(profileRepositoryProvider).getProfile(userId);
+    // Recalcule le score après chargement (les listeners ci-dessus peuvent
+    // tirer pendant le build, quand state est encore AsyncLoading → current==null)
+    Future.microtask(refreshScore);
+    return profile;
   }
 
   Future<void> upsert(StudentProfile profile) async {
@@ -91,21 +104,17 @@ class ProfileNotifier extends AutoDisposeAsyncNotifier<StudentProfile?> {
     final current = state.valueOrNull;
     if (current == null) return;
 
-    final repo   = ref.read(profileRepositoryProvider);
-    final client = ref.read(supabaseClientProvider);
+    final repo = ref.read(profileRepositoryProvider);
 
-    final academics   = await repo.getAcademicBackgrounds(current.id);
-    final experiences = await repo.getExperiences(current.id);
-    final docs        = await client
-        .from('documents')
-        .select('id')
-        .eq('student_profile_id', current.id);
+    final academics    = await repo.getAcademicBackgrounds(current.id);
+    final experiences  = await repo.getExperiences(current.id);
+    final documentsCount = await repo.getDocumentsCount(current.id);
 
-    final score = _computeCompletenessScore(
+    final score = computeCompletenessScore(
       profile:          current,
       academicsCount:   academics.length,
       experiencesCount: experiences.length,
-      documentsCount:   (docs as List).length,
+      documentsCount:   documentsCount,
     );
 
     if (score == current.completenessScore) return;
@@ -136,12 +145,7 @@ class ProfileNotifier extends AutoDisposeAsyncNotifier<StudentProfile?> {
 final documentCountProvider = FutureProvider.autoDispose<int>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) return 0;
-  final data = await ref
-      .read(supabaseClientProvider)
-      .from('documents')
-      .select('id')
-      .eq('student_profile_id', userId);
-  return (data as List).length;
+  return ref.read(profileRepositoryProvider).getDocumentsCount(userId);
 });
 
 //  Academic Backgrounds 

@@ -16,6 +16,7 @@ final unreadNotificationsProvider = StreamProvider.autoDispose<int>((ref) {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) return Stream.value(0);
 
+  final client = ref.watch(supabaseClientProvider);
   final ds   = ref.read(notificationsDatasourceProvider);
   final ctrl = StreamController<int>.broadcast();
 
@@ -31,7 +32,7 @@ final unreadNotificationsProvider = StreamProvider.autoDispose<int>((ref) {
   );
 
   ref.onDispose(() {
-    ref.read(supabaseClientProvider).removeChannel(channel);
+    client.removeChannel(channel);
     ctrl.close();
   });
 

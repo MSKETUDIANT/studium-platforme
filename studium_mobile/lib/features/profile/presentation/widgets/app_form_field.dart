@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/validators/field_validators.dart';
+
 class AppFormField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -48,9 +50,7 @@ class AppFormField extends StatelessWidget {
         ),
       ),
       validator: validator ??
-          (required
-              ? (v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null
-              : null),
+          (required ? (v) => requiredValidator(v, message: 'Champ requis') : null),
     );
   }
 }

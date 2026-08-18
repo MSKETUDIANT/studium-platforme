@@ -30,7 +30,7 @@ class StatusHistoryEntry {
 
 const _kTable  = 'applications';
 const _kSelect = '''
-  id, student_profile_id, program_id, status, submitted_at, created_at,
+  id, student_profile_id, program_id, status, submitted_at, created_at, motivation_letter,
   programs!program_id(program_name, university_name, country, level)''';
 
 class ApplicationRemoteDatasource {
@@ -52,6 +52,8 @@ class ApplicationRemoteDatasource {
     required String studentProfileId,
     required String programId,
     bool draft = false,
+    List<String> documentIds = const [],
+    String? motivationLetter,
   }) async {
     final existing = await _client
         .from(_kTable)
@@ -72,10 +74,35 @@ class ApplicationRemoteDatasource {
           'program_id':         programId,
           'status':             draft ? 'draft' : 'submitted',
           if (!draft) 'submitted_at': DateTime.now().toIso8601String(),
+          if (motivationLetter != null && motivationLetter.trim().isNotEmpty)
+            'motivation_letter': motivationLetter.trim(),
         })
         .select(_kSelect)
         .single();
-    return ApplicationModel.fromJson(data);
+
+    final app = ApplicationModel.fromJson(data);
+    await _saveApplicationDocuments(app.id, documentIds);
+    return app;
+  }
+
+  Future<void> _saveApplicationDocuments(
+    String applicationId,
+    List<String> documentIds,
+  ) async {
+    if (documentIds.isEmpty) return;
+    // Remplace les liaisons existantes
+    await _client
+        .from('application_documents')
+        .delete()
+        .eq('application_id', applicationId);
+    await _client.from('application_documents').insert(
+      documentIds
+          .map((docId) => {
+                'application_id': applicationId,
+                'document_id':    docId,
+              })
+          .toList(),
+    );
   }
 
   Future<List<StatusHistoryEntry>> fetchStatusHistory(String applicationId) async {
@@ -89,14 +116,32 @@ class ApplicationRemoteDatasource {
         .toList();
   }
 
-  Future<ApplicationModel> submitDraft(String applicationId) async {
+  Future<ApplicationModel> submitDraft(
+    String applicationId, {
+    List<String> documentIds = const [],
+    String? motivationLetter,
+  }) async {
     final data = await _client
         .from(_kTable)
         .update({
           'status':       'submitted',
           'submitted_at': DateTime.now().toIso8601String(),
+          if (motivationLetter != null && motivationLetter.trim().isNotEmpty)
+            'motivation_letter': motivationLetter.trim(),
         })
         .eq('id', applicationId)
+        .select(_kSelect)
+        .single();
+    await _saveApplicationDocuments(applicationId, documentIds);
+    return ApplicationModel.fromJson(data);
+  }
+
+  Future<ApplicationModel> resubmit(String applicationId) async {
+    final data = await _client
+        .from(_kTable)
+        .update({'status': 'submitted'})
+        .eq('id', applicationId)
+        .eq('status', 'needsfix')
         .select(_kSelect)
         .single();
     return ApplicationModel.fromJson(data);

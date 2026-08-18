@@ -242,7 +242,20 @@ class AppStrings {
   String get contactTitle         => _fr ? 'Contacter le support'   : 'Contact support';
   String get contactBody          => _fr ? 'Pour toute question, écrivez-nous à :\n\nsupport@studium.app\n\nDélai de réponse : 24-48h ouvrées.' : 'For any question, write to us at :\n\nsupport@studium.app\n\nResponse time: 24-48 business hours.';
 
-  //  Divers 
+  //  Messagerie — templates rapides
+  List<String> get quickReplies => _fr ? [
+    'Merci, j\'ai envoyé le document.',
+    'J\'ai une question sur ma candidature.',
+    'Pouvez-vous vérifier mon dossier ?',
+    'Quand aurai-je une réponse ?',
+  ] : [
+    'Thank you, I sent the document.',
+    'I have a question about my application.',
+    'Could you check my file?',
+    'When will I get a response?',
+  ];
+
+  //  Divers
   String get student    => _fr ? 'Étudiant'   : 'Student';
   String get retry      => _fr ? 'Réessayer'  : 'Retry';
 

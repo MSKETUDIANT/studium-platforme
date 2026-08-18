@@ -12,13 +12,28 @@ class ApplicationRepositoryImpl {
     required String studentProfileId,
     required String programId,
     bool draft = false,
+    List<String> documentIds = const [],
+    String? motivationLetter,
   }) =>
       _datasource.createApplication(
         studentProfileId: studentProfileId,
         programId:        programId,
         draft:            draft,
+        documentIds:      documentIds,
+        motivationLetter: motivationLetter,
       );
 
-  Future<Application> submitDraft(String applicationId) =>
-      _datasource.submitDraft(applicationId);
+  Future<Application> submitDraft(
+    String applicationId, {
+    List<String> documentIds = const [],
+    String? motivationLetter,
+  }) =>
+      _datasource.submitDraft(
+        applicationId,
+        documentIds: documentIds,
+        motivationLetter: motivationLetter,
+      );
+
+  Future<Application> resubmit(String applicationId) =>
+      _datasource.resubmit(applicationId);
 }

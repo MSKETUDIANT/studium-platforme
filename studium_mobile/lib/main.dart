@@ -48,6 +48,12 @@ class _StudiumAppState extends ConsumerState<StudiumApp> {
     super.initState();
     _appLinks = AppLinks();
 
+    // Enregistrer la navigation pour les taps sur notifications push
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final router = ref.read(appRouterProvider);
+      PushNotificationService.setNavigate((route) => router.go(route));
+    });
+
     _appLinks.uriLinkStream.listen((uri) async {
       final params = uri.queryParameters;
       final fragment = uri.fragment;
@@ -71,6 +77,16 @@ class _StudiumAppState extends ConsumerState<StudiumApp> {
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ref.read(appRouterProvider).go('/reset-password?code=$token');
+        });
+      }
+
+      // Lien de parrainage ambassadeur : studium://register?ref=CODE
+      if (uri.scheme == 'studium' && uri.host == 'register') {
+        final refCode = params['ref'];
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(appRouterProvider).go(
+            refCode != null ? '/register?ref=$refCode' : '/register',
+          );
         });
       }
     });

@@ -3,6 +3,10 @@ enum DocumentType {
   transcript,
   recommendation,
   passport,
+  motivationLetter,
+  diploma,
+  languageCert,
+  financialProof,
   other,
 }
 
@@ -39,11 +43,15 @@ class Document {
   });
 
   String get typeLabel => switch (type) {
-        DocumentType.cv           => 'CV',
-        DocumentType.transcript   => 'Relevé de notes',
-        DocumentType.recommendation => 'Lettre de recommandation',
-        DocumentType.passport     => 'Passeport',
-        DocumentType.other        => 'Autre',
+        DocumentType.cv               => 'CV',
+        DocumentType.transcript       => 'Relevé de notes',
+        DocumentType.recommendation   => 'Lettre de recommandation',
+        DocumentType.passport         => 'Passeport',
+        DocumentType.motivationLetter => 'Lettre de motivation',
+        DocumentType.diploma          => 'Diplome',
+        DocumentType.languageCert     => 'Attestation de langue',
+        DocumentType.financialProof   => 'Justificatif de financement',
+        DocumentType.other            => 'Autre',
       };
 
   String get statusLabel => switch (status) {

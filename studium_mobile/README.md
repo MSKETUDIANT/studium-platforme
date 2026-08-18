@@ -17,7 +17,7 @@ Application mobile Flutter pour la gestion des candidatures académiques interna
 
 ## Installation
 
-```bash
+```bas
 git clone <repo>
 cd studium_mobile
 flutter pub get

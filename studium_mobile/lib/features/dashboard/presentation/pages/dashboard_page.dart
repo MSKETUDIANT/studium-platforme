@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../notifications/presentation/providers/notifications_providers.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 //  Palette 
 const _kNavy   = Color(0xFF08122E);
@@ -17,7 +18,14 @@ const _kText   = Color(0xFF1A1D2E);
 const _kMuted  = Color(0xFF9CA3AF);
 const _kDanger = Color(0xFFEF4444);
 
-//  DashboardPage 
+String _greeting() {
+  final h = DateTime.now().hour;
+  if (h < 12) return 'Bonjour';
+  if (h < 18) return 'Bon après-midi';
+  return 'Bonsoir';
+}
+
+//  DashboardPage
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
 
@@ -60,22 +68,37 @@ class DashboardPage extends ConsumerWidget {
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
 
-                          //  Complétion du profil 
+                          //  Prochaine étape contextuelle
+                          _NextStepCard(
+                            score:    score,
+                            docCount: docCount,
+                            appCount: ref.watch(myApplicationsProvider).valueOrNull?.length ?? 0,
+                          ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.08, end: 0),
+                          const SizedBox(height: 16),
+
+                          //  Complétion du profil
                           _ProfileCompletionCard(score: score)
                             .animate().fadeIn(duration: 400.ms).slideY(begin: 0.1, end: 0),
                           const SizedBox(height: 30),
 
-                          //  Actions rapides 
+                          //  Actions rapides
                           _SectionLabel(title: context.s.quickActions),
                           const SizedBox(height: 14),
-                          _QuickActionsGrid(score: score, docCount: docCount)
-                            .animate().fadeIn(duration: 400.ms, delay: 80.ms).slideY(begin: 0.08, end: 0),
+                          _QuickActionsGrid(
+                            score:    score,
+                            docCount: docCount,
+                            appCount: ref.watch(myApplicationsProvider).valueOrNull?.length ?? 0,
+                          ).animate().fadeIn(duration: 400.ms, delay: 80.ms).slideY(begin: 0.08, end: 0),
                           const SizedBox(height: 30),
 
-                          //  Mes espaces 
+                          //  Mes espaces
                           _SectionLabel(title: context.s.mySpaces),
                           const SizedBox(height: 14),
-                          ..._buildSpaces(context, docCount)
+                          ..._buildSpaces(
+                            context,
+                            docCount,
+                            isAmbassador: ref.watch(authStateProvider).valueOrNull?.role == 'ambassador',
+                          )
                             .asMap()
                             .entries
                             .map((e) => e.value
@@ -96,7 +119,7 @@ class DashboardPage extends ConsumerWidget {
   );
   }
 
-  List<Widget> _buildSpaces(BuildContext context, int docCount) => [
+  List<Widget> _buildSpaces(BuildContext context, int docCount, {required bool isAmbassador}) => [
     _SpaceCard(
       icon: Icons.folder_outlined,
       label: context.s.myDocuments,
@@ -122,6 +145,16 @@ class DashboardPage extends ConsumerWidget {
       onTap: () => context.go('/messages'),
     ),
     const SizedBox(height: 10),
+    if (isAmbassador) ...[
+      _SpaceCard(
+        icon: Icons.people_alt_outlined,
+        label: 'Parrainage',
+        description: 'Filleuls, commissions et lien de parrainage',
+        color: const Color(0xFF7C3AED),
+        onTap: () => context.push('/ambassador'),
+      ),
+      const SizedBox(height: 10),
+    ],
   ];
 }
 
@@ -208,9 +241,9 @@ class _Header extends ConsumerWidget {
 
                 const SizedBox(height: 28),
 
-                //  Greeting 
+                //  Greeting dynamique selon l'heure
                 Text(
-                  '${context.s.hello}, ${firstName?.isNotEmpty == true ? firstName : context.s.student}',
+                  '${_greeting()}, ${firstName?.isNotEmpty == true ? firstName : context.s.student}',
                   style: const TextStyle(
                     fontSize: 26, fontWeight: FontWeight.w800,
                     color: Colors.white, height: 1.2,
@@ -390,7 +423,12 @@ class _SectionLabel extends StatelessWidget {
 class _QuickActionsGrid extends StatelessWidget {
   final int score;
   final int docCount;
-  const _QuickActionsGrid({required this.score, required this.docCount});
+  final int appCount;
+  const _QuickActionsGrid({
+    required this.score,
+    required this.docCount,
+    required this.appCount,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -419,7 +457,7 @@ class _QuickActionsGrid extends StatelessWidget {
       _ActionItem(
         icon:    Icons.send_outlined,
         label:   'Candidatures',
-        value:   'Bientôt',
+        value:   appCount > 0 ? '$appCount en cours' : 'Aucune',
         color:   const Color(0xFF10B981),
         onTap:   () => context.go('/applications'),
       ),
@@ -826,7 +864,97 @@ class _ProfileCompletionCard extends StatelessWidget {
   }
 }
 
-//  Loading 
+//  Prochaine étape contextuelle
+class _NextStepCard extends StatelessWidget {
+  final int score;
+  final int docCount;
+  final int appCount;
+  const _NextStepCard({
+    required this.score,
+    required this.docCount,
+    required this.appCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Choisir le message et l'action selon l'état de l'utilisateur
+    final IconData     icon;
+    final String       title;
+    final String       subtitle;
+    final Color        color;
+    final VoidCallback onTap;
+
+    if (score < 50) {
+      icon     = Icons.person_add_alt_1_rounded;
+      title    = 'Complétez votre profil';
+      subtitle = 'Ajoutez vos études et expériences pour augmenter vos chances.';
+      color    = _kAccent;
+      // Aller sur l'onglet Profil (tabs Infos/Parcours/Expériences)
+      onTap    = () => context.go('/profile');
+    } else if (docCount == 0) {
+      icon     = Icons.upload_file_rounded;
+      title    = 'Ajoutez vos documents';
+      subtitle = 'CV, relevés de notes, passeport… préparez votre dossier.';
+      color    = const Color(0xFFF59E0B);
+      onTap    = () => context.push('/documents');
+    } else if (appCount == 0) {
+      icon     = Icons.send_rounded;
+      title    = 'Postulez à un programme';
+      subtitle = 'Votre dossier est prêt. Explorez les programmes et candidatez.';
+      color    = const Color(0xFF10B981);
+      // context.go pour changer d'onglet proprement (branch 1)
+      onTap    = () => context.go('/programs');
+    } else {
+      // Tout est bon — pas de carte
+      return const SizedBox.shrink();
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [color.withValues(alpha: 0.12), color.withValues(alpha: 0.05)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Row(children: [
+          Container(
+            width: 46, height: 46,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                  style: TextStyle(
+                    fontSize: 13.5, fontWeight: FontWeight.w700, color: color)),
+                const SizedBox(height: 3),
+                Text(subtitle,
+                  style: const TextStyle(
+                      fontSize: 12, color: _kMuted, height: 1.4)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.arrow_forward_ios_rounded, color: color, size: 14),
+        ]),
+      ),
+    );
+  }
+}
+
+//  Loading
 class _LoadingView extends StatelessWidget {
   const _LoadingView({super.key});
 

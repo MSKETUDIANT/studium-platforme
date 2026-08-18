@@ -13,6 +13,7 @@ import '../models/student_profile_model.dart';
 const _kProfiles    = 'student_profiles';
 const _kAcademics   = 'academic_backgrounds';
 const _kExperiences = 'experiences';
+const _kDocuments   = 'documents';
 const _kPhotoBucket = 'profile-photos';
 
 class ProfileRemoteDatasource {
@@ -239,6 +240,24 @@ class ProfileRemoteDatasource {
   Future<void> deleteExperience(String id) async {
     try {
       await _client.from(_kExperiences).delete().eq('id', id);
+    } on PostgrestException catch (e) {
+      throw ProfileException(e.message, type: ProfileErrorType.server);
+    } catch (e) {
+      throw ProfileException(e.toString());
+    }
+  }
+
+  //
+  // DOCUMENTS
+  //
+
+  Future<int> getDocumentsCount(String userId) async {
+    try {
+      final data = await _client
+          .from(_kDocuments)
+          .select('id')
+          .eq('student_profile_id', userId);
+      return (data as List).length;
     } on PostgrestException catch (e) {
       throw ProfileException(e.message, type: ProfileErrorType.server);
     } catch (e) {

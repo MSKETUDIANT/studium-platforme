@@ -1,9 +1,14 @@
+import 'dart:convert';
+
 import '../../../../core/i18n/strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -25,6 +30,7 @@ class SettingsPage extends ConsumerWidget {
     final isFr      = locale.languageCode == 'fr';
     final email     = Supabase.instance.client.auth.currentUser?.email ?? '';
     final s         = context.s;
+    final isAmbassador = ref.watch(authStateProvider).valueOrNull?.role == 'ambassador';
 
     final isDarkSystem = Theme.of(context).brightness == Brightness.dark;
 
@@ -42,6 +48,20 @@ class SettingsPage extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 40),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
+
+                    if (isAmbassador) ...[
+                      _SectionHeader('Parrainage'),
+                      _SettingsCard(children: [
+                        _ActionTile(
+                          icon: Icons.people_alt_outlined,
+                          iconColor: const Color(0xFF10B981),
+                          title: 'Mon espace ambassadeur',
+                          subtitle: 'Lien de parrainage, filleuls, commissions',
+                          onTap: () => context.push('/ambassador'),
+                        ),
+                      ]).animate().fadeIn(delay: 20.ms).slideY(begin: .04),
+                      const SizedBox(height: 20),
+                    ],
 
                     _SectionHeader(s.appearance),
                     _SettingsCard(children: [
@@ -89,7 +109,7 @@ class SettingsPage extends ConsumerWidget {
                         icon: Icons.download_outlined,
                         iconColor: const Color(0xFFF59E0B),
                         title: s.exportData,
-                        onTap: () => _exportData(context, s),
+                        onTap: () async => _exportData(context, s),
                       ),
                       const _Divider(),
                       _ActionTile(
@@ -268,10 +288,55 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  void _exportData(BuildContext context, AppStrings s) => _showInfoDialog(context,
-    title: s.exportTitle,
-    body: s.exportBody,
-  );
+  Future<void> _exportData(BuildContext context, AppStrings s) async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
+
+    final supabase = Supabase.instance.client;
+
+    try {
+      final profile = await supabase
+          .from('student_profiles')
+          .select()
+          .eq('id', uid)
+          .maybeSingle();
+      final apps = await supabase
+          .from('applications')
+          .select('id,status,created_at,program_id')
+          .eq('student_profile_id', uid);
+      final docs = await supabase
+          .from('documents')
+          .select('type,status,created_at')
+          .eq('student_profile_id', uid);
+
+      final payload = {
+        'export_date': DateTime.now().toIso8601String(),
+        'profil': profile ?? {},
+        'candidatures': apps,
+        'documents': docs,
+      };
+      final rawJson = const JsonEncoder.withIndent('  ').convert(payload);
+
+      if (!context.mounted) return;
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (_) => _ExportSheet(
+          rawJson: rawJson,
+          profile: profile,
+          applications: apps,
+          documents: docs,
+          s: s,
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      _showInfoDialog(context,
+          title: s.exportTitle, body: 'Erreur lors de la récupération des données.');
+    }
+  }
 
   void _deleteAccount(BuildContext context, WidgetRef ref, AppStrings s) {
     showDialog(
@@ -287,6 +352,11 @@ class SettingsPage extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
+              try {
+                await Supabase.instance.client.rpc('delete_my_account');
+              } catch (_) {
+                // continuer même si le RPC échoue (données déjà supprimées ou réseau)
+              }
               await ref.read(authStateProvider.notifier).signOut();
               if (context.mounted) context.go('/login');
             },
@@ -562,7 +632,455 @@ class _LogoutButton extends ConsumerWidget {
   );
 }
 
-//  FAQ Sheet 
+//  Export Sheet (RGPD)
+
+const _kExportProfileLabels = <String, String>{
+  'id': 'Identifiant',
+  'first_name': 'Prénom',
+  'last_name': 'Nom',
+  'birth_date': 'Date de naissance',
+  'nationality': 'Nationalité',
+  'country_residence': 'Pays de résidence',
+  'phone': 'Téléphone',
+  'address': 'Adresse',
+  'photo_url': 'Photo de profil',
+  'completeness_score': 'Score de complétude',
+  'motivation_letter': 'Lettre de motivation',
+  'academic_goals': 'Objectifs académiques',
+  'career_goals': 'Objectifs de carrière',
+  'ai_completeness_score': 'Score IA de complétude',
+  'ai_summary': 'Résumé généré par IA',
+  'ai_score_generated_at': 'Score IA généré le',
+  'created_at': 'Compte créé le',
+  'updated_at': 'Dernière mise à jour',
+  'referral_code': 'Code de parrainage',
+};
+
+const _kExportProfileDateKeys = {
+  'birth_date', 'ai_score_generated_at', 'created_at', 'updated_at',
+};
+
+const _kExportAppStatusLabels = <String, String>{
+  'draft': 'Brouillon',
+  'submitted': 'Soumise',
+  'needs_fix': 'Correction requise',
+  'verified': 'Validée',
+  'sent': 'Envoyée',
+  'accepted': 'Acceptée',
+  'rejected': 'Refusée',
+  'pending': 'Décision en attente',
+  'archived': 'Archivée',
+};
+
+const _kExportDocTypeLabels = <String, String>{
+  'cv': 'CV',
+  'transcript': 'Relevé de notes',
+  'recommendation': 'Lettre de recommandation',
+  'passport': 'Passeport / Pièce d\'identité',
+  'motivation_letter': 'Lettre de motivation',
+  'diploma': 'Diplôme',
+  'language_cert': 'Attestation de langue',
+  'financial_proof': 'Justificatif de financement',
+  'other': 'Autre document',
+};
+
+const _kExportDocStatusLabels = <String, String>{
+  'uploaded': 'Envoyé',
+  'under_review': 'En révision',
+  'approved': 'Approuvé',
+  'rejected': 'Rejeté',
+};
+
+String _exportFmtDate(String? iso) {
+  if (iso == null || iso.isEmpty) return '-';
+  final date = DateTime.tryParse(iso);
+  if (date == null) return iso;
+  final local = date.toLocal();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(local.day)}/${two(local.month)}/${local.year} à ${two(local.hour)}:${two(local.minute)}';
+}
+
+String _exportFmtValue(String key, Object? value) {
+  if (value == null) return '-';
+  if (_kExportProfileDateKeys.contains(key)) return _exportFmtDate(value as String);
+  if (key.contains('score')) return '$value%';
+  return value.toString();
+}
+
+class _ExportSheet extends StatefulWidget {
+  final String rawJson;
+  final Map<String, dynamic>? profile;
+  final List<dynamic> applications;
+  final List<dynamic> documents;
+  final AppStrings s;
+  const _ExportSheet({
+    required this.rawJson,
+    required this.profile,
+    required this.applications,
+    required this.documents,
+    required this.s,
+  });
+
+  @override
+  State<_ExportSheet> createState() => _ExportSheetState();
+}
+
+class _ExportSheetState extends State<_ExportSheet> {
+  bool _generatingPdf = false;
+
+  Future<void> _sharePdf() async {
+    setState(() => _generatingPdf = true);
+    try {
+      final navyPdf   = PdfColor.fromInt(0xFF0B1852);
+      final bluePdf   = PdfColor.fromInt(0xFF153EA8);
+      final greyPdf   = PdfColor.fromInt(0xFF64748B);
+      final mutedPdf  = PdfColor.fromInt(0xFF94A3B8);
+      final borderPdf = PdfColor.fromInt(0xFFE5E7EB);
+      final bgPdf     = PdfColor.fromInt(0xFFF8FAFC);
+      final today     = _exportFmtDate(DateTime.now().toIso8601String());
+
+      pw.Widget sectionTitle(String title) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(height: 18),
+          pw.Text(title.toUpperCase(),
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold,
+                  color: mutedPdf, letterSpacing: 1.5)),
+          pw.SizedBox(height: 8),
+          pw.Divider(color: borderPdf, thickness: 0.5),
+          pw.SizedBox(height: 10),
+        ],
+      );
+
+      pw.Widget infoRow(String label, String value) => pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 7),
+        child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.SizedBox(width: 140,
+              child: pw.Text(label, style: pw.TextStyle(fontSize: 10, color: greyPdf))),
+          pw.Expanded(child: pw.Text(value,
+              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: navyPdf))),
+        ]),
+      );
+
+      pw.Widget card(List<pw.Widget> rows) => pw.Container(
+        margin: const pw.EdgeInsets.only(bottom: 8),
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          color: bgPdf,
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+          border: pw.Border.all(color: borderPdf),
+        ),
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: rows),
+      );
+
+      final profileEntries = (widget.profile ?? const <String, dynamic>{})
+          .entries
+          .where((e) => e.value != null)
+          .toList();
+
+      final doc = pw.Document();
+      doc.addPage(pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+        build: (ctx) => [
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(20),
+            decoration: pw.BoxDecoration(
+              color: bluePdf,
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
+            ),
+            child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+              pw.Text('EXPORT DE DONNEES (RGPD)',
+                  style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white, letterSpacing: 1.2)),
+              pw.SizedBox(height: 6),
+              pw.Text('Studium', style: pw.TextStyle(
+                  fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+              pw.SizedBox(height: 4),
+              pw.Text('Genere le $today',
+                  style: const pw.TextStyle(fontSize: 11, color: PdfColors.white)),
+            ]),
+          ),
+          sectionTitle('Profil'),
+          for (final e in profileEntries)
+            infoRow(_kExportProfileLabels[e.key] ?? e.key, _exportFmtValue(e.key, e.value)),
+          sectionTitle('Candidatures (${widget.applications.length})'),
+          if (widget.applications.isEmpty)
+            pw.Text('Aucune candidature', style: pw.TextStyle(fontSize: 10, color: greyPdf))
+          else
+            for (final app in widget.applications.cast<Map<String, dynamic>>())
+              card([
+                infoRow('Statut', _kExportAppStatusLabels[app['status']] ??
+                    (app['status']?.toString() ?? '-')),
+                infoRow('Creee le', _exportFmtDate(app['created_at'] as String?)),
+              ]),
+          sectionTitle('Documents (${widget.documents.length})'),
+          if (widget.documents.isEmpty)
+            pw.Text('Aucun document', style: pw.TextStyle(fontSize: 10, color: greyPdf))
+          else
+            for (final d in widget.documents.cast<Map<String, dynamic>>())
+              card([
+                infoRow('Type', _kExportDocTypeLabels[d['type']] ??
+                    (d['type']?.toString() ?? '-')),
+                infoRow('Statut', _kExportDocStatusLabels[d['status']] ??
+                    (d['status']?.toString() ?? '-')),
+                infoRow('Ajoute le', _exportFmtDate(d['created_at'] as String?)),
+              ]),
+        ],
+      ));
+
+      await Printing.sharePdf(
+        bytes: await doc.save(),
+        filename: 'export_donnees_studium.pdf',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Erreur PDF : $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _generatingPdf = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.profile;
+    final applications = widget.applications;
+    final documents = widget.documents;
+    final rawJson = widget.rawJson;
+    final s = widget.s;
+    final profileEntries = (profile ?? const <String, dynamic>{})
+        .entries
+        .where((e) => e.value != null)
+        .toList();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      minChildSize: 0.4,
+      expand: false,
+      builder: (ctx, controller) => Column(children: [
+        Container(
+          margin: const EdgeInsets.only(top: 12, bottom: 8),
+          width: 40, height: 4,
+          decoration: BoxDecoration(
+              color: _kBorder, borderRadius: BorderRadius.circular(2)),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(s.exportTitle,
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w800, color: _kNavy)),
+                  IconButton(
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: rawJson));
+                      if (!ctx.mounted) return;
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(
+                          content: Text('Données copiées dans le presse-papiers'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.copy_rounded, size: 18, color: _kGrey),
+                    tooltip: 'Copier le JSON',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _generatingPdf ? null : _sharePdf,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _kBlue,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: _generatingPdf
+                      ? const SizedBox(
+                          width: 14, height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.picture_as_pdf_rounded, size: 16, color: Colors.white),
+                  label: Text(_generatingPdf ? 'Génération…' : 'Télécharger PDF',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            controller: controller,
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+            children: [
+              _ExportSection(
+                title: 'Profil',
+                child: Column(
+                  children: [
+                    for (final e in profileEntries)
+                      _ExportRow(
+                        label: _kExportProfileLabels[e.key] ?? e.key,
+                        value: _exportFmtValue(e.key, e.value),
+                      ),
+                  ],
+                ),
+              ),
+              _ExportSection(
+                title: 'Candidatures (${applications.length})',
+                child: applications.isEmpty
+                    ? const _ExportEmpty(text: 'Aucune candidature')
+                    : Column(
+                        children: [
+                          for (final app in applications.cast<Map<String, dynamic>>())
+                            _ExportCard(rows: [
+                              _ExportRow(
+                                label: 'Statut',
+                                value: _kExportAppStatusLabels[app['status']] ??
+                                    (app['status']?.toString() ?? '-'),
+                              ),
+                              _ExportRow(
+                                label: 'Créée le',
+                                value: _exportFmtDate(app['created_at'] as String?),
+                              ),
+                            ]),
+                        ],
+                      ),
+              ),
+              _ExportSection(
+                title: 'Documents (${documents.length})',
+                child: documents.isEmpty
+                    ? const _ExportEmpty(text: 'Aucun document')
+                    : Column(
+                        children: [
+                          for (final doc in documents.cast<Map<String, dynamic>>())
+                            _ExportCard(rows: [
+                              _ExportRow(
+                                label: 'Type',
+                                value: _kExportDocTypeLabels[doc['type']] ??
+                                    (doc['type']?.toString() ?? '-'),
+                              ),
+                              _ExportRow(
+                                label: 'Statut',
+                                value: _kExportDocStatusLabels[doc['status']] ??
+                                    (doc['status']?.toString() ?? '-'),
+                              ),
+                              _ExportRow(
+                                label: 'Ajouté le',
+                                value: _exportFmtDate(doc['created_at'] as String?),
+                              ),
+                            ]),
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _ExportSection extends StatelessWidget {
+  final String title;
+  final Widget child;
+  const _ExportSection({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w800, color: _kGrey,
+                  letterSpacing: 0.3)),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ExportEmpty extends StatelessWidget {
+  final String text;
+  const _ExportEmpty({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(text,
+        style: const TextStyle(fontSize: 13, color: _kGrey));
+  }
+}
+
+class _ExportCard extends StatelessWidget {
+  final List<_ExportRow> rows;
+  const _ExportCard({required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8F9FC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorder),
+      ),
+      child: Column(children: rows),
+    );
+  }
+}
+
+class _ExportRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _ExportRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 12.5, fontWeight: FontWeight.w600, color: _kGrey)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(
+                    fontSize: 12.5, color: _kNavy, height: 1.4)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+//  FAQ Sheet
 
 class _FaqSheet extends StatelessWidget {
   final AppStrings s;

@@ -56,4 +56,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
   @override
   Future<void> deleteExperience(String id) =>
       _datasource.deleteExperience(id);
+
+  @override
+  Future<int> getDocumentsCount(String userId) =>
+      _datasource.getDocumentsCount(userId);
 }

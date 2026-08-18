@@ -7,16 +7,71 @@ import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/application.dart';
 import '../providers/application_providers.dart';
+import '../../../programs/presentation/providers/program_providers.dart';
 
 const _kNavy   = Color(0xFF1A1D2E);
 const _kBlue   = Color(0xFF4880FF);
 const _kGrey   = Color(0xFF9CA3AF);
 
-class ApplicationsPage extends ConsumerWidget {
+enum _StatusFilter { all, pending, needsFix, sent, accepted, rejected }
+
+extension on _StatusFilter {
+  String get label => switch (this) {
+    _StatusFilter.all      => 'Toutes',
+    _StatusFilter.pending  => 'En attente',
+    _StatusFilter.needsFix => 'À corriger',
+    _StatusFilter.sent     => 'Envoyée',
+    _StatusFilter.accepted => 'Acceptée',
+    _StatusFilter.rejected => 'Refusée',
+  };
+
+  bool matches(ApplicationStatus s) => switch (this) {
+    _StatusFilter.all      => true,
+    _StatusFilter.pending  => s == ApplicationStatus.submitted ||
+        s == ApplicationStatus.verified ||
+        s == ApplicationStatus.pendingDecision,
+    _StatusFilter.needsFix => s == ApplicationStatus.needsFix,
+    _StatusFilter.sent     => s == ApplicationStatus.sent,
+    _StatusFilter.accepted => s == ApplicationStatus.accepted,
+    _StatusFilter.rejected => s == ApplicationStatus.rejected ||
+        s == ApplicationStatus.archived,
+  };
+}
+
+class ApplicationsPage extends ConsumerStatefulWidget {
   const ApplicationsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ApplicationsPage> createState() => _ApplicationsPageState();
+}
+
+class _ApplicationsPageState extends ConsumerState<ApplicationsPage> {
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+  _StatusFilter _filter = _StatusFilter.all;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<Application> _applyFilters(List<Application> apps) {
+    final query = _query.trim().toLowerCase();
+    return apps.where((a) {
+      if (!_filter.matches(a.status)) return false;
+      if (query.isEmpty) return true;
+      final haystack =
+          '${a.programName ?? ''} ${a.universityName ?? ''} ${a.country ?? ''}'
+              .toLowerCase();
+      return haystack.contains(query);
+    }).toList();
+  }
+
+  bool get _hasActiveFilter => _query.trim().isNotEmpty || _filter != _StatusFilter.all;
+
+  @override
+  Widget build(BuildContext context) {
     final applicationsAsync = ref.watch(myApplicationsProvider);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -32,54 +87,167 @@ class ApplicationsPage extends ConsumerWidget {
                   style: const TextStyle(color: Colors.red)),
             ),
           ),
-          data: (apps) => CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: _buildHeader(context, apps)
-                    .animate()
-                    .fadeIn(duration: 400.ms)
-                    .slideY(begin: -0.06),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-                  child: _NewCandidatureButton(
-                    onTap: () => context.push('/applications/new'),
+          data: (apps) {
+            final visible = _applyFilters(apps);
+            return RefreshIndicator(
+              color: _kBlue,
+              backgroundColor: Colors.white,
+              onRefresh: () async => ref.invalidate(myApplicationsProvider),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _buildHeader(context, apps)
+                        .animate()
+                        .fadeIn(duration: 400.ms)
+                        .slideY(begin: -0.06),
                   ),
-                ).animate().fadeIn(delay: 120.ms).slideY(begin: .04),
-              ),
-              apps.isEmpty
-                  ? SliverFillRemaining(
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                      child: _NewCandidatureButton(
+                        onTap: () => context.push('/applications/new'),
+                      ),
+                    ).animate().fadeIn(delay: 120.ms).slideY(begin: .04),
+                  ),
+                  if (apps.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: _buildSearchAndFilterBar()
+                          .animate()
+                          .fadeIn(delay: 160.ms)
+                          .slideY(begin: .04),
+                    ),
+                  if (apps.isEmpty)
+                    SliverFillRemaining(
                       hasScrollBody: false,
                       child: _buildEmptyState(context),
                     )
-                  : SliverPadding(
-                      padding: EdgeInsets.fromLTRB(16, 10, 16, MediaQuery.of(context).padding.bottom + 90),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (ctx, i) => _ApplicationCard(app: apps[i])
-                              .animate()
-                              .fadeIn(
-                                delay: Duration(milliseconds: 80 + i * 55),
-                                duration: const Duration(milliseconds: 260),
-                              )
-                              .slideY(
-                                begin: .05,
-                                duration: const Duration(milliseconds: 260),
-                                curve: Curves.easeOut,
-                              ),
-                          childCount: apps.length,
-                        ),
-                      ),
-                    ),
-            ],
-          ),
+                  else if (visible.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _buildNoResultsState(),
+                    )
+                  else
+                    _buildList(context, visible,
+                        showSections: !_hasActiveFilter),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  //  Header card (même pattern que ProgramsPage) 
+  //  Barre de recherche + filtres de statut
+
+  Widget _buildSearchAndFilterBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() => _query = v),
+              style: const TextStyle(fontSize: 13.5),
+              decoration: InputDecoration(
+                hintText: 'Rechercher un programme, une université...',
+                hintStyle: const TextStyle(fontSize: 13, color: _kGrey),
+                prefixIcon: const Icon(Icons.search_rounded,
+                    size: 19, color: _kGrey),
+                suffixIcon: _query.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded,
+                            size: 18, color: _kGrey),
+                        onPressed: () => setState(() {
+                          _searchCtrl.clear();
+                          _query = '';
+                        }),
+                      )
+                    : null,
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _StatusFilter.values.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final f = _StatusFilter.values[i];
+                final selected = f == _filter;
+                return ChoiceChip(
+                  label: Text(f.label),
+                  selected: selected,
+                  onSelected: (_) => setState(() => _filter = f),
+                  labelStyle: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? Colors.white : _kNavy,
+                  ),
+                  selectedColor: _kBlue,
+                  backgroundColor: const Color(0xFFF3F4F6),
+                  showCheckmark: false,
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoResultsState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.search_off_rounded, size: 40, color: _kGrey),
+            const SizedBox(height: 14),
+            const Text('Aucun résultat',
+                style: TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w700, color: _kNavy)),
+            const SizedBox(height: 6),
+            const Text(
+              'Aucune candidature ne correspond à ta recherche.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: _kGrey),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => setState(() {
+                _searchCtrl.clear();
+                _query  = '';
+                _filter = _StatusFilter.all;
+              }),
+              child: const Text('Réinitialiser les filtres',
+                  style: TextStyle(
+                      color: _kBlue, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  //  Header card (même pattern que ProgramsPage)
 
   Widget _buildHeader(BuildContext context, List<Application> apps) {
     final total     = apps.length;
@@ -176,7 +344,125 @@ class ApplicationsPage extends ConsumerWidget {
   );
   }
 
-  //  Empty state 
+  //  Liste principale avec section brouillons
+
+  Widget _buildList(BuildContext context, List<Application> apps,
+      {required bool showSections}) {
+    final bottom = MediaQuery.of(context).padding.bottom + 90;
+
+    if (!showSections) {
+      // Vue filtrée/recherchée : liste plate, sans en-têtes de section,
+      // dans l'ordre renvoyé par le filtre.
+      final items = <Widget>[
+        ...apps.asMap().entries.map((e) {
+          final app   = e.value;
+          final delay = Duration(milliseconds: 60 + e.key * 50);
+          final card  = app.status == ApplicationStatus.draft
+              ? _DraftCard(app: app)
+              : _ApplicationCard(app: app);
+          return card
+              .animate()
+              .fadeIn(delay: delay)
+              .slideY(begin: .04, duration: 250.ms, curve: Curves.easeOut);
+        }),
+        SizedBox(height: bottom),
+      ];
+      return SliverPadding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        sliver: SliverList(delegate: SliverChildListDelegate(items)),
+      );
+    }
+
+    final drafts = apps.where((a) => a.status == ApplicationStatus.draft).toList();
+    final others = apps.where((a) => a.status != ApplicationStatus.draft).toList();
+
+    final items = <Widget>[
+      if (drafts.isNotEmpty) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 6, 0, 10),
+          child: Row(children: [
+            Container(
+              width: 3, height: 13,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'A COMPLETER',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFFF59E0B),
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${drafts.length}',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFF59E0B),
+                ),
+              ),
+            ),
+          ]),
+        ),
+        ...drafts.asMap().entries.map((e) =>
+          _DraftCard(app: e.value)
+            .animate()
+            .fadeIn(delay: Duration(milliseconds: 60 + e.key * 50))
+            .slideY(begin: .04, duration: 250.ms, curve: Curves.easeOut),
+        ),
+        if (others.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 18, 0, 10),
+            child: Row(children: [
+              Container(
+                width: 3, height: 13,
+                decoration: BoxDecoration(
+                  color: _kBlue, borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'EN COURS',
+                style: const TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w800,
+                  color: _kBlue, letterSpacing: 0.6,
+                ),
+              ),
+            ]),
+          ),
+      ],
+      ...others.asMap().entries.map((e) {
+        final delay = Duration(
+            milliseconds: 60 + (drafts.length + e.key) * 50);
+        return _ApplicationCard(app: e.value)
+            .animate()
+            .fadeIn(delay: delay)
+            .slideY(begin: .04, duration: 250.ms, curve: Curves.easeOut);
+      }),
+      SizedBox(height: bottom),
+    ];
+
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate(items),
+      ),
+    );
+  }
+
+  //  Empty state
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
@@ -208,6 +494,43 @@ class ApplicationsPage extends ConsumerWidget {
               style: TextStyle(
                   fontSize: 14, color: _kGrey, height: 1.5),
             ),
+            const SizedBox(height: 28),
+            GestureDetector(
+              onTap: () => context.go('/programs'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0B1852), Color(0xFF4880FF)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _kBlue.withValues(alpha: 0.25),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.school_rounded, size: 16, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      'Explorer les programmes',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ).animate().fadeIn(delay: 100.ms),
       ),
@@ -215,7 +538,123 @@ class ApplicationsPage extends ConsumerWidget {
   }
 }
 
-//  Application card 
+// Carte brouillon
+
+class _DraftCard extends ConsumerWidget {
+  final Application app;
+  const _DraftCard({required this.app});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    const amber = Color(0xFFF59E0B);
+
+    // Retrouve le programme complet pour ouvrir le wizard avec les requis
+    final programs = ref.watch(programsProvider).valueOrNull ?? [];
+    final program  = programs.where((p) => p.id == app.programId).firstOrNull;
+
+    return GestureDetector(
+      onTap: () => context.push(
+        '/applications/new',
+        extra: {'program': program, 'draftId': app.id, 'motivationLetter': app.motivationText},
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFFDE68A), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: amber.withValues(alpha: 0.10),
+              blurRadius: 10, offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42, height: 42,
+                  decoration: BoxDecoration(
+                    color: amber.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.edit_note_rounded,
+                      color: amber, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        app.programName ?? 'Programme',
+                        style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w700,
+                          color: _kNavy),
+                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(app.universityName ?? '',
+                          style: const TextStyle(fontSize: 12, color: _kGrey),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      if (app.country != null)
+                        Text(app.country!,
+                            style: const TextStyle(fontSize: 11, color: _kGrey)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: amber.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Brouillon',
+                    style: TextStyle(
+                      fontSize: 10.5, fontWeight: FontWeight.w800, color: amber),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Footer "Reprendre"
+          Container(
+            decoration: const BoxDecoration(
+              color: amber,
+              borderRadius: BorderRadius.only(
+                bottomLeft:  Radius.circular(15),
+                bottomRight: Radius.circular(15),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
+                SizedBox(width: 6),
+                Text(
+                  'Reprendre ma candidature',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+//  Application card
 
 class _ApplicationCard extends StatelessWidget {
   final Application app;

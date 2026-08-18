@@ -1,8 +1,11 @@
+import 'dart:io' as io;
 import '../../../../core/i18n/strings.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../data/datasources/messaging_remote_datasource.dart';
@@ -17,7 +20,10 @@ const _kBorder = Color(0xFFE5E7EB);
 
 //  MessagesPage 
 class MessagesPage extends ConsumerStatefulWidget {
-  const MessagesPage({super.key});
+  // Texte pré-rempli dans le champ de saisie à l'ouverture (ex : contexte
+  // "candidature" quand on arrive depuis le détail d'une candidature).
+  final String? prefillText;
+  const MessagesPage({super.key, this.prefillText});
   @override
   ConsumerState<MessagesPage> createState() => _MessagesPageState();
 }
@@ -25,7 +31,18 @@ class MessagesPage extends ConsumerStatefulWidget {
 class _MessagesPageState extends ConsumerState<MessagesPage> {
   final _controller = TextEditingController();
   final _scrollCtrl = ScrollController();
-  bool  _sending    = false;
+  bool _sending   = false;
+  bool _uploading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final prefill = widget.prefillText;
+    if (prefill != null && prefill.isNotEmpty) {
+      _controller.text = prefill;
+      _controller.selection = TextSelection.collapsed(offset: prefill.length);
+    }
+  }
 
   @override
   void dispose() {
@@ -55,6 +72,56 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     await ref.read(messagesProvider.notifier).send(text);
     setState(() => _sending = false);
     _scrollToBottom();
+  }
+
+  Future<void> _attach() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'],
+      withData: false, // on lit uniquement path + size pour éviter l'OOM
+    );
+    if (result == null || result.files.isEmpty) return;
+    final file = result.files.first;
+    if (file.path == null) return;
+
+    HapticFeedback.lightImpact();
+    setState(() => _uploading = true);
+    try {
+      const threshold = 25 * 1024 * 1024; // 25 MB
+      if (file.size > threshold) {
+        // Mode 2 : lien signé — upload path-based sans charger en mémoire
+        await ref.read(messagesProvider.notifier).send(
+          '',
+          fileName: file.name,
+          mimeType: _guessMime(file.name),
+          filePath: file.path,
+        );
+      } else {
+        // Mode 1 : pièce jointe directe
+        final bytes = await io.File(file.path!).readAsBytes();
+        await ref.read(messagesProvider.notifier).send(
+          '',
+          fileBytes: bytes,
+          fileName:  file.name,
+          mimeType:  _guessMime(file.name),
+        );
+      }
+      _scrollToBottom();
+    } finally {
+      setState(() => _uploading = false);
+    }
+  }
+
+  String _guessMime(String name) {
+    final ext = name.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'jpg': case 'jpeg': return 'image/jpeg';
+      case 'png':              return 'image/png';
+      case 'pdf':              return 'application/pdf';
+      case 'doc':              return 'application/msword';
+      case 'docx':             return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      default:                 return 'application/octet-stream';
+    }
   }
 
   @override
@@ -106,11 +173,13 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                 ),
               ),
 
-              //  Zone de saisie 
+              //  Zone de saisie
               _ReplyBox(
                 controller: _controller,
                 sending:    _sending,
+                uploading:  _uploading,
                 onSend:     _send,
+                onAttach:   _attach,
               ),
             ],
           ),
@@ -357,7 +426,6 @@ class _MessageBubble extends StatelessWidget {
               Flexible(
                 child: Container(
                   constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.70),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     gradient: isStudent
                         ? const LinearGradient(
@@ -380,12 +448,88 @@ class _MessageBubble extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Text(
-                    message.content,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      color:    isStudent ? Colors.white : _kText,
-                      height:   1.45,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft:     const Radius.circular(16),
+                      topRight:    const Radius.circular(16),
+                      bottomLeft:  Radius.circular(!isStudent && isLast ? 4 : 16),
+                      bottomRight: Radius.circular(isStudent && isLast ? 4 : 16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Pièce jointe image
+                        if (message.hasAttachment && message.isImage)
+                          Image.network(
+                            message.fileUrl!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            loadingBuilder: (_, child, progress) => progress == null
+                                ? child
+                                : SizedBox(
+                                    height: 120,
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: isStudent ? Colors.white54 : _kAccent,
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                        // Pièce jointe fichier
+                        if (message.hasAttachment && !message.isImage)
+                          GestureDetector(
+                            onTap: () => launchUrl(
+                              Uri.parse(message.fileUrl!),
+                              mode: LaunchMode.externalApplication,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.insert_drive_file_outlined,
+                                    size: 18,
+                                    color: isStudent ? Colors.white70 : _kAccent,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      message.fileName ?? 'Fichier',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: isStudent ? Colors.white : _kAccent,
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: isStudent ? Colors.white70 : _kAccent,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        // Texte (si présent)
+                        if (message.content.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            child: Text(
+                              message.content,
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                color:    isStudent ? Colors.white : _kText,
+                                height:   1.45,
+                              ),
+                            ),
+                          ),
+                        // Padding si pièce jointe seule sans texte
+                        if (message.hasAttachment && message.content.isEmpty && !message.isImage)
+                          const SizedBox(height: 4),
+                      ],
                     ),
                   ),
                 ),
@@ -416,71 +560,189 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-//  Zone de saisie 
-class _ReplyBox extends StatelessWidget {
+//  Zone de saisie
+class _ReplyBox extends StatefulWidget {
   final TextEditingController controller;
   final bool         sending;
+  final bool         uploading;
   final VoidCallback onSend;
-  const _ReplyBox({required this.controller, required this.sending, required this.onSend});
+  final VoidCallback onAttach;
+  const _ReplyBox({
+    required this.controller,
+    required this.sending,
+    required this.uploading,
+    required this.onSend,
+    required this.onAttach,
+  });
+
+  @override
+  State<_ReplyBox> createState() => _ReplyBoxState();
+}
+
+class _ReplyBoxState extends State<_ReplyBox> {
+  bool _showChips = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Reflète l'état réel du champ (ex : préremplissage venu d'une
+    // candidature) au lieu de toujours démarrer sur "vide".
+    _showChips = widget.controller.text.isEmpty;
+    widget.controller.addListener(_onTextChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  void _onTextChanged() {
+    final empty = widget.controller.text.isEmpty;
+    if (empty != _showChips) setState(() => _showChips = empty);
+  }
+
+  void _applyTemplate(String text) {
+    widget.controller.text = text;
+    widget.controller.selection = TextSelection.collapsed(offset: text.length);
+    setState(() => _showChips = false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark  = Theme.of(context).brightness == Brightness.dark;
+    final replies = context.s.quickReplies;
+
     return Container(
       color: Theme.of(context).colorScheme.surface,
-      padding: EdgeInsets.fromLTRB(12, 10, 12, MediaQuery.of(context).padding.bottom + 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      padding: EdgeInsets.fromLTRB(12, 8, 12, MediaQuery.of(context).padding.bottom + 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Container(
-              constraints: const BoxConstraints(maxHeight: 120),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0D1121) : const Color(0xFFF4F6FB),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: isDark ? const Color(0xFF1E2A52) : _kBorder),
-              ),
-              child: TextField(
-                controller:      controller,
-                maxLines:        null,
-                textInputAction: TextInputAction.newline,
-                style: const TextStyle(fontSize: 14.5, color: _kText),
-                decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                  hintText:  context.s.writeMessage,
-                  hintStyle: TextStyle(color: _kMuted, fontSize: 14.5),
-                  border:    InputBorder.none,
+          //  Chips templates rapides (visibles seulement quand champ vide)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeInOut,
+            child: _showChips
+                ? SizedBox(
+                    height: 36,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      itemCount: replies.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (_, i) => GestureDetector(
+                        onTap: () => _applyTemplate(replies[i]),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF0D1121)
+                                : _kAccent.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: _kAccent.withValues(alpha: isDark ? 0.30 : 0.20),
+                            ),
+                          ),
+                          child: Text(
+                            replies[i],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: _kAccent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+
+          if (_showChips) const SizedBox(height: 8),
+
+          //  Champ texte + boutons
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Bouton paperclip
+              GestureDetector(
+                onTap: (widget.sending || widget.uploading) ? null : widget.onAttach,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 42, height: 42,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0D1121) : const Color(0xFFF4F6FB),
+                    borderRadius: BorderRadius.circular(21),
+                    border: Border.all(color: isDark ? const Color(0xFF1E2A52) : _kBorder),
+                  ),
+                  child: widget.uploading
+                      ? const Padding(
+                          padding: EdgeInsets.all(11),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent),
+                        )
+                      : Icon(
+                          Icons.attach_file_rounded,
+                          size: 20,
+                          color: (widget.sending || widget.uploading) ? _kMuted : _kAccent,
+                        ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: sending ? null : onSend,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 46, height: 46,
-              decoration: BoxDecoration(
-                gradient: sending
-                    ? null
-                    : const LinearGradient(
-                        colors: [_kAccent, Color(0xFF1E40AF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                color:        sending ? _kBorder : null,
-                borderRadius: BorderRadius.circular(23),
-                boxShadow: sending ? [] : [
-                  BoxShadow(color: _kAccent.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 120),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF0D1121) : const Color(0xFFF4F6FB),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: isDark ? const Color(0xFF1E2A52) : _kBorder),
+                  ),
+                  child: TextField(
+                    controller:      widget.controller,
+                    maxLines:        null,
+                    textInputAction: TextInputAction.newline,
+                    style: const TextStyle(fontSize: 14.5, color: _kText),
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                      hintText:  context.s.writeMessage,
+                      hintStyle: TextStyle(color: _kMuted, fontSize: 14.5),
+                      border:    InputBorder.none,
+                    ),
+                  ),
+                ),
               ),
-              child: sending
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent),
-                    )
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-            ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: widget.sending ? null : widget.onSend,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 46, height: 46,
+                  decoration: BoxDecoration(
+                    gradient: widget.sending
+                        ? null
+                        : const LinearGradient(
+                            colors: [_kAccent, Color(0xFF1E40AF)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                    color:        widget.sending ? _kBorder : null,
+                    borderRadius: BorderRadius.circular(23),
+                    boxShadow: widget.sending ? [] : [
+                      BoxShadow(color: _kAccent.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: widget.sending
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _kAccent),
+                        )
+                      : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                ),
+              ),
+            ],
           ),
         ],
       ),

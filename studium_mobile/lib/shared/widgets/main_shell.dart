@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/i18n/strings.dart';
+import '../../features/messaging/presentation/providers/messaging_providers.dart';
 
 class _NavItem {
   final IconData icon;
@@ -21,7 +23,10 @@ List<_NavItem> _navItems(AppStrings s) => [
 const _kBlue     = Color(0xFF4880FF);
 const _kInactive = Color(0xFFB0B7C3);
 
-class MainShell extends StatelessWidget {
+// Index de l'onglet Messages dans la barre de navigation
+const _kMessagesIndex = 3;
+
+class MainShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
   const MainShell({super.key, required this.navigationShell});
 
@@ -34,13 +39,14 @@ class MainShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-    final isDark    = Theme.of(context).brightness == Brightness.dark;
-    final items     = _navItems(context.s);
-    final barColor  = isDark
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bottomPad  = MediaQuery.of(context).padding.bottom;
+    final isDark     = Theme.of(context).brightness == Brightness.dark;
+    final items      = _navItems(context.s);
+    final barColor   = isDark
         ? Theme.of(context).colorScheme.surface
         : Colors.white;
+    final unreadMsgs = ref.watch(unreadStudentProvider).valueOrNull ?? 0;
 
     return Scaffold(
       extendBody: true,
@@ -72,6 +78,7 @@ class MainShell extends StatelessWidget {
                 child: _NavButton(
                   item: items[i],
                   isActive: isActive,
+                  badge: i == _kMessagesIndex ? unreadMsgs : 0,
                   onTap: () => _onTap(i),
                 ),
               );
@@ -86,12 +93,14 @@ class MainShell extends StatelessWidget {
 class _NavButton extends StatelessWidget {
   final _NavItem     item;
   final bool         isActive;
+  final int          badge;
   final VoidCallback onTap;
 
   const _NavButton({
     required this.item,
     required this.isActive,
     required this.onTap,
+    this.badge = 0,
   });
 
   @override
@@ -113,14 +122,45 @@ class _NavButton extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: Icon(
-                    isActive ? item.activeIcon : item.icon,
-                    key: ValueKey(isActive),
-                    size: 22,
-                    color: isActive ? _kBlue : _kInactive,
-                  ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: Icon(
+                        isActive ? item.activeIcon : item.icon,
+                        key: ValueKey(isActive),
+                        size: 22,
+                        color: isActive ? _kBlue : _kInactive,
+                      ),
+                    ),
+                    if (badge > 0)
+                      Positioned(
+                        right: -6,
+                        top: -6,
+                        child: Container(
+                          constraints: const BoxConstraints(minWidth: 14),
+                          height: 14,
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF4757),
+                            borderRadius: BorderRadius.circular(7),
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                          child: Center(
+                            child: Text(
+                              badge > 99 ? '99+' : '$badge',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),

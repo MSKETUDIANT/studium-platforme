@@ -42,19 +42,27 @@ class DocumentModel extends Document {
       };
 
   static DocumentType _parseType(String value) => switch (value.toLowerCase()) {
-        'cv'             => DocumentType.cv,
-        'transcript'     => DocumentType.transcript,
-        'recommendation' => DocumentType.recommendation,
-        'passport'       => DocumentType.passport,
-        _                => DocumentType.other,
+        'cv'                => DocumentType.cv,
+        'transcript'        => DocumentType.transcript,
+        'recommendation'    => DocumentType.recommendation,
+        'passport'          => DocumentType.passport,
+        'motivation_letter' => DocumentType.motivationLetter,
+        'diploma'           => DocumentType.diploma,
+        'language_cert'     => DocumentType.languageCert,
+        'financial_proof'   => DocumentType.financialProof,
+        _                   => DocumentType.other,
       };
 
   static String _typeToString(DocumentType type) => switch (type) {
-        DocumentType.cv             => 'cv',
-        DocumentType.transcript     => 'transcript',
-        DocumentType.recommendation => 'recommendation',
-        DocumentType.passport       => 'passport',
-        DocumentType.other          => 'other',
+        DocumentType.cv               => 'cv',
+        DocumentType.transcript       => 'transcript',
+        DocumentType.recommendation   => 'recommendation',
+        DocumentType.passport         => 'passport',
+        DocumentType.motivationLetter => 'motivation_letter',
+        DocumentType.diploma          => 'diploma',
+        DocumentType.languageCert     => 'language_cert',
+        DocumentType.financialProof   => 'financial_proof',
+        DocumentType.other            => 'other',
       };
 
   static DocumentStatus _parseStatus(String value) => switch (value) {

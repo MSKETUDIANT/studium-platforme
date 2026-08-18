@@ -10,6 +10,9 @@ import 'package:printing/printing.dart';
 import '../../data/datasources/application_remote_datasource.dart';
 import '../../domain/entities/application.dart';
 import '../providers/application_providers.dart';
+import '../../../documents/domain/entities/document.dart';
+import '../../../documents/presentation/providers/document_providers.dart';
+import '../../../profile/presentation/providers/profile_providers.dart';
 
 const _kNavy   = Color(0xFF1A1D2E);
 const _kBlue   = Color(0xFF4880FF);
@@ -27,7 +30,8 @@ class ApplicationDetailPage extends ConsumerStatefulWidget {
 
 class _ApplicationDetailPageState
     extends ConsumerState<ApplicationDetailPage> {
-  bool _submitting  = false;
+  bool _submitting    = false;
+  bool _resubmitting  = false;
   bool _generatingPdf = false;
 
   Application get app {
@@ -54,6 +58,37 @@ class _ApplicationDetailPageState
     ApplicationStatus.sent            => const Color(0xFF2563EB),
     _                                 => const Color(0xFF4F46E5),
   };
+
+  bool get _needsFix => app.status == ApplicationStatus.needsFix;
+
+  Future<void> _resubmit() async {
+    setState(() => _resubmitting = true);
+    try {
+      await ref.read(myApplicationsProvider.notifier).resubmit(app.id);
+      if (mounted) {
+        context.pop();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Row(children: [
+            Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+            SizedBox(width: 10),
+            Text('Candidature resoumise avec succes'),
+          ]),
+          backgroundColor: const Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _resubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
+  }
 
   Future<void> _submitDraft() async {
     setState(() => _submitting = true);
@@ -92,101 +127,294 @@ class _ApplicationDetailPageState
   Future<void> _generatePdf() async {
     setState(() => _generatingPdf = true);
     try {
-      final doc = pw.Document();
-      final accentPdf = PdfColor.fromInt(_accent.toARGB32());
+      // Récupération des données
+      final profile    = await ref.read(profileProvider.future);
+      final academics  = await ref.read(academicBackgroundsProvider.future);
+      final experiences = await ref.read(experiencesProvider.future);
+      final allDocs    = await ref.read(documentsProvider.future);
+      final approvedDocs = allDocs.where((d) => d.status == DocumentStatus.approved).toList();
+
+      final doc        = pw.Document();
+      final accentPdf  = PdfColor.fromInt(_accent.toARGB32());
+      // Palette partagée avec le pack PDF dashboard (ApplicationPDF.tsx)
+      final navyPdf    = PdfColor.fromInt(0xFF0B1852);
+      final bluePdf    = PdfColor.fromInt(0xFF153EA8);
+      final greyPdf    = PdfColor.fromInt(0xFF64748B);
+      final mutedPdf   = PdfColor.fromInt(0xFF94A3B8);
+      final borderPdf  = PdfColor.fromInt(0xFFE5E7EB);
+      final bgPdf      = PdfColor.fromInt(0xFFF8FAFC);
+      final today      = _formatDate(DateTime.now());
+
+      pw.Widget footer(int page, int total) => pw.Column(children: [
+        pw.Divider(color: borderPdf, thickness: 0.5),
+        pw.SizedBox(height: 4),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text('Dossier généré par Studium · $today',
+                style: pw.TextStyle(fontSize: 7.5, color: mutedPdf)),
+            pw.Text('Page $page / $total',
+                style: pw.TextStyle(fontSize: 7.5, color: mutedPdf)),
+          ],
+        ),
+      ]);
+
+      pw.Widget sectionTitle(String title) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(height: 20),
+          pw.Text(title.toUpperCase(),
+              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold,
+                  color: mutedPdf, letterSpacing: 1.5)),
+          pw.SizedBox(height: 8),
+          pw.Divider(color: borderPdf, thickness: 0.5),
+          pw.SizedBox(height: 10),
+        ],
+      );
+
+      pw.Widget infoRow(String label, String value, {PdfColor? valueColor}) => pw.Padding(
+        padding: const pw.EdgeInsets.only(bottom: 7),
+        child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.SizedBox(width: 150,
+              child: pw.Text(label, style: pw.TextStyle(fontSize: 11, color: greyPdf))),
+          pw.Expanded(child: pw.Text(value,
+              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold,
+                  color: valueColor ?? navyPdf))),
+        ]),
+      );
+
+      // ── PAGE 1 — Fiche candidature ──
+      final totalPages = 1
+          + (academics.isNotEmpty || experiences.isNotEmpty ? 1 : 0)
+          + ((profile?.motivationLetter?.isNotEmpty ?? false) ? 1 : 0)
+          + (approvedDocs.isNotEmpty ? 1 : 0);
 
       doc.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
+        margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
         build: (pw.Context ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
+            // En-tête coloré
             pw.Container(
               width: double.infinity,
               padding: const pw.EdgeInsets.all(20),
               decoration: pw.BoxDecoration(
                 color: accentPdf,
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
               ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    app.statusLabel.toUpperCase(),
-                    style: pw.TextStyle(
-                      fontSize: 9,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.white,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Text(
-                    app.programName ?? 'Programme',
-                    style: pw.TextStyle(
-                      fontSize: 20,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.white,
-                    ),
-                  ),
-                  if (app.universityName != null) ...[
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      [
-                        app.universityName!,
-                        if (app.country != null) app.country!,
-                      ].join(' · '),
-                      style: const pw.TextStyle(fontSize: 12, color: PdfColors.white),
-                    ),
-                  ],
+              child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                pw.Text(app.statusLabel.toUpperCase(),
+                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.white, letterSpacing: 1.2)),
+                pw.SizedBox(height: 6),
+                pw.Text(app.programName ?? 'Programme',
+                    style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.white)),
+                if (app.universityName != null) ...[
+                  pw.SizedBox(height: 4),
+                  pw.Text([app.universityName!, if (app.country != null) app.country!].join(' · '),
+                      style: const pw.TextStyle(fontSize: 11, color: PdfColors.white)),
                 ],
-              ),
+              ]),
             ),
-            pw.SizedBox(height: 24),
-            pw.Text(
-              'Détails de la candidature',
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColor.fromInt(0xFF1A1D2E),
-              ),
-            ),
-            pw.SizedBox(height: 12),
-            pw.Divider(color: PdfColor.fromInt(0xFFE5E7EB)),
-            pw.SizedBox(height: 12),
-            _pdfRow('Référence', app.id.substring(0, 8).toUpperCase()),
-            _pdfRow('Statut', app.statusLabel),
-            if (app.level != null) _pdfRow('Niveau', _levelLabel(app.level!)),
-            if (app.submittedAt != null)
-              _pdfRow('Date de soumission', _formatDate(app.submittedAt!)),
-            if (app.country != null) _pdfRow('Pays', app.country!),
-            pw.SizedBox(height: 24),
-            pw.Text(
-              'Suivi de candidature',
-              style: pw.TextStyle(
-                fontSize: 14,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColor.fromInt(0xFF1A1D2E),
-              ),
-            ),
-            pw.SizedBox(height: 12),
-            pw.Divider(color: PdfColor.fromInt(0xFFE5E7EB)),
-            pw.SizedBox(height: 12),
+            // Candidat
+            sectionTitle('Candidat'),
+            if (profile != null) ...[
+              infoRow('Nom complet', profile.fullName),
+              if (profile.nationality != null) infoRow('Nationalité', profile.nationality!),
+              if (profile.phone != null) infoRow('Téléphone', profile.phone!),
+              if (profile.email != null) infoRow('Email', profile.email!),
+              if (profile.countryResidence != null)
+                infoRow('Pays de résidence', profile.countryResidence!),
+            ],
+            // Détails candidature
+            sectionTitle('Détails de la candidature'),
+            infoRow('Référence', app.id.substring(0, 8).toUpperCase()),
+            infoRow('Statut', app.statusLabel, valueColor: bluePdf),
+            if (app.level != null) infoRow('Niveau', _levelLabel(app.level!)),
+            if (app.submittedAt != null) infoRow('Date de soumission', _formatDate(app.submittedAt!)),
+            if (app.country != null) infoRow('Pays destination', app.country!),
+            // Suivi
+            sectionTitle('Suivi de candidature'),
             ..._buildPdfTimeline(),
             pw.Spacer(),
-            pw.Divider(color: PdfColor.fromInt(0xFFE5E7EB)),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              'Document généré par Studium · ${_formatDate(DateTime.now())}',
-              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey),
-            ),
+            footer(1, totalPages),
           ],
         ),
       ));
 
+      // ── PAGE 2 — Profil académique & Expériences ──
+      if (academics.isNotEmpty || experiences.isNotEmpty) {
+        doc.addPage(pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+          build: (pw.Context ctx) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Profil académique',
+                  style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: navyPdf)),
+              if (academics.isNotEmpty) ...[
+                sectionTitle('Formations'),
+                ...academics.map((a) => pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 12),
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    color: bgPdf,
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    border: pw.Border.all(color: borderPdf),
+                  ),
+                  child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                    pw.Text(a.degree,
+                        style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: navyPdf)),
+                    pw.SizedBox(height: 3),
+                    pw.Text(a.university,
+                        style: pw.TextStyle(fontSize: 11, color: greyPdf)),
+                    if (a.year != null || a.average != null)
+                      pw.Text(
+                        [if (a.year != null) 'Obtenu en ${a.year}',
+                         if (a.average != null) 'Moyenne : ${a.average}'].join(' · '),
+                        style: pw.TextStyle(fontSize: 10, color: greyPdf),
+                      ),
+                  ]),
+                )),
+              ],
+              if (experiences.isNotEmpty) ...[
+                sectionTitle('Expériences professionnelles'),
+                ...experiences.map((e) {
+                  final period = [
+                    if (e.startDate != null) _formatDate(e.startDate!),
+                    e.isCurrent ? 'Présent' : (e.endDate != null ? _formatDate(e.endDate!) : ''),
+                  ].where((s) => s.isNotEmpty).join(' > ');
+                  return pw.Container(
+                    margin: const pw.EdgeInsets.only(bottom: 12),
+                    padding: const pw.EdgeInsets.all(12),
+                    decoration: pw.BoxDecoration(
+                      color: bgPdf,
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                      border: pw.Border.all(color: borderPdf),
+                    ),
+                    child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                      pw.Text('${e.position} - ${e.company}',
+                          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: navyPdf)),
+                      if (period.isNotEmpty)
+                        pw.Text(period, style: pw.TextStyle(fontSize: 10, color: greyPdf)),
+                      if (e.description != null && e.description!.isNotEmpty) ...[
+                        pw.SizedBox(height: 4),
+                        pw.Text(e.description!, style: pw.TextStyle(fontSize: 11, color: navyPdf)),
+                      ],
+                    ]),
+                  );
+                }),
+              ],
+              pw.Spacer(),
+              footer(2, totalPages),
+            ],
+          ),
+        ));
+      }
+
+      // ── PAGE 3 — Lettre de motivation ──
+      // Priorité à la lettre spécifique à cette candidature (rédigée pour
+      // ce programme précis) ; à défaut, le modèle de base du profil.
+      final motivationLetter = (widget.app.motivationText?.isNotEmpty ?? false)
+          ? widget.app.motivationText
+          : profile?.motivationLetter;
+      if (motivationLetter?.isNotEmpty ?? false) {
+        final pageNum = 2 + (academics.isNotEmpty || experiences.isNotEmpty ? 1 : 0);
+        doc.addPage(pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+          build: (pw.Context ctx) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Lettre de motivation',
+                  style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: navyPdf)),
+              pw.SizedBox(height: 8),
+              pw.Divider(color: borderPdf),
+              pw.SizedBox(height: 16),
+              pw.Text(motivationLetter!,
+                  style: pw.TextStyle(fontSize: 11, color: navyPdf, lineSpacing: 3)),
+              if (profile?.academicGoals?.isNotEmpty ?? false) ...[
+                sectionTitle('Objectifs académiques'),
+                pw.Text(profile!.academicGoals!,
+                    style: pw.TextStyle(fontSize: 11, color: navyPdf, lineSpacing: 3)),
+              ],
+              if (profile?.careerGoals?.isNotEmpty ?? false) ...[
+                sectionTitle('Objectifs professionnels'),
+                pw.Text(profile!.careerGoals!,
+                    style: pw.TextStyle(fontSize: 11, color: navyPdf, lineSpacing: 3)),
+              ],
+              pw.Spacer(),
+              footer(pageNum, totalPages),
+            ],
+          ),
+        ));
+      }
+
+      // ── PAGE 4 — Documents soumis ──
+      if (approvedDocs.isNotEmpty) {
+        doc.addPage(pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+          build: (pw.Context ctx) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Documents soumis',
+                  style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: navyPdf)),
+              pw.SizedBox(height: 8),
+              pw.Divider(color: borderPdf),
+              pw.SizedBox(height: 16),
+              ...approvedDocs.asMap().entries.map((entry) {
+                final i   = entry.key;
+                final doc2 = entry.value;
+                return pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 10),
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: pw.BoxDecoration(
+                    color: i.isEven ? bgPdf : PdfColors.white,
+                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                    border: pw.Border.all(color: borderPdf),
+                  ),
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                        pw.Text(doc2.typeLabel,
+                            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold,
+                                color: navyPdf)),
+                        pw.Text(doc2.fileName,
+                            style: pw.TextStyle(fontSize: 10, color: greyPdf)),
+                      ]),
+                      pw.Row(children: [
+                        pw.Text(doc2.sizeLabel,
+                            style: pw.TextStyle(fontSize: 10, color: greyPdf)),
+                        pw.SizedBox(width: 12),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColor.fromInt(0xFF10B981),
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                          ),
+                          child: pw.Text('Approuvé',
+                              style: pw.TextStyle(fontSize: 9, color: PdfColors.white,
+                                  fontWeight: pw.FontWeight.bold)),
+                        ),
+                      ]),
+                    ],
+                  ),
+                );
+              }),
+              pw.Spacer(),
+              footer(totalPages, totalPages),
+            ],
+          ),
+        ));
+      }
+
       await Printing.sharePdf(
         bytes: await doc.save(),
-        filename: 'candidature_${app.id.substring(0, 8)}.pdf',
+        filename: 'dossier_${app.id.substring(0, 8)}.pdf',
       );
     } catch (e) {
       if (mounted) {
@@ -203,32 +431,10 @@ class _ApplicationDetailPageState
     }
   }
 
-  pw.Widget _pdfRow(String label, String value) => pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 8),
-        child: pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.SizedBox(
-              width: 140,
-              child: pw.Text(
-                label,
-                style: const pw.TextStyle(color: PdfColors.grey600),
-              ),
-            ),
-            pw.Expanded(
-              child: pw.Text(
-                value,
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-      );
-
   List<pw.Widget> _buildPdfTimeline() {
     final steps = _buildTimelineSteps();
     return steps.map((step) {
-      final icon  = step.done ? '' : (step.current ? '' : '');
+      final icon  = step.done ? 'v' : (step.current ? '-' : '');
       final color = step.done || step.current
           ? (step.isNegative
               ? PdfColor.fromInt(0xFFEF4444)
@@ -267,7 +473,7 @@ class _ApplicationDetailPageState
                       ? pw.FontWeight.bold
                       : pw.FontWeight.normal,
                   color: step.done || step.current
-                      ? PdfColor.fromInt(0xFF1A1D2E)
+                      ? PdfColor.fromInt(0xFF0B1852)
                       : PdfColors.grey500,
                 ),
               ),
@@ -285,7 +491,14 @@ class _ApplicationDetailPageState
 
   @override
   Widget build(BuildContext context) {
-    final isDraft = app.status == ApplicationStatus.draft;
+    final isDraft    = app.status == ApplicationStatus.draft;
+    final historyAsync = ref.watch(statusHistoryProvider(app.id));
+    // Note du staff associée au dernier passage en "correction requise"
+    final staffNote = historyAsync.valueOrNull
+        ?.where((e) => e.toStatus == 'needsfix' && e.note != null && e.note!.isNotEmpty)
+        .lastOrNull
+        ?.note;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
@@ -300,6 +513,13 @@ class _ApplicationDetailPageState
                       .animate()
                       .fadeIn(delay: 60.ms)
                       .slideY(begin: .06, duration: 280.ms, curve: Curves.easeOut),
+                  if (_needsFix) ...[
+                    const SizedBox(height: 14),
+                    _buildNeedsFixBanner(staffNote)
+                        .animate()
+                        .fadeIn(delay: 100.ms)
+                        .slideY(begin: .06, duration: 280.ms, curve: Curves.easeOut),
+                  ],
                   const SizedBox(height: 14),
                   _buildCompletenessCard()
                       .animate()
@@ -323,35 +543,9 @@ class _ApplicationDetailPageState
         bottomNavigationBar: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: isDraft
+            child: _needsFix
+                // ── Correction requise : resoumettre + PDF ──
                 ? Row(children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          onPressed: _submitting ? null : _submitDraft,
-                          icon: _submitting
-                              ? const SizedBox(
-                                  width: 18, height: 18,
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 2))
-                              : const Icon(Icons.send_rounded, size: 18),
-                          label: Text(
-                            _submitting ? 'Envoi' : 'Soumettre',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 15),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _kBlue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            elevation: 0,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
                     SizedBox(
                       height: 52,
                       child: OutlinedButton(
@@ -366,42 +560,260 @@ class _ApplicationDetailPageState
                         child: _generatingPdf
                             ? const SizedBox(
                                 width: 18, height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2))
+                                child: CircularProgressIndicator(strokeWidth: 2))
                             : const Icon(Icons.picture_as_pdf_outlined, size: 20),
                       ),
                     ),
-                  ])
-                : SizedBox(
-                    height: 52,
-                    child: OutlinedButton.icon(
-                      onPressed: _generatingPdf ? null : _generatePdf,
-                      icon: _generatingPdf
-                          ? const SizedBox(
-                              width: 18, height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                      label: Text(
-                        _generatingPdf ? 'Génération' : 'Télécharger PDF',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 15),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _kNavy,
-                        side: const BorderSide(color: _kBorder, width: 1.5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        elevation: 0,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ResubmitButton(
+                        loading:  _resubmitting,
+                        onTap:    _resubmitting ? null : _resubmit,
                       ),
                     ),
-                  ),
+                  ])
+                : isDraft
+                    // ── Brouillon : soumettre + PDF ──
+                    ? Row(children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 52,
+                            child: ElevatedButton.icon(
+                              onPressed: _submitting ? null : _submitDraft,
+                              icon: _submitting
+                                  ? const SizedBox(
+                                      width: 18, height: 18,
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white, strokeWidth: 2))
+                                  : const Icon(Icons.send_rounded, size: 18),
+                              label: Text(
+                                _submitting ? 'Envoi' : 'Soumettre',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 15),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _kBlue,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                                elevation: 0,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          height: 52,
+                          child: OutlinedButton(
+                            onPressed: _generatingPdf ? null : _generatePdf,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _kNavy,
+                              side: const BorderSide(color: _kBorder, width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14)),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                            ),
+                            child: _generatingPdf
+                                ? const SizedBox(
+                                    width: 18, height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.picture_as_pdf_outlined,
+                                    size: 20),
+                          ),
+                        ),
+                      ])
+                    // ── Autres statuts : PDF seul ──
+                    : SizedBox(
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: _generatingPdf ? null : _generatePdf,
+                          icon: _generatingPdf
+                              ? const SizedBox(
+                                  width: 18, height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2))
+                              : const Icon(Icons.picture_as_pdf_outlined,
+                                  size: 18),
+                          label: Text(
+                            _generatingPdf ? 'Generation' : 'Telecharger PDF',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 15),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _kNavy,
+                            side: const BorderSide(color: _kBorder, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
           ),
         ),
       ),
     );
   }
 
-  //  Gradient SliverAppBar 
+  // ── Banner "Correction requise" ──
+
+  Widget _buildNeedsFixBanner(String? staffNote) {
+    const orange     = Color(0xFFF59E0B);
+    const orangeDark = Color(0xFFD97706);
+    const bgColor    = Color(0xFFFFFBEB);
+    const borderCol  = Color(0xFFFDE68A);
+
+    return Container(
+      decoration: BoxDecoration(
+        color:        bgColor,
+        borderRadius: BorderRadius.circular(14),
+        border:       Border.all(color: borderCol, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: orange.withValues(alpha: 0.10),
+            blurRadius: 10, offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header orange
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: const BoxDecoration(
+              color: orange,
+              borderRadius: BorderRadius.only(
+                topLeft:  Radius.circular(13),
+                topRight: Radius.circular(13),
+              ),
+            ),
+            child: Row(children: [
+              const Icon(Icons.warning_amber_rounded,
+                  color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Action requise — Correction demandee',
+                  style: TextStyle(
+                    color:      Colors.white,
+                    fontSize:   13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ),
+            ]),
+          ),
+          // Corps
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Le staff a demande des corrections a votre dossier. Mettez a jour vos documents puis resoumettez votre candidature.',
+                  style: TextStyle(
+                    fontSize: 13, color: Color(0xFF92400E), height: 1.5,
+                  ),
+                ),
+                // Note du staff si disponible
+                if (staffNote != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: orange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: orange.withValues(alpha: 0.25)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Note du staff :',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: orangeDark,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          staffNote,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF92400E),
+                            height: 1.5,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                // Bouton acceder aux documents
+                GestureDetector(
+                  onTap: () => context.push('/documents'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 11),
+                    decoration: BoxDecoration(
+                      color:        Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border:       Border.all(color: borderCol, width: 1.5),
+                    ),
+                    child: Row(children: [
+                      Container(
+                        width: 32, height: 32,
+                        decoration: BoxDecoration(
+                          color: orange.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.folder_open_outlined,
+                            color: orange, size: 17),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Mettre a jour mes documents',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF92400E),
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: orange, size: 20),
+                    ]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Ouvre le fil de messagerie (unique, par étudiant) avec le message
+  // pré-rempli et tagué avec le programme/l'université concernés, pour que
+  // le staff sache immédiatement de quelle candidature il s'agit.
+  void _contactTeam(BuildContext context) {
+    final label = [
+      if (app.programName != null) app.programName!,
+      if (app.universityName != null) app.universityName!,
+    ].join(' — ');
+    final prefill =
+        label.isEmpty ? null : 'Concernant ma candidature "$label" : ';
+    context.go('/messages', extra: prefill);
+  }
+
+  //  Gradient SliverAppBar
 
   SliverAppBar _buildSliverAppBar(BuildContext context) {
     return SliverAppBar(
@@ -412,6 +824,14 @@ class _ApplicationDetailPageState
         icon: const Icon(Icons.arrow_back, color: Colors.white),
         onPressed: () => context.pop(),
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.chat_bubble_outline_rounded,
+              color: Colors.white),
+          tooltip: 'Contacter l\'équipe',
+          onPressed: () => _contactTeam(context),
+        ),
+      ],
       systemOverlayStyle: SystemUiOverlayStyle.light,
       flexibleSpace: FlexibleSpaceBar(
         collapseMode: CollapseMode.pin,
@@ -1035,4 +1455,68 @@ class _TimelineStep {
     required this.current,
     this.isNegative = false,
   });
+}
+
+// Bouton "Resoumettre ma candidature"
+
+class _ResubmitButton extends StatelessWidget {
+  final VoidCallback? onTap;
+  final bool loading;
+  const _ResubmitButton({required this.onTap, required this.loading});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 52,
+      decoration: BoxDecoration(
+        gradient: onTap != null
+            ? const LinearGradient(
+                colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                begin: Alignment.topLeft,
+                end:   Alignment.bottomRight,
+              )
+            : null,
+        color:        onTap == null ? const Color(0xFFE5E7EB) : null,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: onTap != null
+            ? [
+                BoxShadow(
+                  color:      const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                  blurRadius: 12, offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap:        onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Center(
+            child: loading
+                ? const SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2.5),
+                  )
+                : const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.send_rounded, color: Colors.white, size: 17),
+                      SizedBox(width: 8),
+                      Text(
+                        'Resoumettre ma candidature',
+                        style: TextStyle(
+                          color:      Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize:   14,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:studium_mobile/features/dashboard/presentation/pages/dashboard_page.dart';
 import '../features/applications/domain/entities/application.dart';
 import '../features/applications/presentation/pages/applications_page.dart';
 import '../features/applications/presentation/pages/application_detail_page.dart';
 import '../features/applications/presentation/pages/new_application_wizard.dart';
+import '../features/auth/presentation/screens/accept_terms_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
+import '../features/auth/presentation/screens/onboarding_wizard.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
+import '../features/auth/presentation/screens/email_confirmation_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../features/auth/presentation/screens/reset_password_screen.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
@@ -21,6 +25,7 @@ import '../shared/widgets/placeholder_screen.dart';
 import '../features/messaging/presentation/pages/messages_page.dart';
 import '../features/notifications/presentation/pages/notifications_page.dart';
 import '../features/settings/presentation/pages/settings_page.dart';
+import '../features/ambassador/presentation/pages/ambassador_page.dart';
 import '../main.dart';
 
 final isResettingPasswordProvider = StateProvider<bool>((ref) => false);
@@ -66,13 +71,48 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         '/splash',
         '/forgot-password',
         '/reset-password',
+        '/email-sent',
       ];
       final isPublic = publicRoutes.any(
         (r) => state.matchedLocation.startsWith(r),
       );
 
+      final onboardingDone =
+          Supabase.instance.client.auth.currentUser
+              ?.userMetadata?['onboarding_done'] == true;
+
+      // Consentement RGPD (CGU / politique de confidentialité). Fixé dès
+      // l'inscription pour le flux email/mot de passe (auth_remote_datasource.dart) ;
+      // pour Google/Apple, ce flag n'existe pas encore -> interstitiel obligatoire
+      // avant tout accès à l'app, quel que soit l'écran d'entrée (Login ou Register).
+      final termsAccepted =
+          Supabase.instance.client.auth.currentUser
+              ?.userMetadata?['terms_accepted'] == true;
+
       if (user == null && !isPublic) return '/login';
-      if (user != null && isPublic) return '/home';
+
+      if (user != null) {
+        if (isPublic) {
+          if (!termsAccepted) return '/accept-terms';
+          return onboardingDone ? '/home' : '/onboarding';
+        }
+        if (!termsAccepted &&
+            !state.matchedLocation.startsWith('/accept-terms')) {
+          return '/accept-terms';
+        }
+        if (termsAccepted &&
+            state.matchedLocation.startsWith('/accept-terms')) {
+          return onboardingDone ? '/home' : '/onboarding';
+        }
+        if (termsAccepted && !onboardingDone &&
+            !state.matchedLocation.startsWith('/onboarding')) {
+          return '/onboarding';
+        }
+        if (termsAccepted && onboardingDone &&
+            state.matchedLocation.startsWith('/onboarding')) {
+          return '/home';
+        }
+      }
       return null;
     },
 
@@ -80,7 +120,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       //  Routes publiques 
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/login',  builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) {
+          final ref = state.uri.queryParameters['ref'];
+          return RegisterScreen(refCode: ref);
+        },
+      ),
+      GoRoute(
+        path: '/email-sent',
+        builder: (context, state) {
+          final email = state.uri.queryParameters['email'] ?? '';
+          return EmailConfirmationScreen(email: email);
+        },
+      ),
       GoRoute(path: '/forgot-password',
           builder: (_, __) => const ForgotPasswordScreen()),
       GoRoute(
@@ -92,7 +145,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      //  Shell avec bottom nav 
+      //  Consentement RGPD (plein écran, avant onboarding — comptes Google/Apple)
+      GoRoute(
+        path: '/accept-terms',
+        parentNavigatorKey: navigatorKey,
+        builder: (_, __) => const AcceptTermsScreen(),
+      ),
+
+      //  Onboarding (plein écran, post-inscription)
+      GoRoute(
+        path: '/onboarding',
+        parentNavigatorKey: navigatorKey,
+        builder: (_, __) => const OnboardingWizard(),
+      ),
+
+      //  Shell avec bottom nav
       StatefulShellRoute.indexedStack(
         builder: (_, __, shell) => MainShell(navigationShell: shell),
         branches: [
@@ -124,7 +191,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/messages',
-              builder: (_, __) => const MessagesPage(),
+              builder: (_, state) =>
+                  MessagesPage(prefillText: state.extra as String?),
             ),
           ]),
 
@@ -153,8 +221,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/applications/new',
         parentNavigatorKey: navigatorKey,
         builder: (context, state) {
-          final program = state.extra as Program?;
-          return NewApplicationWizard(program: program);
+          final extra = state.extra;
+          if (extra is Map) {
+            return NewApplicationWizard(
+              program: extra['program'] as Program?,
+              draftId: extra['draftId'] as String?,
+              motivationLetter: extra['motivationLetter'] as String?,
+            );
+          }
+          return NewApplicationWizard(program: extra as Program?);
         },
       ),
       GoRoute(
@@ -174,6 +249,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/settings',
         parentNavigatorKey: navigatorKey,
         builder: (_, __) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: '/ambassador',
+        parentNavigatorKey: navigatorKey,
+        builder: (_, __) => const AmbassadorPage(),
       ),
     ],
   );

@@ -19,6 +19,9 @@ class PushNotificationService {
   final _messaging    = FirebaseMessaging.instance;
   final _localNotifs  = FlutterLocalNotificationsPlugin();
 
+  static void Function(String route)? _navigate;
+  static void setNavigate(void Function(String route) fn) => _navigate = fn;
+
   // Canal Android haute priorité
   static const _channel = AndroidNotificationChannel(
     'studium_high',
@@ -59,6 +62,10 @@ class PushNotificationService {
 
     // Tap sur notif quand app en background
     FirebaseMessaging.onMessageOpenedApp.listen(_onNotificationTap);
+
+    // Tap sur notif quand app en foreground terminated (cold start)
+    final initial = await _messaging.getInitialMessage();
+    if (initial != null) _onNotificationTap(initial);
   }
 
   //  Token 
@@ -130,6 +137,12 @@ class PushNotificationService {
 
   void _onNotificationTap(RemoteMessage message) {
     debugPrint('[FCM] Tap notif: ${message.data}');
-    // Navigation selon message.data['type'] à implémenter selon le routeur
+    final type  = message.data['type'] as String?;
+    final appId = message.data['application_id'] as String?;
+    if (type == 'status_change' && appId != null) {
+      _navigate?.call('/applications/$appId');
+    } else {
+      _navigate?.call('/applications');
+    }
   }
 }

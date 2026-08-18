@@ -29,6 +29,7 @@ class ApplicationModel extends Application {
       createdAt:      json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
+      motivationText: json['motivation_letter'] as String?,
       programName:    program?['program_name']    as String?,
       universityName: program?['university_name'] as String?,
       country:        program?['country']         as String?,

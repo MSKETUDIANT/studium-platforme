@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../domain/entities/program.dart';
 import '../providers/program_providers.dart';
+import '../../../profile/presentation/providers/profile_providers.dart';
 
 const _kText   = Color(0xFF1A1D2E);
 const _kGrey   = Color(0xFF9CA3AF);
@@ -33,6 +34,17 @@ class ProgramDetailPage extends ConsumerWidget {
     final bottomPad = MediaQuery.of(context).padding.bottom + 72;
     final favIds = ref.watch(favoriteProgramIdsProvider).valueOrNull ?? {};
     final isFav  = favIds.contains(program.id);
+
+    final academics = ref.watch(academicBackgroundsProvider).valueOrNull ?? [];
+    double? studentAverage;
+    int? latestYear;
+    for (final a in academics) {
+      if (latestYear == null || (a.year ?? 0) >= latestYear) {
+        latestYear = a.year ?? 0;
+        studentAverage = a.average;
+      }
+    }
+    final eligible = program.isEligibleFor(studentAverage);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -181,11 +193,61 @@ class ProgramDetailPage extends ConsumerWidget {
                           icon: Icons.calendar_today_outlined,
                           label: 'Deadline',
                           value: program.deadlineLabel,
+                        ),
+                        _InfoRow(
+                          icon: Icons.grade_outlined,
+                          label: 'Moyenne min.',
+                          value: program.minAverageLabel,
+                        ),
+                        _InfoRow(
+                          icon: Icons.translate_outlined,
+                          label: 'Niveau de langue requis',
+                          value: program.requiredLanguageLevelLabel,
                           isLast: true,
                         ),
                       ],
                     ),
                   ).animate().fadeIn(delay: 140.ms).slideY(begin: .04),
+
+                  if (eligible != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: eligible
+                            ? const Color(0xFF10B981).withValues(alpha: 0.08)
+                            : const Color(0xFFEF4444).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: eligible ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            eligible ? Icons.check_circle_outline_rounded : Icons.info_outline_rounded,
+                            size: 18,
+                            color: eligible ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              eligible
+                                  ? 'Ta moyenne remplit le prérequis de ce programme.'
+                                  : "Ta moyenne est en-dessous du seuil requis (${program.minAverageLabel}) — tu peux tout de même postuler.",
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: eligible ? const Color(0xFF047857) : const Color(0xFFB91C1C),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ).animate().fadeIn(delay: 160.ms).slideY(begin: .04),
+                  ],
 
                   // Description
                   if (program.description != null &&

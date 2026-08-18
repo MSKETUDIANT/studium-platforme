@@ -13,6 +13,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/entities/student_profile.dart';
 import '../providers/profile_providers.dart';
+import '../../../settings/presentation/providers/settings_providers.dart';
+import '../../../../core/validators/field_validators.dart';
 
 //  Palette 
 const _kBlue   = Color(0xFF4880FF);
@@ -211,12 +213,20 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   //  Date / pays 
 
+  // Bornes d'âge plausibles pour un candidat à des études supérieures.
+  static const _kMinAge = 16;
+  static const _kMaxAge = 100;
+
   Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final maxDate = DateTime(now.year - _kMinAge, now.month, now.day);
+    final minDate = DateTime(now.year - _kMaxAge, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
-      initialDate: _birthDate ?? DateTime(2000),
-      firstDate: DateTime(1940),
-      lastDate: DateTime.now(),
+      initialDate: _birthDate ?? DateTime(now.year - 18, now.month, now.day),
+      firstDate: minDate,
+      lastDate: maxDate,
+      helpText: 'Date de naissance',
     );
     if (picked != null) setState(() => _birthDate = picked);
   }
@@ -312,20 +322,20 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     }
   }
 
-  //  Word counter 
+  //  Word counter (bornes lues depuis platform_settings, cf. minWords)
 
-  Color _wordCountColor() {
+  Color _wordCountColor(int minWords, int maxWords) {
     if (_wordCount == 0) return _kGrey;
-    if (_wordCount < 300) return const Color(0xFFEF4444);
-    if (_wordCount <= 600) return const Color(0xFF10B981);
+    if (_wordCount < minWords) return const Color(0xFFEF4444);
+    if (_wordCount <= maxWords) return const Color(0xFF10B981);
     return const Color(0xFFF59E0B);
   }
 
-  String _wordCountLabel() {
-    if (_wordCount == 0) return '0 / 300600 mots';
-    if (_wordCount < 300) return '$_wordCount mots  minimum 300';
-    if (_wordCount <= 600) return '$_wordCount mots ';
-    return '$_wordCount mots  maximum 600 dépassé';
+  String _wordCountLabel(int minWords, int maxWords) {
+    if (_wordCount == 0) return '0 mots  entre $minWords et $maxWords recommandés';
+    if (_wordCount < minWords) return '$_wordCount mots  minimum $minWords';
+    if (_wordCount <= maxWords) return '$_wordCount mots ';
+    return '$_wordCount mots  maximum $maxWords dépassé';
   }
 
   //  Save 
@@ -562,7 +572,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                       icon: Icons.auto_stories_outlined)
                       .animate().fadeIn(delay: 260.ms),
                   const SizedBox(height: 12),
-                  _FormCard(children: [
+                  Builder(builder: (context) {
+                    final minWords = ref.watch(motivationMinWordsProvider).valueOrNull ?? 300;
+                    final maxWords = minWords * 2;
+                    return _FormCard(children: [
                     // Info banner
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -573,17 +586,17 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                           color: _kBlue.withValues(alpha: 0.15),
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.info_outline,
+                          const Icon(Icons.info_outline,
                               size: 16, color: _kBlue),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Rédigez une lettre personnalisée entre 300 et 600 mots. '
+                              'Rédigez une lettre personnalisée entre $minWords et $maxWords mots. '
                               'Expliquez votre parcours, vos motivations et votre projet académique.',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: _kBlue,
                                 height: 1.4,
@@ -598,21 +611,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                       controller: _motivationCtrl,
                       maxLines: 10,
                       decoration: _fieldDecoration(
-                        'Lettre de motivation',
-                        hint: 'Parlez de votre parcours, vos motivations...',
+                        'Modèle de lettre de motivation',
+                        hint: 'Point de départ réutilisé pour vos candidatures, à adapter par programme...',
                         multiline: true,
                         hasError: true,
                       ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return null;
-                        if (_wordCount < 300) {
-                          return 'Minimum 300 mots ($_wordCount actuellement)';
-                        }
-                        if (_wordCount > 600) {
-                          return 'Maximum 600 mots ($_wordCount actuellement)';
-                        }
-                        return null;
-                      },
+                      validator: (v) => wordCountValidator(
+                          v, min: minWords, max: maxWords, optional: true),
                     ),
                     const SizedBox(height: 8),
                     // Word count bar
@@ -622,21 +627,21 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(
-                              value: (_wordCount / 600).clamp(0.0, 1.0),
+                              value: (_wordCount / maxWords).clamp(0.0, 1.0),
                               minHeight: 4,
                               backgroundColor: _kBorder,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                  _wordCountColor()),
+                                  _wordCountColor(minWords, maxWords)),
                             ),
                           ),
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          _wordCountLabel(),
+                          _wordCountLabel(minWords, maxWords),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: _wordCountColor(),
+                            color: _wordCountColor(minWords, maxWords),
                           ),
                         ),
                       ],
@@ -655,7 +660,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                       maxLines: 3,
                       hint: 'Décrivez votre projet professionnel...',
                     ),
-                  ]).animate().fadeIn(delay: 300.ms).slideY(begin: 0.04),
+                  ]).animate().fadeIn(delay: 300.ms).slideY(begin: 0.04);
+                  }),
 
                   const SizedBox(height: 32),
 
@@ -1117,7 +1123,7 @@ class _StyledField extends StatelessWidget {
         multiline: maxLines > 1,
       ),
       validator: required
-          ? (v) => (v == null || v.trim().isEmpty) ? 'Champ requis' : null
+          ? (v) => requiredValidator(v, message: 'Champ requis')
           : null,
     );
   }

@@ -43,4 +43,6 @@ abstract interface class ProfileRepository {
   Future<Experience> addExperience(Experience experience);
   Future<Experience> updateExperience(Experience experience);
   Future<void> deleteExperience(String id);
+
+  Future<int> getDocumentsCount(String userId);
 }

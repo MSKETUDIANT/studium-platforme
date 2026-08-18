@@ -14,6 +14,8 @@ class Program {
   final String? contactEmail;
   final bool isActive;
   final DateTime? createdAt;
+  final double? minAverage;
+  final String? requiredLanguageLevel;
 
   const Program({
     required this.id,
@@ -31,6 +33,8 @@ class Program {
     this.contactEmail,
     required this.isActive,
     this.createdAt,
+    this.minAverage,
+    this.requiredLanguageLevel,
   });
 
   String get levelLabel => switch (level) {
@@ -57,5 +61,16 @@ class Program {
     if (deadline == null) return false;
     final today = DateTime.now();
     return deadline!.isBefore(DateTime(today.year, today.month, today.day));
+  }
+
+  String get minAverageLabel =>
+      minAverage != null ? '${minAverage!.toStringAsFixed(minAverage! % 1 == 0 ? 0 : 2)}/20' : 'Non précisée';
+
+  String get requiredLanguageLevelLabel => requiredLanguageLevel ?? 'Aucun prérequis';
+
+  /// null = pas assez d'info pour se prononcer (pas de seuil, ou pas de moyenne connue).
+  bool? isEligibleFor(double? studentAverage) {
+    if (minAverage == null || studentAverage == null) return null;
+    return studentAverage >= minAverage!;
   }
 }

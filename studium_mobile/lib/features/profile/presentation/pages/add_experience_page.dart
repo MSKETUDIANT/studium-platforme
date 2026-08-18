@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/experience.dart';
 import '../providers/profile_providers.dart';
+import '../../../../core/validators/field_validators.dart';
 
 class AddExperiencePage extends ConsumerStatefulWidget {
   final Experience? existing;
@@ -577,12 +578,7 @@ class _StyledField extends StatelessWidget {
           borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
         ),
       ),
-      validator: required
-          ? (value) {
-              if (value == null || value.trim().isEmpty) return 'Champ requis';
-              return null;
-            }
-          : null,
+      validator: required ? (value) => requiredValidator(value, message: 'Champ requis') : null,
     );
   }
 }

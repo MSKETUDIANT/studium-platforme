@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -297,19 +298,27 @@ class _DocumentCard extends ConsumerWidget {
       };
 
   Color _typeColor() => switch (doc.type) {
-        DocumentType.cv             => _kBlue,
-        DocumentType.transcript     => const Color(0xFF8B5CF6),
-        DocumentType.recommendation => const Color(0xFF10B981),
-        DocumentType.passport       => const Color(0xFFF59E0B),
-        DocumentType.other          => const Color(0xFF6B7280),
+        DocumentType.cv               => _kBlue,
+        DocumentType.transcript       => const Color(0xFF8B5CF6),
+        DocumentType.recommendation   => const Color(0xFF10B981),
+        DocumentType.passport         => const Color(0xFFF59E0B),
+        DocumentType.motivationLetter => const Color(0xFFEC4899),
+        DocumentType.diploma          => const Color(0xFF0891B2),
+        DocumentType.languageCert     => const Color(0xFF7C3AED),
+        DocumentType.financialProof   => const Color(0xFF059669),
+        DocumentType.other            => const Color(0xFF6B7280),
       };
 
   IconData _typeIcon() => switch (doc.type) {
-        DocumentType.cv             => Icons.description_outlined,
-        DocumentType.transcript     => Icons.school_outlined,
-        DocumentType.recommendation => Icons.recommend_outlined,
-        DocumentType.passport       => Icons.badge_outlined,
-        DocumentType.other          => Icons.attach_file_outlined,
+        DocumentType.cv               => Icons.description_outlined,
+        DocumentType.transcript       => Icons.school_outlined,
+        DocumentType.recommendation   => Icons.recommend_outlined,
+        DocumentType.passport         => Icons.badge_outlined,
+        DocumentType.motivationLetter => Icons.edit_note_outlined,
+        DocumentType.diploma          => Icons.workspace_premium_outlined,
+        DocumentType.languageCert     => Icons.translate_outlined,
+        DocumentType.financialProof   => Icons.account_balance_outlined,
+        DocumentType.other            => Icons.attach_file_outlined,
       };
 
   String _shortName() {
@@ -330,172 +339,244 @@ class _DocumentCard extends ConsumerWidget {
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(
-                  color: _kBorder,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(children: [
-              Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(
-                  color: typeColor.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(_typeIcon(), color: typeColor, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(doc.typeLabel,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                            color: _kNavy)),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(doc.statusLabel,
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: statusColor,
-                              fontWeight: FontWeight.w700)),
+      builder: (_) {
+        bool replacing = false;
+        return StatefulBuilder(
+          builder: (sheetCtx, setModalState) => Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: _kBorder,
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ]),
-            const SizedBox(height: 20),
-            const Divider(),
-            const SizedBox(height: 14),
-            _InfoRow(
-                icon: Icons.insert_drive_file_outlined,
-                label: 'Fichier',
-                value: doc.fileName),
-            _InfoRow(
-                icon: Icons.data_usage_outlined,
-                label: 'Taille',
-                value: doc.sizeLabel),
-            _InfoRow(
-                icon: Icons.code_outlined,
-                label: 'Format',
-                value: doc.mimeType),
-            if (doc.createdAt != null)
-              _InfoRow(
-                  icon: Icons.calendar_today_outlined,
-                  label: 'Date',
-                  value: _fmtDate(doc.createdAt!)),
-            if (doc.status == DocumentStatus.rejected &&
-                doc.rejectionReason != null) ...[
-              const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.25)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.info_outline,
-                        size: 16, color: Color(0xFFEF4444)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Motif de rejet',
+                const SizedBox(height: 20),
+                Row(children: [
+                  Container(
+                    width: 52, height: 52,
+                    decoration: BoxDecoration(
+                      color: typeColor.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(_typeIcon(), color: typeColor, size: 26),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(doc.typeLabel,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                                color: _kNavy)),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(doc.statusLabel,
                               style: TextStyle(
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFFEF4444))),
-                          const SizedBox(height: 4),
-                          Text(doc.rejectionReason!,
-                              style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xFFEF4444),
-                                  height: 1.4)),
-                        ],
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 14),
+                _InfoRow(
+                    icon: Icons.insert_drive_file_outlined,
+                    label: 'Fichier',
+                    value: doc.fileName),
+                _InfoRow(
+                    icon: Icons.data_usage_outlined,
+                    label: 'Taille',
+                    value: doc.sizeLabel),
+                _InfoRow(
+                    icon: Icons.code_outlined,
+                    label: 'Format',
+                    value: doc.mimeType),
+                if (doc.createdAt != null)
+                  _InfoRow(
+                      icon: Icons.calendar_today_outlined,
+                      label: 'Date',
+                      value: _fmtDate(doc.createdAt!)),
+                if (doc.status == DocumentStatus.rejected &&
+                    doc.rejectionReason != null) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.25)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline,
+                            size: 16, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Motif de rejet',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFFEF4444))),
+                              const SizedBox(height: 4),
+                              Text(doc.rejectionReason!,
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFFEF4444),
+                                      height: 1.4)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+
+                // Bouton "Remplacer" uniquement pour les documents rejetés
+                if (doc.status == DocumentStatus.rejected) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: replacing
+                          ? null
+                          : () async {
+                              final result = await FilePicker.platform
+                                  .pickFiles(type: FileType.any);
+                              if (result == null ||
+                                  result.files.single.path == null) { return; }
+                              setModalState(() => replacing = true);
+                              try {
+                                await ref
+                                    .read(documentsProvider.notifier)
+                                    .replace(
+                                      documentId: doc.id,
+                                      type: doc.type,
+                                      filePath: result.files.single.path!,
+                                      oldFileUrl: doc.fileUrl,
+                                    );
+                                if (sheetCtx.mounted) {
+                                  Navigator.pop(sheetCtx);
+                                }
+                              } catch (e) {
+                                setModalState(() => replacing = false);
+                                if (sheetCtx.mounted) {
+                                  ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Erreur : $e'),
+                                      backgroundColor: const Color(0xFFEF4444),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
+                                      margin: const EdgeInsets.all(16),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      icon: replacing
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.swap_horiz_rounded, size: 18),
+                      label: Text(
+                          replacing ? 'Remplacement...' : 'Remplacer le fichier'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF59E0B),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final uri = Uri.tryParse(doc.fileUrl);
+                      if (uri != null && await canLaunchUrl(uri)) {
+                        await launchUrl(uri,
+                            mode: LaunchMode.externalApplication);
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text("Impossible d'ouvrir le fichier")),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    label: const Text('Ouvrir le fichier'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kBlue,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
                 ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final uri = Uri.tryParse(doc.fileUrl);
-                  if (uri != null && await canLaunchUrl(uri)) {
-                    await launchUrl(uri,
-                        mode: LaunchMode.externalApplication);
-                  } else {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("Impossible d'ouvrir le fichier")),
-                      );
-                    }
-                  }
-                },
-                icon: const Icon(Icons.open_in_new, size: 18),
-                label: const Text('Ouvrir le fichier'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kBlue,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _confirmDelete(context, ref);
+                    },
+                    icon: const Icon(Icons.delete_outline,
+                        size: 18, color: Color(0xFFEF4444)),
+                    label: const Text('Supprimer le document',
+                        style: TextStyle(color: Color(0xFFEF4444))),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFFEF4444)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _confirmDelete(context, ref);
-                },
-                icon: const Icon(Icons.delete_outline,
-                    size: 18, color: Color(0xFFEF4444)),
-                label: const Text('Supprimer le document',
-                    style: TextStyle(color: Color(0xFFEF4444))),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFEF4444)),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

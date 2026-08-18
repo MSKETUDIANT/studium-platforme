@@ -17,6 +17,8 @@ class ProgramModel extends Program {
     super.contactEmail,
     required super.isActive,
     super.createdAt,
+    super.minAverage,
+    super.requiredLanguageLevel,
   });
 
   factory ProgramModel.fromJson(Map<String, dynamic> json) => ProgramModel(
@@ -41,5 +43,7 @@ class ProgramModel extends Program {
         createdAt:      json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)
             : null,
+        minAverage:             (json['min_average'] as num?)?.toDouble(),
+        requiredLanguageLevel:  json['required_language_level'] as String?,
       );
 }

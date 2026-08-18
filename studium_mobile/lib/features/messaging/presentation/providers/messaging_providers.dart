@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -109,7 +110,13 @@ class MessagesNotifier extends AutoDisposeAsyncNotifier<List<MessageModel>> {
     return messages;
   }
 
-  Future<void> send(String content) async {
+  Future<void> send(
+    String content, {
+    Uint8List? fileBytes,
+    String?    fileName,
+    String?    mimeType,
+    String?    filePath,  // Mode 2 : chemin fichier > 25 MB
+  }) async {
     final userId = ref.read(currentUserIdProvider);
     final convId = await ref.read(conversationIdProvider.future);
     if (userId == null || convId == null) return;
@@ -121,22 +128,44 @@ class MessagesNotifier extends AutoDisposeAsyncNotifier<List<MessageModel>> {
       senderType: 'student',
       content:    content,
       createdAt:  DateTime.now(),
+      fileName:   fileName,
     );
     state = AsyncData([...state.valueOrNull ?? [], tempMsg]);
 
     try {
-      final real = await ref.read(messagingDatasourceProvider).sendMessage(
+      final ds = ref.read(messagingDatasourceProvider);
+
+      // Upload : Mode 2 (lien signé) ou Mode 1 (URL publique)
+      String? uploadedUrl;
+      if (filePath != null && fileName != null && mimeType != null) {
+        uploadedUrl = await ds.uploadLargeFile(
+          userId:   userId,
+          fileName: fileName,
+          filePath: filePath,
+          mimeType: mimeType,
+        );
+      } else if (fileBytes != null && fileName != null && mimeType != null) {
+        uploadedUrl = await ds.uploadAttachment(
+          userId:   userId,
+          fileName: fileName,
+          bytes:    fileBytes,
+          mimeType: mimeType,
+        );
+      }
+
+      final real = await ds.sendMessage(
         conversationId: convId,
         studentId:      userId,
         content:        content,
+        fileUrl:        uploadedUrl,
+        fileName:       fileName,
       );
-      // Remplacer le message temporaire par le vrai
+
       final current = state.valueOrNull ?? [];
       state = AsyncData(
         current.map((m) => m.id == tempId ? real : m).toList(),
       );
     } catch (_) {
-      // Retirer le message temporaire en cas d'erreur
       final current = state.valueOrNull ?? [];
       state = AsyncData(current.where((m) => m.id != tempId).toList());
     }

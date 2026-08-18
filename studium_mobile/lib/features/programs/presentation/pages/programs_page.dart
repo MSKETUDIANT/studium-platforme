@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../domain/entities/program.dart';
 import '../providers/program_providers.dart';
 import 'program_detail_page.dart';
@@ -110,6 +111,16 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
     super.dispose();
   }
 
+  bool get _hasActiveSearch =>
+      _query.isNotEmpty ||
+      _selectedLevel.isNotEmpty ||
+      _selectedCountry.isNotEmpty ||
+      _selectedLang.isNotEmpty ||
+      _selectedDuration.isNotEmpty ||
+      _selectedCostRange.isNotEmpty ||
+      _selectedDeadline.isNotEmpty ||
+      _selectedDomain.isNotEmpty;
+
   List<Program> _filter(List<Program> programs) => programs.where((p) {
         final matchLevel    = _selectedLevel.isEmpty    || p.level    == _selectedLevel;
         final matchCountry  = _selectedCountry.isEmpty  || p.country  == _selectedCountry;
@@ -190,6 +201,8 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
                   ),
                 ),
                 SliverToBoxAdapter(child: _buildFilterRow(programs)),
+                if (!_hasActiveSearch)
+                  SliverToBoxAdapter(child: _buildRecommendedSection()),
                 const SliverToBoxAdapter(child: SizedBox(height: 4)),
                 if (filtered.isEmpty)
                   SliverFillRemaining(child: _buildEmpty())
@@ -529,6 +542,78 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
           const SizedBox(width: 8),
         ],
       ),
+    );
+  }
+
+  Widget _buildRecommendedSection() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final recoAsync = ref.watch(recommendedProgramsProvider);
+        final recos = recoAsync.valueOrNull ?? const <Program>[];
+
+        // Tant que le calcul est en cours (les providers dépendants sont
+        // autoDispose et se rechargent à chaque retour sur l'écran), on
+        // affiche un skeleton plutôt que de masquer la section : sans ça,
+        // la section semblait disparaître aléatoirement selon la vitesse
+        // de chargement, alors qu'elle était simplement encore en train
+        // de calculer les recommandations.
+        if (recoAsync.isLoading && recos.isEmpty) {
+          return _RecommendedSectionSkeleton();
+        }
+        // Erreur silencieuse (réseau, RLS...) : ne pas la confondre avec
+        // une absence légitime de recommandations, on la masque quand même
+        // ici mais elle reste visible via recoAsync.hasError si besoin de
+        // debug plus tard.
+        if (recos.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome_rounded,
+                        size: 16, color: _kBlue),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Recommandé pour vous',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 190,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: recos.length,
+                  itemBuilder: (_, i) => Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: _RecommendedCard(
+                      program: recos[i],
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProgramDetailPage(program: recos[i]),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1010,6 +1095,56 @@ class _ProgramCard extends ConsumerWidget {
                         ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  // Bouton Candidater
+                  GestureDetector(
+                    onTap: program.isExpired
+                        ? null
+                        : () => context.push('/applications/new', extra: program),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      decoration: BoxDecoration(
+                        gradient: program.isExpired
+                            ? null
+                            : const LinearGradient(
+                                colors: [Color(0xFF0B1852), Color(0xFF4880FF)],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ),
+                        color: program.isExpired
+                            ? const Color(0xFFF3F4F6)
+                            : null,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            program.isExpired
+                                ? Icons.lock_outline_rounded
+                                : Icons.send_rounded,
+                            size: 14,
+                            color: program.isExpired
+                                ? _kGrey
+                                : Colors.white,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            program.isExpired
+                                ? 'Candidature fermee'
+                                : 'Candidater',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: program.isExpired ? _kGrey : Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1106,4 +1241,160 @@ class _GeoShape extends StatelessWidget {
           ),
         ),
       );
+}
+
+//  Skeleton "Recommandé pour vous" (pendant le calcul des recommandations)
+
+class _RecommendedSectionSkeleton extends StatelessWidget {
+  const _RecommendedSectionSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF1E2A52)
+        : const Color(0xFFE9ECF5);
+    return Padding(
+      padding: const EdgeInsets.only(top: 18),
+      child: SizedBox(
+        height: 190,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: 3,
+          itemBuilder: (_, i) => Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Container(
+              width: 170,
+              height: 190,
+              decoration: BoxDecoration(
+                color: base,
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+//  Carte "Recommandé pour vous"
+
+class _RecommendedCard extends StatelessWidget {
+  final Program program;
+  final VoidCallback onTap;
+  const _RecommendedCard({required this.program, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 170,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Theme.of(context).brightness == Brightness.dark
+              ? Border.all(color: const Color(0xFF1E2A52))
+              : null,
+          boxShadow: Theme.of(context).brightness == Brightness.dark
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+              child: Container(
+                height: 78,
+                width: double.infinity,
+                decoration: BoxDecoration(gradient: _bannerGradient(program.level)),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -14, top: -14,
+                      child: _GeoShape(size: 60, opacity: 0.12),
+                    ),
+                    if (program.level != null)
+                      Positioned(
+                        left: 10, bottom: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _levelColor(program.level),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _levelLabel(program.level),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    program.programName,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      height: 1.25,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    program.universityName,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: _kBlue,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  if (program.country != null)
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_outlined, size: 12, color: _kGrey),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            program.country!,
+                            style: const TextStyle(fontSize: 11, color: _kGrey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

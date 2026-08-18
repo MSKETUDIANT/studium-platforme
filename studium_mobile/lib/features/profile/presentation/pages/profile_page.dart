@@ -452,13 +452,22 @@ class _InfosStep extends ConsumerWidget {
           const SizedBox(height: 16),
 
           _InfoSection(
+            title: 'Identité',
+            items: [
+              _InfoItem(Icons.person_outlined, 'Prénom', profile?.firstName),
+              _InfoItem(Icons.badge_outlined, 'Nom', profile?.lastName),
+              _InfoItem(Icons.email_outlined, 'Email', profile?.email),
+            ],
+          ).animate().fadeIn(delay: 80.ms).slideY(begin: .04),
+          const SizedBox(height: 14),
+          _InfoSection(
             title: 'Contact',
             items: [
               _InfoItem(Icons.phone_outlined, 'Téléphone', profile?.phone),
               _InfoItem(Icons.cake_outlined, 'Date de naissance',
                   _fmtFull(profile?.birthDate)),
             ],
-          ).animate().fadeIn(delay: 100.ms).slideY(begin: .04),
+          ).animate().fadeIn(delay: 110.ms).slideY(begin: .04),
           const SizedBox(height: 14),
           _InfoSection(
             title: 'Localisation & origine',

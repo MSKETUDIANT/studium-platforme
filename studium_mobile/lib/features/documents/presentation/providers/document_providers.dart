@@ -35,12 +35,14 @@ class DocumentsNotifier extends AutoDisposeAsyncNotifier<List<Document>> {
   Future<void> upload({
     required DocumentType type,
     required String filePath,
+    UploadProgressCallback? onProgress,
   }) async {
     final userId = ref.read(currentUserIdProvider) ?? '';
     await ref.read(documentRepositoryProvider).uploadDocument(
       studentProfileId: userId,
       type: type,
       filePath: filePath,
+      onProgress: onProgress,
     );
     ref.invalidateSelf();
     ref.invalidate(documentCountProvider);
@@ -55,5 +57,22 @@ class DocumentsNotifier extends AutoDisposeAsyncNotifier<List<Document>> {
     );
     ref.invalidateSelf();
     ref.invalidate(documentCountProvider);
+  }
+
+  Future<void> replace({
+    required String documentId,
+    required DocumentType type,
+    required String filePath,
+    required String oldFileUrl,
+  }) async {
+    final userId = ref.read(currentUserIdProvider) ?? '';
+    await ref.read(documentRepositoryProvider).replaceDocument(
+      documentId:       documentId,
+      studentProfileId: userId,
+      type:             type,
+      filePath:         filePath,
+      oldFileUrl:       oldFileUrl,
+    );
+    ref.invalidateSelf();
   }
 }

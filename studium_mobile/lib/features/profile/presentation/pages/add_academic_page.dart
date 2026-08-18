@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/academic_background.dart';
 import '../providers/profile_providers.dart';
+import '../../../../core/validators/field_validators.dart';
 
 class AddAcademicPage extends ConsumerStatefulWidget {
   final AcademicBackground? existing;
@@ -66,11 +67,12 @@ class _AddAcademicPageState extends ConsumerState<AddAcademicPage> {
   Future<void> _pickYear() async {
     final now = DateTime.now();
 
+    // Un diplôme "obtenu" ne peut pas dater du futur.
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime(_year ?? now.year),
       firstDate: DateTime(1970),
-      lastDate: DateTime(now.year + 5),
+      lastDate: DateTime(now.year),
       initialDatePickerMode: DatePickerMode.year,
       helpText: "Sélectionner l'année",
       cancelText: 'Annuler',
@@ -184,13 +186,7 @@ class _AddAcademicPageState extends ConsumerState<AddAcademicPage> {
                                     keyboardType: const TextInputType.numberWithOptions(
                                       decimal: true,
                                     ),
-                                    validator: (value) {
-                                      if (value == null || value.trim().isEmpty) return null;
-                                      final parsed = double.tryParse(value.trim().replaceAll(',', '.'));
-                                      if (parsed == null) return 'Valeur invalide';
-                                      if (parsed < 0 || parsed > 20) return 'Entre 0 et 20';
-                                      return null;
-                                    },
+                                    validator: (value) => gradeValidator(value, optional: true),
                                   ),
                                 ),
                               ],
@@ -464,14 +460,7 @@ class _StyledField extends StatelessWidget {
         ),
       ),
       validator: validator ??
-          (required
-              ? (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Champ requis';
-                  }
-                  return null;
-                }
-              : null),
+          (required ? (value) => requiredValidator(value, message: 'Champ requis') : null),
     );
   }
 }
