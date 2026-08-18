@@ -9,11 +9,15 @@ const FROM_NAME      = 'Studium Admissions';
 const MAX_ATTACH_MB  = 20; // Limite pièces jointes (Mo)
 
 const TYPE_LABELS: Record<string, string> = {
-  cv:             'Curriculum Vitae',
-  transcript:     'Relevé de notes et diplômes',
-  recommendation: 'Lettre de recommandation',
-  passport:       'Passeport / Pièce d\'identité',
-  other:          'Document complémentaire',
+  cv:                'Curriculum Vitae',
+  transcript:        'Relevé de notes et diplômes',
+  recommendation:    'Lettre de recommandation',
+  passport:          'Passeport / Pièce d\'identité',
+  motivation_letter: 'Lettre de motivation',
+  diploma:           'Diplôme',
+  language_cert:     'Attestation de langue',
+  financial_proof:   'Justificatif de financement',
+  other:             'Document complémentaire',
 };
 
 interface Payload {
@@ -38,7 +42,37 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    //  1. Détails de la candidature 
+    //  0. Anti-spam (CDC §7) : cooldown par candidature + limite par destinataire
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+    const { count: recentSameApp } = await supabase
+      .from('email_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('application_id', application_id)
+      .gte('sent_at', fiveMinAgo);
+
+    if ((recentSameApp ?? 0) > 0) {
+      return jsonError(
+        'Un envoi pour cette candidature a déjà été effectué il y a moins de 5 minutes. Merci de patienter avant de réessayer.',
+        429,
+      );
+    }
+
+    const { count: recentToRecipient } = await supabase
+      .from('email_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('to_email', to_email)
+      .gte('sent_at', oneHourAgo);
+
+    if ((recentToRecipient ?? 0) >= 5) {
+      return jsonError(
+        `Trop d'envois vers ${to_email} au cours de la dernière heure (limite : 5). Réessayez plus tard.`,
+        429,
+      );
+    }
+
+    //  1. Détails de la candidature
     const { data: app, error: appErr } = await supabase
       .from('applications')
       .select(`
@@ -62,14 +96,36 @@ Deno.serve(async (req) => {
     const submittedAt  = app.submitted_at
       ? new Date(app.submitted_at).toLocaleDateString('fr-FR') : '';
 
-    //  2. Documents approuvés de l'étudiant 
-    const { data: docs } = await supabase
-      .from('documents')
-      .select('id, type, file_url, file_name, size_bytes, status')
-      .eq('student_profile_id', app.student_profile_id)
-      .eq('status', 'approved');
+    //  2. Documents sélectionnés pour cette candidature
+    //     Deux requêtes séparées pour éviter la dépendance FK sur application_documents
+    const { data: linkedRows } = await supabase
+      .from('application_documents')
+      .select('document_id')
+      .eq('application_id', application_id);
 
-    const approvedDocs   = docs ?? [];
+    const hasPivot = linkedRows && linkedRows.length > 0;
+    let docs: any[] = [];
+
+    if (hasPivot) {
+      const docIds = linkedRows.map((r: any) => r.document_id).filter(Boolean);
+      if (docIds.length > 0) {
+        const { data: docData } = await supabase
+          .from('documents')
+          .select('id, type, file_url, file_name, size_bytes, status')
+          .in('id', docIds);
+        docs = docData ?? [];
+      }
+    } else {
+      // Fallback : tous les docs approuvés du profil (anciennes candidatures sans pivot)
+      const { data } = await supabase
+        .from('documents')
+        .select('id, type, file_url, file_name, size_bytes, status')
+        .eq('student_profile_id', app.student_profile_id)
+        .eq('status', 'approved');
+      docs = data ?? [];
+    }
+
+    const approvedDocs   = docs;
     const totalSizeBytes = approvedDocs.reduce((s: number, d: any) => s + (d.size_bytes ?? 0), 0);
     const totalSizeMb    = totalSizeBytes / (1024 * 1024);
 
@@ -186,19 +242,37 @@ Deno.serve(async (req) => {
       resendBody.attachments = attachments;
     }
 
-    const resendRes  = await fetch('https://api.resend.com/emails', {
-      method:  'POST',
-      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body:    JSON.stringify(resendBody),
-    });
+    //  5bis. Retry avec backoff croissant (1s, 2s) sur échec Resend —
+    //  couvre les erreurs transitoires (réseau, 429, 5xx ponctuel).
+    const MAX_ATTEMPTS = 3;
+    let resendData: any = null;
+    let success         = false;
+    let attempts        = 0;
 
-    const resendData = await resendRes.json();
-    const success    = resendRes.ok;
-    const msgId      = resendData?.id ?? null;
-    const errMsg     = success ? null : JSON.stringify(resendData);
+    for (attempts = 1; attempts <= MAX_ATTEMPTS; attempts++) {
+      try {
+        const resendRes = await fetch('https://api.resend.com/emails', {
+          method:  'POST',
+          headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify(resendBody),
+        });
+        resendData = await resendRes.json();
+        success    = resendRes.ok;
+      } catch (fetchErr) {
+        resendData = { error: String(fetchErr) };
+        success    = false;
+      }
 
-    //  6. Log + mise à jour statut 
-    await supabase.from('email_logs').insert({
+      if (success || attempts === MAX_ATTEMPTS) break;
+      await new Promise(r => setTimeout(r, attempts * 1000));
+    }
+
+    const msgId  = resendData?.id ?? null;
+    const errMsg = success ? null : JSON.stringify(resendData);
+    const retryCount = attempts - 1;
+
+    //  6. Log + mise à jour statut
+    const { error: logErr } = await supabase.from('email_logs').insert({
       application_id,
       to_email,
       cc_emails:           cc_emails.length ? cc_emails : null,
@@ -209,7 +283,12 @@ Deno.serve(async (req) => {
       error_message:       errMsg,
       sent_by:             sent_by ?? null,
       is_followup:         false,
+      sent_at:             new Date().toISOString(),
+      retry_count:         retryCount,
     });
+    // Ne doit jamais passer inaperçu : une erreur ici (contrainte, RLS...)
+    // cassait silencieusement toute la traçabilité des envois jusqu'ici.
+    if (logErr) console.error('email_logs insert failed:', logErr.message);
 
     if (success) {
       await supabase.from('applications').update({ status: 'sent' }).eq('id', application_id);
