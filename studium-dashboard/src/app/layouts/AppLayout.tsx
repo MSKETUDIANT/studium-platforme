@@ -292,40 +292,64 @@ const fmtNotifTime = (iso: string) => {
 };
 
 /*  Nav items avec contrôle par rôle  */
-type RoleKey = 'admin' | 'manager' | 'admissions' | 'support';
+type RoleKey = 'admin' | 'manager' | 'admissions' | 'support' | 'ambassador';
 
 const ALL_NAV_ITEMS = [
   {
     section: 'Principal',
     items: [
-      { to: '/applications', label: 'Applications', icon: <IconApplications />, roles: ['admin','manager','admissions'] },
+      // Support voit Applications et Étudiants en lecture — B4/B2 CDC
+      { to: '/applications', label: 'Applications', icon: <IconApplications />, roles: ['admin','manager','admissions','support'] },
       { to: '/students',     label: 'Étudiants',    icon: <IconStudents />,     roles: ['admin','manager','admissions','support'] },
-      { to: '/programs',     label: 'Programmes',   icon: <IconPrograms />,     roles: ['admin','manager','admissions'] },
+      // Programmes : Admin CRUD, autres lecture — Support peut consulter pour répondre aux étudiants (B3 CDC)
+      { to: '/programs',     label: 'Programmes',   icon: <IconPrograms />,     roles: ['admin','manager','admissions','support'] },
     ],
   },
   {
     section: 'Outils',
     items: [
-      { to: '/messaging',  label: 'Messagerie', icon: <IconMessaging />, roles: ['admin','admissions','support'] },
-      { to: '/tasks',      label: 'Tâches',     icon: <IconTasks />,     roles: ['admin','admissions','support'] },
+      // Tâches : tous les rôles internes — B7 CDC
+      { to: '/tasks',          label: 'Tâches',         icon: <IconTasks />,         roles: ['admin','manager','admissions','support'] },
+      { to: '/notifications',  label: 'Notifications',  icon: <IconNotif nav />,     roles: ['admin','manager','admissions','support'] },
+      // Messagerie : Support (tickets), Manager (supervision), Admin — B8 CDC. Admissions passe par le détail candidature
+      { to: '/messaging',  label: 'Messagerie', icon: <IconMessaging />, roles: ['admin','manager','support'] },
+      // Rapports : Manager + Admin — B9 CDC
       { to: '/reporting',  label: 'Rapports',   icon: <IconReporting />, roles: ['admin','manager'] },
-      { to: '/audit',      label: 'Audit',      icon: <IconAudit />,     roles: ['admin'] },
-      { to: '/team',       label: 'Équipe',     icon: <IconTeam />,      roles: ['admin'] },
-      { to: '/settings',   label: 'Paramètres', icon: <IconSettings />,  roles: ['admin'] },
+    ],
+  },
+  {
+    section: 'Configuration',
+    items: [
+      // Configuration : Admin uniquement — B1/B10 CDC
+      { to: '/settings',   label: 'Paramètres',       icon: <IconSettings />,  roles: ['admin'] },
+      { to: '/audit',      label: 'Audit log',         icon: <IconAudit />,     roles: ['admin'] },
+      { to: '/team',       label: 'Gestion utilisateurs', icon: <IconTeam />,   roles: ['admin'] },
+      // Commissions ambassadeurs : Admin, Manager — B10 CDC
+      { to: '/commissions', label: 'Commissions',      icon: <IconCommissions />, roles: ['admin','manager'] },
+    ],
+  },
+  {
+    section: 'Parrainage',
+    items: [
+      // Espace ambassadeur — EPIC 10 CDC (US-10.1 à US-10.4)
+      { to: '/ambassador', label: 'Parrainage', icon: <IconAmbassador />, roles: ['ambassador'] },
     ],
   },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
-  '/applications': 'Applications',
-  '/students':     'Gestion des étudiants',
-  '/programs':     'Programmes',
-  '/messaging':    'Messagerie',
-  '/tasks':        'Tâches & Relances',
-  '/reporting':    'Rapports',
-  '/audit':        'Journal d\'audit',
-  '/team':         'Équipe Studium',
-  '/settings':     'Paramètres',
+  '/applications':  'Applications',
+  '/students':      'Gestion des étudiants',
+  '/programs':      'Programmes',
+  '/messaging':     'Messagerie',
+  '/tasks':         'Tâches & Relances',
+  '/reporting':     'Rapports',
+  '/audit':         'Journal d\'audit',
+  '/team':          'Équipe Studium',
+  '/settings':      'Paramètres',
+  '/notifications': 'Centre de notifications',
+  '/ambassador':    'Parrainage',
+  '/commissions':   'Commissions ambassadeurs',
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -333,6 +357,7 @@ const ROLE_LABELS: Record<string, string> = {
   manager:    'Manager',
   admissions: 'Admissions',
   support:    'Support',
+  ambassador: 'Ambassadeur',
 };
 
 /*  SVG Icons  */
@@ -363,6 +388,12 @@ function IconTasks() {
 function IconAudit() {
   return <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>;
 }
+function IconCommissions() {
+  return <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.5 15a2.5 2.5 0 0 0 2.5 1.5c1.5 0 2.5-.9 2.5-2s-1-1.7-2.5-2-2.5-.9-2.5-2 1-2 2.5-2a2.5 2.5 0 0 1 2.5 1.5"/><line x1="12" y1="6" x2="12" y2="8.5"/><line x1="12" y1="15.5" x2="12" y2="18"/></svg>;
+}
+function IconAmbassador() {
+  return <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/><path d="M16 3.5a4 4 0 0 1 0 7.5"/></svg>;
+}
 function IconCollapse() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>;
 }
@@ -375,8 +406,9 @@ function IconMenu() {
 function IconLogout() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
 }
-function IconNotif() {
-  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+function IconNotif({ nav }: { nav?: boolean } = {}) {
+  const size = nav ? undefined : 17;
+  return <svg width={size} height={size} className={nav ? 'sl-nav-icon' : undefined} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
 }
 
 /* 
@@ -522,7 +554,7 @@ export default function AppLayout() {
                 >
                   {icon}
                   <span className="sl-nav-label">{label}</span>
-                  {to === '/messaging' && unreadCount > 0 && (
+                  {(to === '/messaging' || to === '/notifications') && unreadCount > 0 && (
                     <span className="sl-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
                   )}
                 </NavLink>
@@ -625,10 +657,10 @@ export default function AppLayout() {
 
                   <div className="sl-notif-footer">
                     <button
-                      onClick={() => { setNotifOpen(false); navigate('/messaging'); }}
+                      onClick={() => { setNotifOpen(false); navigate('/notifications'); }}
                       style={{ background: 'none', border: 'none', fontSize: 12.5, fontWeight: 600, color: '#2546cc', cursor: 'pointer', fontFamily: fonts.body }}
                     >
-                      Voir la messagerie 
+                      Voir toutes les notifications
                     </button>
                   </div>
                 </div>

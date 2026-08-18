@@ -35,9 +35,10 @@ export function useRole() {
       });
   }, [user, authLoading]);
 
-  const isAdmin    = role === 'admin';
-  const isTeam     = ['admin', 'admissions', 'support', 'manager'].includes(role ?? '');
-  const isStudent  = role === 'student';
+  const isAdmin      = role === 'admin';
+  const isTeam       = ['admin', 'admissions', 'support', 'manager'].includes(role ?? '');
+  const isStudent    = role === 'student';
+  const isAmbassador = role === 'ambassador';
   const isActive   = status === 'active';    const isInactive = status === 'inactive';
-  return { role, status, loading, isAdmin, isTeam, isStudent, isActive, isInactive };
+  return { role, status, loading, isAdmin, isTeam, isStudent, isAmbassador, isActive, isInactive };
 }
