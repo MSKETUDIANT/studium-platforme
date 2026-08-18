@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase }    from '../../../shared/services/supabase';
-import { PageHeader }  from '../../../shared/components/PageHeader';
-import { colors, fonts } from '../../../shared/constants/theme';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { supabase }       from '../../../shared/services/supabase';
+import { PageHeader }     from '../../../shared/components/PageHeader';
+import { Pagination }     from '../../../shared/components/Pagination';
+import { colors, fonts }  from '../../../shared/constants/theme';
 
 /*  Types  */
 interface Conversation {
@@ -26,6 +27,14 @@ interface Message {
   senderType: 'student' | 'staff';
   content:    string;
   createdAt:  string;
+  fileUrl:    string | null;
+  fileName:   string | null;
+}
+
+interface Template {
+  id:      string;
+  title:   string;
+  content: string;
 }
 
 /*  Helpers  */
@@ -75,17 +84,22 @@ const CSS = `
   .mp-search:focus { border-color:${colors.blue}; }
 
   .mp-conv-list { flex:1; overflow-y:auto; }
-  .mp-conv-item { display:flex; gap:12px; align-items:flex-start; padding:14px 16px; cursor:pointer; border-bottom:1px solid ${colors.border}; transition:background .12s; position:relative; }
-  .mp-conv-item:hover { background:${colors.inputBg}; }
-  .mp-conv-item--active { background:rgba(37,70,204,0.06); border-left:3px solid ${colors.blue}; }
+  .mp-conv-item { display:flex; gap:12px; align-items:flex-start; padding:13px 16px; cursor:pointer; border-bottom:1px solid ${colors.border}; transition:background .12s; position:relative; }
+  .mp-conv-item:hover { background:rgba(37,70,204,0.03); }
+  .mp-conv-item--active { background:rgba(37,70,204,0.07); border-left:3px solid ${colors.blue}; padding-left:13px; }
+  .mp-conv-item--unread { background:#fffbf0; }
+  .mp-conv-item--unread:hover { background:#fff8e6; }
   .mp-conv-item:last-child { border-bottom:none; }
 
-  .mp-avatar { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; font-family:${fonts.body}; flex-shrink:0; }
-  .mp-unread-badge { position:absolute; top:12px; right:14px; min-width:18px; height:18px; border-radius:9px; background:${colors.blue}; color:white; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 4px; }
+  .mp-avatar { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; font-family:${fonts.display}; flex-shrink:0; letter-spacing:-.3px; }
+  .mp-unread-badge { min-width:20px; height:20px; border-radius:10px; background:${colors.blue}; color:white; font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 5px; flex-shrink:0; margin-top:2px; }
+
+  .mp-sidebar-pagination { border-top:1px solid ${colors.border}; padding:8px 10px; flex-shrink:0; background:white; }
+  .mp-sidebar-pagination .pg-wrap { padding:0; box-shadow:none; background:transparent; border-radius:0; }
 
   /* Thread */
   .mp-thread { display:flex; flex-direction:column; overflow:hidden; background:white; }
-  .mp-thread-head { padding:14px 20px; border-bottom:1px solid ${colors.border}; display:flex; align-items:flex-start; gap:12px; flex-shrink:0; }
+  .mp-thread-head { padding:16px 22px; border-bottom:1px solid ${colors.border}; display:flex; align-items:flex-start; gap:14px; flex-shrink:0; background:linear-gradient(135deg,#f8faff 0%,#fff 100%); }
   .mp-messages { flex:1; overflow-y:auto; padding:20px 20px 8px; display:flex; flex-direction:column; gap:12px; background:#fafbff; }
   .mp-empty { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:${colors.textMuted}; font-size:14px; }
 
@@ -99,7 +113,7 @@ const CSS = `
   .mp-bubble-time { font-size:10.5px; color:${colors.textMuted}; margin-top:3px; }
 
   /* Reply box */
-  .mp-reply { padding:14px 20px; border-top:1px solid ${colors.border}; display:flex; flex-direction:column; gap:8px; flex-shrink:0; background:white; }
+  .mp-reply { padding:14px 20px; border-top:1px solid ${colors.border}; display:flex; flex-direction:column; gap:8px; flex-shrink:0; background:white; position:relative; }
   .mp-textarea { width:100%; padding:10px 14px; border:1.5px solid ${colors.borderInput}; border-radius:10px; font-size:13.5px; color:${colors.textPrimary}; background:${colors.inputBg}; font-family:${fonts.body}; resize:none; outline:none; box-sizing:border-box; transition:border-color .18s; }
   .mp-textarea:focus { border-color:${colors.blue}; background:white; }
   .mp-reply-actions { display:flex; align-items:center; justify-content:space-between; }
@@ -107,6 +121,27 @@ const CSS = `
   .mp-send { padding:8px 18px; border-radius:8px; border:none; background:linear-gradient(135deg,${colors.navy} 0%,#1e40af 100%); color:white; font-weight:700; font-size:13px; cursor:pointer; font-family:${fonts.body}; display:flex; align-items:center; gap:7px; transition:opacity .2s; }
   .mp-send:disabled { opacity:.45; cursor:not-allowed; }
   .mp-send:not(:disabled):hover { opacity:.88; }
+
+  /* Templates */
+  .mp-tpl-btn { display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:8px; border:1.5px solid ${colors.borderInput}; background:white; cursor:pointer; font-size:12px; font-weight:600; color:${colors.textSecondary}; font-family:${fonts.body}; transition:all .15s; }
+  .mp-tpl-btn:hover { border-color:${colors.blue}; color:${colors.blue}; background:rgba(37,70,204,0.05); }
+  .mp-tpl-btn--active { border-color:${colors.blue}; color:${colors.blue}; background:rgba(37,70,204,0.07); }
+
+  .mp-tpl-picker { position:absolute; bottom:calc(100% + 8px); left:16px; right:16px; background:white; border-radius:12px; border:1.5px solid ${colors.border}; box-shadow:0 8px 32px rgba(11,24,82,0.14); z-index:50; max-height:320px; display:flex; flex-direction:column; overflow:hidden; }
+  .mp-tpl-head { padding:10px 14px; border-bottom:1px solid ${colors.border}; font-size:12px; font-weight:700; color:${colors.navy}; flex-shrink:0; display:flex; align-items:center; justify-content:space-between; }
+  .mp-tpl-list { flex:1; overflow-y:auto; }
+  .mp-tpl-item { padding:10px 14px; border-bottom:1px solid ${colors.border}; cursor:pointer; transition:background .12s; }
+  .mp-tpl-item:hover { background:rgba(37,70,204,0.04); }
+  .mp-tpl-item:last-child { border-bottom:none; }
+  .mp-tpl-title { font-size:12.5px; font-weight:700; color:${colors.navy}; display:flex; align-items:center; justify-content:space-between; }
+  .mp-tpl-preview { font-size:11.5px; color:${colors.textMuted}; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mp-tpl-del { background:none; border:none; cursor:pointer; color:${colors.textMuted}; padding:2px 6px; border-radius:5px; font-size:11px; line-height:1; flex-shrink:0; }
+  .mp-tpl-del:hover { color:${colors.danger}; background:rgba(220,38,38,0.08); }
+  .mp-tpl-new { padding:10px 14px; border-top:1px solid ${colors.border}; flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
+  .mp-tpl-input { width:100%; padding:7px 10px; border:1.5px solid ${colors.borderInput}; border-radius:7px; font-size:12.5px; font-family:${fonts.body}; color:${colors.textPrimary}; outline:none; box-sizing:border-box; transition:border-color .15s; }
+  .mp-tpl-input:focus { border-color:${colors.blue}; }
+  .mp-tpl-save { align-self:flex-end; padding:6px 14px; border-radius:7px; border:none; background:${colors.blue}; color:white; font-size:12px; font-weight:700; cursor:pointer; font-family:${fonts.body}; opacity:1; transition:opacity .15s; }
+  .mp-tpl-save:disabled { opacity:.4; cursor:not-allowed; }
 
   /* States */
   .mp-dot-loader { display:flex; gap:5px; align-items:center; padding:28px; justify-content:center; }
@@ -123,6 +158,8 @@ export default function MessagingPage() {
   const [filtered,      setFiltered]      = useState<Conversation[]>([]);
   const [search,        setSearch]        = useState('');
   const [selected,      setSelected]      = useState<Conversation | null>(null);
+  const [page,          setPage]          = useState(1);
+  const [pageSize,      setPageSize]      = useState(15);
   const [messages,      setMessages]      = useState<Message[]>([]);
   const [reply,         setReply]         = useState('');
   const [loading,       setLoading]       = useState(true);
@@ -130,6 +167,11 @@ export default function MessagingPage() {
   const [msgLoading,    setMsgLoading]    = useState(false);
   const [sending,       setSending]       = useState(false);
   const [loadError,     setLoadError]     = useState<string | null>(null);
+  const [templates,     setTemplates]     = useState<Template[]>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [newTplTitle,   setNewTplTitle]   = useState('');
+  const [newTplContent, setNewTplContent] = useState('');
+  const [savingTpl,     setSavingTpl]     = useState(false);
   const bottomRef   = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<Conversation | null>(null);
   selectedRef.current = selected;
@@ -223,8 +265,10 @@ export default function MessagingPage() {
           setMessages(prev => [...prev, {
             id:         msg.id,
             senderType: msg.sender_type,
-            content:    msg.content,
+            content:    msg.content ?? '',
             createdAt:  msg.created_at,
+            fileUrl:    msg.file_url  ?? null,
+            fileName:   msg.file_name ?? null,
           }]);
         }
       })
@@ -235,6 +279,7 @@ export default function MessagingPage() {
 
   /*  Filtre search  */
   useEffect(() => {
+    setPage(1);
     if (!search.trim()) { setFiltered(conversations); return; }
     const q = search.toLowerCase();
     setFiltered(conversations.filter(c =>
@@ -265,7 +310,7 @@ export default function MessagingPage() {
 
     const { data, error } = await supabase
       .from('messages')
-      .select('id, sender_type, content, created_at')
+      .select('id, sender_type, content, created_at, file_url, file_name')
       .eq('conversation_id', conv.id)
       .order('created_at', { ascending: true });
 
@@ -275,8 +320,10 @@ export default function MessagingPage() {
       setMessages((data ?? []).map((m: any) => ({
         id:         m.id,
         senderType: m.sender_type,
-        content:    m.content,
+        content:    m.content ?? '',
         createdAt:  m.created_at,
+        fileUrl:    m.file_url   ?? null,
+        fileName:   m.file_name  ?? null,
       })));
     }
     setMsgLoading(false);
@@ -297,7 +344,65 @@ export default function MessagingPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  /*  Envoyer un message  */
+  /*  Uploader une pièce jointe et envoyer le message  */
+  const LARGE_THRESHOLD = 25 * 1024 * 1024; // 25 MB
+
+  const sendAttachment = async (file: File) => {
+    if (!selected) return;
+    setSending(true);
+
+    const isLarge = file.size > LARGE_THRESHOLD;
+    const bucket  = isLarge ? 'large-file-transfers' : 'message-attachments';
+    const ext     = file.name.split('.').pop() ?? 'bin';
+    const path    = `staff/${Date.now()}.${ext}`;
+
+    const { error: upErr } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, { upsert: true });
+    if (upErr) { console.error('[MessagingPage] upload error:', upErr); setSending(false); return; }
+
+    let fileUrl: string;
+    if (isLarge) {
+      const { data: signed, error: signErr } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(path, 30 * 24 * 3600); // 30 jours
+      if (signErr || !signed?.signedUrl) {
+        console.error('[MessagingPage] sign error:', signErr);
+        setSending(false);
+        return;
+      }
+      fileUrl = signed.signedUrl;
+    } else {
+      fileUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: msg, error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: selected.id,
+        sender_type:     'staff',
+        sender_id:       user?.id ?? null,
+        content:         '',
+        file_url:        fileUrl,
+        file_name:       file.name,
+      })
+      .select('id, sender_type, content, created_at, file_url, file_name')
+      .single();
+
+    if (!error && msg) {
+      setMessages(prev => [...prev, {
+        id:         msg.id,
+        senderType: msg.sender_type,
+        content:    msg.content ?? '',
+        createdAt:  msg.created_at,
+        fileUrl:    msg.file_url  ?? null,
+        fileName:   msg.file_name ?? null,
+      }]);
+    }
+    setSending(false);
+  };
+
+  /*  Envoyer un message texte  */
   const sendReply = async () => {
     if (!reply.trim() || !selected) return;
     setSending(true);
@@ -313,7 +418,7 @@ export default function MessagingPage() {
         sender_id:       user?.id ?? null,
         content,
       })
-      .select('id, sender_type, content, created_at')
+      .select('id, sender_type, content, created_at, file_url, file_name')
       .single();
 
     if (error) {
@@ -322,8 +427,10 @@ export default function MessagingPage() {
       setMessages(prev => [...prev, {
         id:         msg.id,
         senderType: msg.sender_type,
-        content:    msg.content,
+        content:    msg.content ?? '',
         createdAt:  msg.created_at,
+        fileUrl:    msg.file_url  ?? null,
+        fileName:   msg.file_name ?? null,
       }]);
       setConversations(prev =>
         prev.map(c => c.id === selected.id
@@ -348,6 +455,40 @@ export default function MessagingPage() {
   };
 
   const totalUnread = conversations.reduce((s, c) => s + c.unreadStaff, 0);
+
+  const totalPages   = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated    = useMemo(
+    () => filtered.slice((page - 1) * pageSize, page * pageSize),
+    [filtered, page, pageSize]
+  );
+
+  /* Templates */
+  useEffect(() => {
+    supabase
+      .from('message_templates')
+      .select('id, title, content')
+      .order('created_at', { ascending: true })
+      .then(({ data }) => setTemplates((data ?? []) as Template[]));
+  }, []);
+
+  const saveTpl = async () => {
+    if (!newTplTitle.trim() || !newTplContent.trim()) return;
+    setSavingTpl(true);
+    const { data } = await supabase
+      .from('message_templates')
+      .insert({ title: newTplTitle.trim(), content: newTplContent.trim() })
+      .select('id, title, content')
+      .single();
+    if (data) setTemplates(prev => [...prev, data as Template]);
+    setNewTplTitle('');
+    setNewTplContent('');
+    setSavingTpl(false);
+  };
+
+  const deleteTpl = async (id: string) => {
+    await supabase.from('message_templates').delete().eq('id', id);
+    setTemplates(prev => prev.filter(t => t.id !== id));
+  };
 
   return (
     <>
@@ -424,24 +565,34 @@ export default function MessagingPage() {
                   {search ? 'Aucun resultat' : 'Aucune conversation'}
                 </span>
               </div>
-            ) : filtered.map(conv => {
+            ) : paginated.map(conv => {
               const [fg, bg] = avatarColor(fullName(conv.student));
               const active   = selected?.id === conv.id;
+              const unread   = conv.unreadStaff > 0;
               return (
                 <div
                   key={conv.id}
-                  className={`mp-conv-item${active ? ' mp-conv-item--active' : ''}`}
+                  className={`mp-conv-item${active ? ' mp-conv-item--active' : unread ? ' mp-conv-item--unread' : ''}`}
                   onClick={() => openConversation(conv)}
                 >
-                  <div className="mp-avatar" style={{ background: bg, color: fg }}>
-                    {initials(conv.student)}
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <div className="mp-avatar" style={{ background: bg, color: fg }}>
+                      {initials(conv.student)}
+                    </div>
+                    {unread && (
+                      <div style={{
+                        position: 'absolute', top: -4, right: -4,
+                        width: 10, height: 10, borderRadius: '50%',
+                        background: colors.blue, border: '2px solid white',
+                      }} />
+                    )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontWeight: conv.unreadStaff > 0 ? 700 : 600, fontSize: 13, color: colors.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontWeight: unread ? 700 : 600, fontSize: 13, color: colors.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {fullName(conv.student)}
                       </span>
-                      <span style={{ fontSize: 10.5, color: colors.textMuted, flexShrink: 0 }}>
+                      <span style={{ fontSize: 10.5, color: colors.textMuted, flexShrink: 0, fontWeight: unread ? 600 : 400 }}>
                         {fmtTime(conv.updatedAt)}
                       </span>
                     </div>
@@ -453,9 +604,9 @@ export default function MessagingPage() {
                     {conv.lastMessage && (
                       <div style={{
                         fontSize: 12,
-                        color: conv.unreadStaff > 0 ? colors.textPrimary : colors.textMuted,
+                        color: unread ? colors.textPrimary : colors.textMuted,
                         marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        fontWeight: conv.unreadStaff > 0 ? 600 : 400,
+                        fontWeight: unread ? 600 : 400,
                       }}>
                         {conv.lastMessage}
                       </div>
@@ -475,13 +626,28 @@ export default function MessagingPage() {
                       </div>
                     )}
                   </div>
-                  {conv.unreadStaff > 0 && (
+                  {unread && (
                     <div className="mp-unread-badge">{conv.unreadStaff}</div>
                   )}
                 </div>
               );
             })}
           </div>
+
+          {/* Pagination sidebar */}
+          {filtered.length > pageSize && (
+            <div className="mp-sidebar-pagination">
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={filtered.length}
+                pageSize={pageSize}
+                onChange={p => setPage(p)}
+                onPageSizeChange={size => { setPageSize(size); setPage(1); }}
+                label="conversations"
+              />
+            </div>
+          )}
         </div>
 
         {/*  Thread  */}
@@ -511,21 +677,33 @@ export default function MessagingPage() {
                 {(() => {
                   const [fg, bg] = avatarColor(fullName(selected.student));
                   return (
-                    <div className="mp-avatar" style={{ background: bg, color: fg, flexShrink: 0 }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                      background: bg, color: fg,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 15, fontWeight: 800, fontFamily: fonts.display,
+                      boxShadow: `0 0 0 3px white, 0 0 0 4px ${bg}`,
+                    }}>
                       {initials(selected.student)}
                     </div>
                   );
                 })()}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: colors.navy }}>
-                    {fullName(selected.student)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 800, fontSize: 16, color: colors.navy, fontFamily: fonts.display, letterSpacing: '-.2px' }}>
+                      {fullName(selected.student)}
+                    </span>
+                    {selected.student.nationality && (
+                      <span style={{
+                        fontSize: 11.5, color: colors.textSecondary,
+                        display: 'flex', alignItems: 'center', gap: 4,
+                      }}>
+                        <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        {selected.student.nationality}
+                      </span>
+                    )}
                   </div>
-                  {selected.student.nationality && (
-                    <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 1 }}>
-                      {selected.student.nationality}
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
                     {ALL_TAGS.map(t => {
                       const active = selected.tags.includes(t.key);
                       return (
@@ -533,11 +711,13 @@ export default function MessagingPage() {
                           key={t.key}
                           onClick={() => toggleTag(selected.id, t.key)}
                           style={{
-                            fontSize: 10.5, fontWeight: 700, padding: '3px 10px',
-                            borderRadius: 20, border: `1.5px solid ${active ? t.color : colors.border}`,
-                            background: active ? t.bg : 'transparent',
+                            fontSize: 11, fontWeight: 700, padding: '4px 11px',
+                            borderRadius: 20,
+                            border: `1.5px solid ${active ? t.color : colors.borderInput}`,
+                            background: active ? t.bg : 'white',
                             color: active ? t.color : colors.textMuted,
                             cursor: 'pointer', transition: 'all .15s',
+                            boxShadow: active ? `0 1px 4px ${t.bg}` : 'none',
                           }}
                         >{t.label}</button>
                       );
@@ -556,19 +736,117 @@ export default function MessagingPage() {
                   <div style={{ textAlign: 'center', color: colors.textMuted, fontSize: 13, padding: 32 }}>
                     Aucun message pour le moment.
                   </div>
-                ) : messages.map(msg => (
-                  <div key={msg.id} className={`mp-bubble-wrap mp-bubble-wrap--${msg.senderType}`}>
-                    <div className={`mp-bubble mp-bubble--${msg.senderType}`}>
-                      {msg.content}
+                ) : messages.map(msg => {
+                  const isImg = msg.fileName
+                    ? /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileName)
+                    : false;
+                  return (
+                    <div key={msg.id} className={`mp-bubble-wrap mp-bubble-wrap--${msg.senderType}`}>
+                      <div className={`mp-bubble mp-bubble--${msg.senderType}`} style={{ padding: msg.fileUrl && !msg.content ? 0 : undefined, overflow: 'hidden' }}>
+                        {/* Image inline */}
+                        {msg.fileUrl && isImg && (
+                          <a href={msg.fileUrl} target="_blank" rel="noreferrer">
+                            <img
+                              src={msg.fileUrl}
+                              alt={msg.fileName ?? 'image'}
+                              style={{ display: 'block', maxWidth: '100%', maxHeight: 260, borderRadius: msg.content ? '10px 10px 0 0' : 10, cursor: 'pointer' }}
+                            />
+                          </a>
+                        )}
+                        {/* Fichier téléchargeable */}
+                        {msg.fileUrl && !isImg && (
+                          <a
+                            href={msg.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 7,
+                              padding: '8px 12px',
+                              color: msg.senderType === 'staff' ? 'rgba(255,255,255,0.9)' : '#2546cc',
+                              textDecoration: 'none', fontSize: 12.5, fontWeight: 600,
+                            }}
+                          >
+                            <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                            </svg>
+                            {msg.fileName ?? 'Fichier joint'}
+                          </a>
+                        )}
+                        {/* Texte */}
+                        {msg.content && (
+                          <span style={{ padding: msg.fileUrl ? '6px 14px 10px' : undefined, display: msg.fileUrl ? 'block' : undefined }}>
+                            {msg.content}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mp-bubble-time">{fmtTime(msg.createdAt)}</div>
                     </div>
-                    <div className="mp-bubble-time">{fmtTime(msg.createdAt)}</div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div ref={bottomRef} />
               </div>
 
               {/* Reply */}
               <div className="mp-reply">
+                {/* Template picker popover */}
+                {showTemplates && (
+                  <div className="mp-tpl-picker" onClick={e => e.stopPropagation()}>
+                    <div className="mp-tpl-head">
+                      <span>Reponses rapides</span>
+                      <button
+                        onClick={() => setShowTemplates(false)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7a9e', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
+                      >x</button>
+                    </div>
+                    <div className="mp-tpl-list">
+                      {templates.length === 0 ? (
+                        <div style={{ padding: '14px 16px', fontSize: 12.5, color: '#6b7a9e', fontStyle: 'italic' }}>
+                          Aucun template — creez-en un ci-dessous.
+                        </div>
+                      ) : templates.map(t => (
+                        <div
+                          key={t.id}
+                          className="mp-tpl-item"
+                          onClick={() => { setReply(t.content); setShowTemplates(false); }}
+                        >
+                          <div className="mp-tpl-title">
+                            <span>{t.title}</span>
+                            <button
+                              className="mp-tpl-del"
+                              onClick={e => { e.stopPropagation(); deleteTpl(t.id); }}
+                              title="Supprimer"
+                            >x</button>
+                          </div>
+                          <div className="mp-tpl-preview">{t.content}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mp-tpl-new">
+                      <input
+                        className="mp-tpl-input"
+                        placeholder="Titre du template (ex: Confirmation reception)"
+                        value={newTplTitle}
+                        onChange={e => setNewTplTitle(e.target.value)}
+                      />
+                      <textarea
+                        className="mp-tpl-input"
+                        rows={2}
+                        placeholder="Contenu du message..."
+                        value={newTplContent}
+                        onChange={e => setNewTplContent(e.target.value)}
+                        style={{ resize: 'none' }}
+                      />
+                      <button
+                        className="mp-tpl-save"
+                        disabled={!newTplTitle.trim() || !newTplContent.trim() || savingTpl}
+                        onClick={saveTpl}
+                      >
+                        {savingTpl ? 'Enregistrement...' : 'Enregistrer'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <textarea
                   className="mp-textarea"
                   rows={3}
@@ -578,7 +856,42 @@ export default function MessagingPage() {
                   onKeyDown={handleKeyDown}
                 />
                 <div className="mp-reply-actions">
-                  <span className="mp-reply-hint">Ctrl+Entree pour envoyer</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      className={`mp-tpl-btn${showTemplates ? ' mp-tpl-btn--active' : ''}`}
+                      onClick={() => setShowTemplates(v => !v)}
+                      title="Reponses rapides"
+                    >
+                      <svg width={12} height={12} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                      </svg>
+                      Templates
+                    </button>
+                    {/* Bouton pièce jointe */}
+                    <label
+                      title="Joindre un fichier"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        padding: '5px 10px', borderRadius: 7, cursor: sending ? 'not-allowed' : 'pointer',
+                        border: `1.5px solid ${colors.border}`, background: colors.pageBg,
+                        fontSize: 12, fontWeight: 600, color: sending ? colors.textMuted : colors.blue,
+                        opacity: sending ? 0.5 : 1, fontFamily: 'inherit',
+                      }}
+                    >
+                      <svg width={12} height={12} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                      </svg>
+                      Joindre
+                      <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+                        style={{ display: 'none' }}
+                        disabled={sending}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) sendAttachment(f); e.target.value = ''; }}
+                      />
+                    </label>
+                    <span className="mp-reply-hint">Ctrl+Entree pour envoyer</span>
+                  </div>
                   <button
                     className="mp-send"
                     disabled={!reply.trim() || sending}

@@ -9,18 +9,18 @@ export type RawStatus =
   | 'pending_decision'
   | 'archived';
 
-export type UIStatus = 'En attente' | 'Validé' | 'Urgent' | 'Refusé';
+export type UIStatus = 'Brouillon' | 'Soumise' | 'Correction' | 'Vérifiée' | 'Envoyée' | 'En attente' | 'Acceptée' | 'Refusée' | 'Archivée';
 
 export const STATUS_MAP: Record<string, UIStatus> = {
-  draft:            'En attente',
-  submitted:        'En attente',
-  needsfix:         'Urgent',
-  verified:         'Validé',
-  sent:             'Validé',
-  accepted:         'Validé',
-  rejected:         'Refusé',
+  draft:            'Brouillon',
+  submitted:        'Soumise',
+  needsfix:         'Correction',
+  verified:         'Vérifiée',
+  sent:             'Envoyée',
+  accepted:         'Acceptée',
+  rejected:         'Refusée',
   pending_decision: 'En attente',
-  archived:         'Refusé',
+  archived:         'Archivée',
 };
 
 export const RAW_STATUS_LABELS: Record<RawStatus, string> = {
@@ -36,22 +36,25 @@ export const RAW_STATUS_LABELS: Record<RawStatus, string> = {
 };
 
 export interface Application {
-  id:             string;
-  studentId:      string;
-  programId:      string;
-  rawStatus:      RawStatus;
-  status:         UIStatus;
-  student:        string;
-  email:          string;
-  university:     string;
-  program:        string;
-  country:        string;
-  level:          string;
-  date:           string;
-  score:          number;
-  notes?:         string;
-  contactEmail?:  string;
-  deadline?:      string | null;
+  id:                  string;
+  studentId:           string;
+  programId:           string;
+  rawStatus:           RawStatus;
+  status:              UIStatus;
+  student:             string;
+  email:               string;
+  university:          string;
+  program:             string;
+  country:             string;
+  level:               string;
+  date:                string;
+  score:               number;
+  notes?:              string;
+  motivationLetter?:   string;
+  contactEmail?:       string;
+  ccEmails?:           string;
+  deadline?:           string | null;
+  programRequirements: string[];
 }
 
 // Kanban column definitions

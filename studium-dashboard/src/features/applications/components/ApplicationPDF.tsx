@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { Application, RawStatus } from '../types/application';
-import type { StatusHistoryEntry } from '../services/applications_service';
+import type { StatusHistoryEntry, ApplicationDocument } from '../services/applications_service';
+import { docTypeLabel } from '../services/applications_service';
 import { RAW_STATUS_LABELS } from '../types/application';
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -9,55 +10,82 @@ const LEVEL_LABELS: Record<string, string> = {
   phd:      'Doctorat',
 };
 
+// Palette partagée avec le pack PDF mobile (application_detail_page.dart)
+const NAVY   = '#0B1852';
+const BLUE   = '#153EA8';
+const TEXT   = '#0F172A';
+const GREY   = '#64748B';
+const MUTED  = '#94A3B8';
+const BORDER = '#E5E7EB';
+const BG     = '#F8FAFC';
+
 const s = StyleSheet.create({
-  page:       { fontFamily: 'Helvetica', fontSize: 10, color: '#1e293b', padding: '40 48' },
+  page:       { fontFamily: 'Helvetica', fontSize: 10, color: TEXT, padding: '40 48' },
   cover:      { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  coverBrand: { fontSize: 28, fontFamily: 'Helvetica-Bold', color: '#1e3a8a', letterSpacing: 2 },
-  coverTitle: { fontSize: 14, color: '#64748b', marginTop: 4 },
-  coverSep:   { width: 60, height: 2, backgroundColor: '#1e3a8a', marginVertical: 16 },
-  coverName:  { fontSize: 20, fontFamily: 'Helvetica-Bold', color: '#0f172a' },
-  coverProg:  { fontSize: 13, color: '#1e40af', marginTop: 4 },
-  coverUniv:  { fontSize: 11, color: '#64748b' },
-  coverDate:  { fontSize: 9, color: '#94a3b8', marginTop: 20 },
+  coverBrand: { fontSize: 28, fontFamily: 'Helvetica-Bold', color: NAVY, letterSpacing: 2 },
+  coverTitle: { fontSize: 14, color: GREY, marginTop: 4 },
+  coverSep:   { width: 60, height: 2, backgroundColor: NAVY, marginVertical: 16 },
+  coverName:  { fontSize: 20, fontFamily: 'Helvetica-Bold', color: TEXT },
+  coverProg:  { fontSize: 13, color: BLUE, marginTop: 4 },
+  coverUniv:  { fontSize: 11, color: GREY },
+  coverDate:  { fontSize: 9, color: MUTED, marginTop: 20 },
 
   section:    { marginBottom: 20 },
-  sLabel:     { fontSize: 8, fontFamily: 'Helvetica-Bold', letterSpacing: 1.5, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 8 },
-  sLine:      { height: 1, backgroundColor: '#e2e8f0', marginBottom: 12 },
+  sLabel:     { fontSize: 8, fontFamily: 'Helvetica-Bold', letterSpacing: 1.5, color: MUTED, textTransform: 'uppercase', marginBottom: 8 },
+  sLine:      { height: 1, backgroundColor: BORDER, marginBottom: 12 },
 
   row:        { flexDirection: 'row', gap: 8, marginBottom: 5 },
-  rowLabel:   { width: 130, fontSize: 9, color: '#64748b' },
-  rowValue:   { flex: 1, fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#0f172a' },
+  rowLabel:   { width: 130, fontSize: 9, color: GREY },
+  rowValue:   { flex: 1, fontSize: 10, fontFamily: 'Helvetica-Bold', color: TEXT },
 
   badge:      { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, fontSize: 9, fontFamily: 'Helvetica-Bold' },
 
-  scoreBar:   { height: 6, borderRadius: 3, backgroundColor: '#e2e8f0', marginTop: 4 },
+  scoreBar:   { height: 6, borderRadius: 3, backgroundColor: BORDER, marginTop: 4 },
   scoreFill:  { height: 6, borderRadius: 3 },
 
   histRow:    { flexDirection: 'row', gap: 10, marginBottom: 8 },
-  histDot:    { width: 7, height: 7, borderRadius: 4, backgroundColor: '#1e40af', marginTop: 2 },
+  histDot:    { width: 7, height: 7, borderRadius: 4, backgroundColor: BLUE, marginTop: 2 },
   histText:   { flex: 1 },
-  histStatus: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#0f172a' },
-  histDate:   { fontSize: 8, color: '#94a3b8' },
-  histNote:   { fontSize: 9, color: '#64748b', fontStyle: 'italic', marginTop: 2 },
+  histStatus: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: TEXT },
+  histDate:   { fontSize: 8, color: MUTED },
+  histNote:   { fontSize: 9, color: GREY, fontStyle: 'italic', marginTop: 2 },
 
-  noteBox:    { backgroundColor: '#f8fafc', borderRadius: 6, padding: '10 12', fontSize: 9.5, color: '#475569', lineHeight: 1.5 },
+  noteBox:    { backgroundColor: BG, borderRadius: 6, padding: '10 12', fontSize: 9.5, color: GREY, lineHeight: 1.5 },
+
+  docRow:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: BORDER },
+  docType:    { flex: 1, fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: TEXT },
+  docName:    { flex: 1.4, fontSize: 8.5, color: GREY },
+  docBadge:   { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, fontSize: 8, fontFamily: 'Helvetica-Bold' },
 
   footer:     { position: 'absolute', bottom: 24, left: 48, right: 48, flexDirection: 'row', justifyContent: 'space-between' },
-  footerText: { fontSize: 7.5, color: '#cbd5e1' },
+  footerText: { fontSize: 7.5, color: MUTED },
 });
 
 function scoreColor(score: number) {
-  if (score >= 80) return '#16a34a';
-  if (score >= 65) return '#d97706';
-  return '#dc2626';
+  if (score >= 80) return '#16A34A';
+  if (score >= 65) return '#D97706';
+  return '#DC2626';
 }
+
+const DOC_STATUS_LABEL: Record<ApplicationDocument['status'], string> = {
+  approved: 'Approuvé',
+  rejected: 'Rejeté',
+  pending:  'En attente',
+};
+
+const DOC_STATUS_COLOR: Record<ApplicationDocument['status'], { bg: string; color: string }> = {
+  approved: { bg: '#F0FDF4', color: '#16A34A' },
+  rejected: { bg: '#FEF2F2', color: '#DC2626' },
+  pending:  { bg: '#FFF7ED', color: '#D97706' },
+};
 
 interface Props {
   app:     Application;
   history: StatusHistoryEntry[];
+  docs?:   ApplicationDocument[];
 }
 
-export default function ApplicationPDF({ app, history }: Props) {
+export default function ApplicationPDF({ app, history, docs = [] }: Props) {
   const generatedAt = new Date().toLocaleDateString('fr-FR', {
     day: '2-digit', month: 'long', year: 'numeric',
   });
@@ -74,7 +102,7 @@ export default function ApplicationPDF({ app, history }: Props) {
           <Text style={s.coverName}>{app.student}</Text>
           <Text style={s.coverProg}>{app.program}</Text>
           <Text style={s.coverUniv}>{app.university}{app.country ? `  ${app.country}` : ''}</Text>
-          {app.level && <Text style={{ ...s.coverDate, marginTop: 8, fontSize: 10, color: '#64748b' }}>{LEVEL_LABELS[app.level] ?? app.level}</Text>}
+          {app.level && <Text style={{ ...s.coverDate, marginTop: 8, fontSize: 10, color: GREY }}>{LEVEL_LABELS[app.level] ?? app.level}</Text>}
           <Text style={s.coverDate}>Généré le {generatedAt}</Text>
         </View>
 
@@ -104,7 +132,7 @@ export default function ApplicationPDF({ app, history }: Props) {
           </View>
           <View style={s.row}>
             <Text style={s.rowLabel}>Statut</Text>
-            <Text style={{ ...s.rowValue, color: '#1e40af' }}>{RAW_STATUS_LABELS[app.rawStatus as RawStatus] ?? app.rawStatus}</Text>
+            <Text style={{ ...s.rowValue, color: BLUE }}>{RAW_STATUS_LABELS[app.rawStatus as RawStatus] ?? app.rawStatus}</Text>
           </View>
         </View>
 
@@ -157,11 +185,45 @@ export default function ApplicationPDF({ app, history }: Props) {
           </View>
         )}
 
+        {/* Documents soumis (métadonnées uniquement — les fichiers réels sont
+            joints directement à l'email envoyé à l'université, pas ici) */}
+        {docs.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.sLabel}>Documents soumis</Text>
+            <View style={s.sLine} />
+            {docs.map(d => (
+              <View key={d.id} style={s.docRow}>
+                <Text style={s.docType}>{docTypeLabel(d.type)}</Text>
+                <Text style={s.docName}>{d.file_name ?? ''}</Text>
+                <Text style={{ ...s.docBadge, ...DOC_STATUS_COLOR[d.status] }}>
+                  {DOC_STATUS_LABEL[d.status]}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         <View style={s.footer}>
           <Text style={s.footerText}>Studium  {app.student} / {app.program}</Text>
           <Text style={s.footerText} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
       </Page>
+
+      {/* Lettre de motivation (spécifique à cette candidature) */}
+      {app.motivationLetter && (
+        <Page size="A4" style={s.page}>
+          <View style={s.section}>
+            <Text style={s.sLabel}>Lettre de motivation</Text>
+            <View style={s.sLine} />
+            <Text style={{ fontSize: 10.5, color: TEXT, lineHeight: 1.6 }}>{app.motivationLetter}</Text>
+          </View>
+
+          <View style={s.footer}>
+            <Text style={s.footerText}>Studium  {app.student} / {app.program}</Text>
+            <Text style={s.footerText} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
+          </View>
+        </Page>
+      )}
     </Document>
   );
 }

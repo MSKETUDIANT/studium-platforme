@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
 import { supabase }       from '../../../shared/services/supabase';
 import { Button }         from '../../../shared/components/Button';
 import { PageHeader }     from '../../../shared/components/PageHeader';
@@ -6,6 +6,9 @@ import { Pagination }     from '../../../shared/components/Pagination';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
 import { EmptyState }     from '../../../shared/components/EmptyState';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
+import { downloadCsv }    from '../../../shared/utils/export_csv';
+import { useRole }        from '../../auth/hooks/useRole';
+import { can }            from '../../auth/hooks/permissions';
 
 /*  Types  */
 interface Program {
@@ -22,8 +25,11 @@ interface Program {
   domain:          string | null;
   requirements:    string[] | null;
   contact_email:   string | null;
+  cc_emails:       string | null;
   is_active:       boolean;
   created_at:      string | null;
+  min_average:             number | null;
+  required_language_level: string | null;
 }
 
 type FormData = Omit<Program, 'id' | 'created_at'>;
@@ -41,8 +47,24 @@ const EMPTY_FORM: FormData = {
   domain:          '',
   requirements:    null,
   contact_email:   '',
+  cc_emails:       '',
   is_active:       true,
+  min_average:             null,
+  required_language_level: '',
 };
+
+// Niveaux CECR — s'applique a la langue du programme (champ "Langue")
+const LANGUAGE_LEVELS: { value: string; label: string }[] = [
+  { value: 'A1', label: 'A1 — Debutant'      },
+  { value: 'A2', label: 'A2 — Elementaire'   },
+  { value: 'B1', label: 'B1 — Intermediaire' },
+  { value: 'B2', label: 'B2 — Intermediaire avance' },
+  { value: 'C1', label: 'C1 — Avance'        },
+  { value: 'C2', label: 'C2 — Maitrise'      },
+];
+
+const LANGUAGE_LEVEL_LABEL: Record<string, string> =
+  Object.fromEntries(LANGUAGE_LEVELS.map(l => [l.value, l.label]));
 
 const DOMAINS = [
   'Informatique', 'Ingénierie', 'Commerce / Gestion', 'Droit',
@@ -553,8 +575,6 @@ const CSS = `
   .pp-card         { animation: ph-fade-up .35s .48s ease both; }
 `;
 
-const PAGE_SIZE = 10;
-
 function injectCSS() {
   if (typeof document === 'undefined') return;
   if (document.getElementById('pp-styles')) return;
@@ -633,7 +653,7 @@ function StatCard({ label, value, color, iconKey }: { label: string; value: numb
 function ProgramDetailModal({ program, onClose, onEdit }: {
   program: Program;
   onClose: () => void;
-  onEdit: () => void;
+  onEdit?: () => void;
 }) {
   const lvlCfg = program.level ? LEVEL_CFG[program.level] : null;
   return (
@@ -661,6 +681,8 @@ function ProgramDetailModal({ program, onClose, onEdit }: {
             ['Durée',    program.duration  ?? ''],
             ['Coût',     fmtCost(program.cost)],
             ['Deadline', fmtDate(program.deadline)],
+            ['Moyenne min.', program.min_average != null ? `${program.min_average}/20` : 'Non précisée'],
+            ['Langue requise', program.required_language_level ? (LANGUAGE_LEVEL_LABEL[program.required_language_level] ?? program.required_language_level) : 'Aucun prérequis'],
             ['Statut',   program.is_active ? 'Actif' : 'Inactif'],
           ].map(([label, value]) => (
             <div key={label} className="pp-detail-row">
@@ -695,9 +717,16 @@ function ProgramDetailModal({ program, onClose, onEdit }: {
           </div>
         )}
 
+        {program.cc_emails && program.cc_emails.trim() && (
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: '.4px', minWidth: 80 }}>CC</div>
+            <span style={{ fontSize: 13.5, color: colors.textPrimary }}>{program.cc_emails}</span>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>
           <Button variant="secondary" onClick={onClose}>Fermer</Button>
-          <Button onClick={onEdit}>Modifier</Button>
+          {onEdit && <Button onClick={onEdit}>Modifier</Button>}
         </div>
       </div>
     </div>
@@ -872,6 +901,34 @@ function ProgramModal({
             <label className="pp-label">Email de contact</label>
             <input className="pp-input" type="email" placeholder="Ex : admissions@universite.fr" value={form.contact_email ?? ''} onChange={e => set('contact_email', e.target.value || null)} />
           </div>
+          <div className="pp-field">
+            <label className="pp-label">
+              CC
+              <span style={{ fontWeight: 400, color: colors.textMuted, marginLeft: 6, fontSize: 11 }}>(emails separes par des virgules)</span>
+            </label>
+            <input className="pp-input" type="text" placeholder="Ex : doyen@universite.fr, secretariat@universite.fr" value={form.cc_emails ?? ''} onChange={e => set('cc_emails', e.target.value || null)} />
+          </div>
+
+          {/* Eligibilite : moyenne minimale / niveau de langue requis */}
+          <div className="pp-field">
+            <label className="pp-label">
+              Moyenne minimale requise
+              <span style={{ fontWeight: 400, color: colors.textMuted, marginLeft: 6, fontSize: 11 }}>(sur 20, optionnel)</span>
+            </label>
+            <input
+              className="pp-input" type="number" min={0} max={20} step={0.25}
+              placeholder="Ex : 14"
+              value={form.min_average ?? ''}
+              onChange={e => set('min_average', e.target.value ? Number(e.target.value) : null)}
+            />
+          </div>
+          <div className="pp-field">
+            <label className="pp-label">Niveau de langue requis</label>
+            <select className="pp-form-select" value={form.required_language_level ?? ''} onChange={e => set('required_language_level', e.target.value || null)}>
+              <option value="">Aucun prerequis</option>
+              {LANGUAGE_LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+            </select>
+          </div>
 
           {/* Documents requis */}
           <div className="pp-field pp-form-full">
@@ -918,6 +975,9 @@ function ProgramModal({
 export default function ProgramsPage() {
   injectCSS();
 
+  const { role } = useRole();
+  const canWrite = can(role, 'programs:write');
+
   const [programs, setPrograms] = useState<Program[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [search,   setSearch]   = useState('');
@@ -926,7 +986,8 @@ export default function ProgramsPage() {
   const [filterLang,    setFilterLang]    = useState('');
   const [filterActive,  setFilterActive]  = useState<'all' | 'active' | 'inactive'>('all');
 
-  const [page,    setPage]  = useState(1);
+  const [page,     setPage]     = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [modal, setModal]   = useState<{ open: boolean; program: Program | null }>({ open: false, program: null });
   const [saving, setSaving] = useState(false);
 
@@ -983,8 +1044,8 @@ export default function ProgramsPage() {
 
   useEffect(() => setPage(1), [search, filterLevel, filterCountry, filterLang, filterActive]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated  = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   /*  Stats  */
   const total    = programs.length;
@@ -1009,7 +1070,10 @@ export default function ProgramsPage() {
       domain:          form.domain       || null,
       requirements:    form.requirements?.length ? form.requirements : null,
       contact_email:   form.contact_email  || null,
+      cc_emails:       form.cc_emails      || null,
       is_active:       form.is_active,
+      min_average:             form.min_average ?? null,
+      required_language_level: form.required_language_level || null,
     };
 
     let error;
@@ -1055,6 +1119,102 @@ export default function ProgramsPage() {
     fetchPrograms();
   }
 
+  /*  Export / Import CSV  */
+  const importRef = useRef<HTMLInputElement>(null);
+  const [importLoading, setImportLoading] = useState(false);
+
+  function handleExportCsv() {
+    const rows = filtered.map(p => ({
+      programme:     p.program_name,
+      universite:    p.university_name,
+      pays:          p.country        ?? '',
+      langue:        p.language       ?? '',
+      niveau:        p.level          ?? '',
+      duree:         p.duration       ?? '',
+      cout:          p.cost           ?? '',
+      deadline:      p.deadline       ?? '',
+      description:   p.description    ?? '',
+      domaine:       p.domain         ?? '',
+      exigences:     (p.requirements  ?? []).join(' | '),
+      email_contact: p.contact_email  ?? '',
+      cc:            p.cc_emails      ?? '',
+      moyenne_min:   p.min_average    ?? '',
+      niveau_langue_requis: p.required_language_level ?? '',
+      actif:         p.is_active ? 'oui' : 'non',
+    }));
+    downloadCsv(`programmes_${new Date().toISOString().split('T')[0]}.csv`, rows);
+  }
+
+  function parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let cur = ''; let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+        else { inQuote = !inQuote; }
+      } else if (ch === ',' && !inQuote) {
+        result.push(cur); cur = '';
+      } else { cur += ch; }
+    }
+    result.push(cur);
+    return result;
+  }
+
+  async function handleImportCsv(file: File) {
+    setImportLoading(true);
+    try {
+      const text    = await file.text();
+      const lines   = text.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) { showToast('Fichier vide ou sans données', 'error'); return; }
+
+      const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().trim());
+      const get     = (obj: Record<string, string>, ...keys: string[]) =>
+        keys.reduce<string>((acc, k) => acc || (obj[k] ?? ''), '').trim();
+
+      const inserts = lines.slice(1).map(line => {
+        const vals: Record<string, string> = {};
+        parseCsvLine(line).forEach((v, i) => { if (headers[i]) vals[headers[i]] = v.trim(); });
+        const costRaw = get(vals, 'cout', 'cost');
+        const avgRaw  = get(vals, 'moyenne_min', 'min_average');
+        return {
+          program_name:    get(vals, 'programme', 'program_name'),
+          university_name: get(vals, 'universite', 'university_name'),
+          country:         get(vals, 'pays', 'country')        || null,
+          language:        get(vals, 'langue', 'language')     || null,
+          level:           get(vals, 'niveau', 'level')        || null,
+          duration:        get(vals, 'duree', 'duration')      || null,
+          cost:            costRaw ? (Number(costRaw) || null) : null,
+          deadline:        get(vals, 'deadline')               || null,
+          description:     get(vals, 'description')            || null,
+          domain:          get(vals, 'domaine', 'domain')      || null,
+          requirements:    get(vals, 'exigences', 'requirements')
+                             .split('|').map(s => s.trim()).filter(Boolean),
+          contact_email:   get(vals, 'email_contact', 'contact_email') || null,
+          cc_emails:       get(vals, 'cc', 'cc_emails') || null,
+          min_average:             avgRaw ? (Number(avgRaw) || null) : null,
+          required_language_level: get(vals, 'niveau_langue_requis', 'required_language_level') || null,
+          is_active:       get(vals, 'actif', 'is_active').toLowerCase() !== 'non',
+        };
+      }).filter(r => r.program_name && r.university_name);
+
+      if (!inserts.length) {
+        showToast('Aucune ligne valide (colonnes "programme" et "universite" requises)', 'error');
+        return;
+      }
+
+      const { error } = await supabase.from('programs').insert(inserts);
+      if (error) {
+        showToast(`Erreur import : ${error.message}`, 'error');
+      } else {
+        showToast(`${inserts.length} programme${inserts.length > 1 ? 's' : ''} importé${inserts.length > 1 ? 's' : ''}`);
+        fetchPrograms();
+      }
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
   /*  Render  */
   if (loading) return <LoadingSpinner />;
 
@@ -1063,7 +1223,34 @@ export default function ProgramsPage() {
       <PageHeader
         title="Programmes"
         subtitle={`${total} programme${total > 1 ? 's' : ''} · ${active} actif${active > 1 ? 's' : ''}`}
-        actions={<Button onClick={() => setModal({ open: true, program: null })}>+ Nouveau programme</Button>}
+        actions={
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Button variant="secondary" onClick={handleExportCsv} disabled={!filtered.length}>
+              Export CSV
+            </Button>
+            {canWrite && (
+              <label style={{ cursor: importLoading ? 'not-allowed' : 'pointer' }}>
+                <Button
+                  variant="secondary"
+                  loading={importLoading}
+                  onClick={() => importRef.current?.click()}
+                >
+                  Import CSV
+                </Button>
+                <input
+                  ref={importRef}
+                  type="file"
+                  accept=".csv"
+                  style={{ display: 'none' }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleImportCsv(f); e.target.value = ''; }}
+                />
+              </label>
+            )}
+            {canWrite && (
+              <Button onClick={() => setModal({ open: true, program: null })}>+ Nouveau programme</Button>
+            )}
+          </div>
+        }
       />
 
       {/* Stats */}
@@ -1120,7 +1307,7 @@ export default function ProgramsPage() {
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>}
           title="Aucun programme trouvé"
           description={search || filterLevel ? 'Essayez d\'autres filtres.' : 'Créez votre premier programme.'}
-          action={!search && !filterLevel ? <Button onClick={() => setModal({ open: true, program: null })}>+ Nouveau programme</Button> : undefined}
+          action={!search && !filterLevel && canWrite ? <Button onClick={() => setModal({ open: true, program: null })}>+ Nouveau programme</Button> : undefined}
         />
       ) : (
         <div className="pp-card">
@@ -1149,9 +1336,9 @@ export default function ProgramsPage() {
                   : false;
 
                 return (
-                  <tr key={p.id}>
+                  <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setDetailProgram(p)}>
                     <td>
-                      <button className="pp-prog-name" onClick={() => setDetailProgram(p)}>
+                      <button className="pp-prog-name">
                         {p.program_name}
                       </button>
                       <span className="pp-univ-name">{p.university_name}</span>
@@ -1225,36 +1412,42 @@ export default function ProgramsPage() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', alignItems: 'center' }}>
-                        <button
-                          className="pp-icon-btn pp-action-edit"
-                          title="Modifier"
-                          onClick={() => setModal({ open: true, program: p })}
-                        >
-                          <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                          </svg>
-                        </button>
-                        <button
-                          className={`pp-icon-btn ${p.is_active ? 'pp-action-archive' : 'pp-action-restore'}`}
-                          title={p.is_active ? 'Archiver' : 'Réactiver'}
-                          onClick={() => handleToggleActive(p)}
-                        >
-                          {p.is_active ? (
-                            <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
-                          ) : (
-                            <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                          )}
-                        </button>
-                        <button
-                          className="pp-icon-btn pp-action-delete"
-                          title="Supprimer"
-                          onClick={() => setDeleteTarget(p)}
-                        >
-                          <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                          </svg>
-                        </button>
+                        {canWrite ? (
+                          <>
+                            <button
+                              className="pp-icon-btn pp-action-edit"
+                              title="Modifier"
+                              onClick={e => { e.stopPropagation(); setModal({ open: true, program: p }); }}
+                            >
+                              <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                            </button>
+                            <button
+                              className={`pp-icon-btn ${p.is_active ? 'pp-action-archive' : 'pp-action-restore'}`}
+                              title={p.is_active ? 'Archiver' : 'Réactiver'}
+                              onClick={e => { e.stopPropagation(); handleToggleActive(p); }}
+                            >
+                              {p.is_active ? (
+                                <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>
+                              ) : (
+                                <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                              )}
+                            </button>
+                            <button
+                              className="pp-icon-btn pp-action-delete"
+                              title="Supprimer"
+                              onClick={e => { e.stopPropagation(); setDeleteTarget(p); }}
+                            >
+                              <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                              </svg>
+                            </button>
+                          </>
+                        ) : (
+                          <span style={{ color: colors.textMuted, fontSize: 11.5 }}>Lecture seule</span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1267,8 +1460,9 @@ export default function ProgramsPage() {
             page={page}
             totalPages={totalPages}
             total={filtered.length}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             onChange={setPage}
+            onPageSizeChange={size => { setPageSize(size); setPage(1); }}
             label="programmes"
           />
         </div>
@@ -1279,10 +1473,10 @@ export default function ProgramsPage() {
         <ProgramDetailModal
           program={detailProgram}
           onClose={() => setDetailProgram(null)}
-          onEdit={() => {
+          onEdit={canWrite ? () => {
             setModal({ open: true, program: detailProgram });
             setDetailProgram(null);
-          }}
+          } : undefined}
         />
       )}
 
@@ -1303,7 +1497,10 @@ export default function ProgramsPage() {
                 domain:          modal.program.domain,
                 requirements:    modal.program.requirements,
                 contact_email:   modal.program.contact_email,
+                cc_emails:       modal.program.cc_emails,
                 is_active:       modal.program.is_active,
+                min_average:             modal.program.min_average,
+                required_language_level: modal.program.required_language_level,
               }
             : EMPTY_FORM
           }

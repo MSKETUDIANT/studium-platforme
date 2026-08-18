@@ -12,15 +12,12 @@ import { RAW_STATUS_LABELS }             from '../types/application';
 import { fetchApplications }              from '../services/applications_service';
 import ApplicationDetailModal             from '../components/ApplicationDetailModal';
 import ApplicationKanban                  from '../components/ApplicationKanban';
+import { supabase }                       from '../../../shared/services/supabase';
 
-/*  Constants  */
-const PAGE_SIZE = 10;
-
-/*  Types  */
 type UIStatus = Application['status'];
 type ViewMode = 'table' | 'kanban';
+type SortKey  = 'student' | 'university' | 'date' | 'score' | 'status';
 
-/*  CSS  */
 const CSS = `
   .ap-stat-grid {
     display: grid;
@@ -35,6 +32,7 @@ const CSS = `
     background: white;
     border-radius: ${radius.lg}px;
     box-shadow: ${shadows.card};
+    overflow: hidden;
   }
   .ap-stat-inner {
     padding: 18px 20px;
@@ -59,55 +57,88 @@ const CSS = `
   .ap-toolbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 18px 20px 16px;
+    gap: 10px;
+    padding: 16px 18px 14px;
     flex-wrap: wrap;
+    border-bottom: 1px solid ${colors.border};
   }
   @media (max-width: 600px) {
     .ap-toolbar { flex-direction: column; align-items: stretch; }
   }
 
-  .ap-search-wrap { position: relative; }
+  /* Search */
+  .ap-search-wrap { position: relative; flex: 0 0 auto; }
   .ap-search {
-    padding: 9px 14px 9px 38px;
+    padding: 8px 34px 8px 34px;
     border: 1.5px solid ${colors.borderInput};
     border-radius: 9px; font-size: 13.5px;
     color: ${colors.textPrimary}; background: ${colors.inputBg};
-    font-family: ${fonts.body}; width: 240px; outline: none;
+    font-family: ${fonts.body}; width: 230px; outline: none;
     transition: border-color .18s, box-shadow .18s, background .18s;
   }
-  .ap-search:focus { border-color: ${colors.blue}; background: #fff; box-shadow: 0 0 0 3px rgba(37,70,204,.1); }
+  .ap-search:focus { border-color: ${colors.blue}; background: #fff; box-shadow: 0 0 0 3px rgba(37,70,204,.08); }
   @media (max-width: 600px) { .ap-search { width: 100%; } }
+  .ap-search-icon {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    color: ${colors.textMuted}; pointer-events: none; display: flex;
+  }
+  .ap-search-clear {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: ${colors.textMuted}; font-size: 16px; line-height: 1;
+    padding: 2px 4px; border-radius: 4px; transition: color .12s, background .12s;
+  }
+  .ap-search-clear:hover { color: ${colors.textPrimary}; background: ${colors.border}; }
 
   .ap-filters { display: flex; gap: 6px; flex-wrap: wrap; }
   .ap-filter-btn {
-    padding: 6px 16px; border-radius: 20px;
+    padding: 6px 14px; border-radius: 20px;
     font-size: 12px; font-weight: 600;
     border: 1.5px solid ${colors.borderInput};
     background: white; color: ${colors.textSecondary};
     cursor: pointer; transition: all .15s;
-    font-family: ${fonts.body};
+    font-family: ${fonts.body}; white-space: nowrap;
   }
   .ap-filter-btn--active { background: ${colors.navy}; color: white; border-color: ${colors.navy}; }
   .ap-filter-btn:hover:not(.ap-filter-btn--active) { border-color: ${colors.blue}; color: ${colors.blue}; }
 
+  /* Results bar */
+  .ap-results-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 18px;
+    background: #fafbff;
+    border-bottom: 1px solid ${colors.border};
+    font-size: 12.5px; color: ${colors.textSecondary};
+  }
+
   .ap-table-wrap { overflow-x: auto; }
-  .ap-table { width: 100%; border-collapse: collapse; min-width: 700px; font-family: ${fonts.body}; }
+  .ap-table { width: 100%; border-collapse: collapse; min-width: 720px; font-family: ${fonts.body}; }
 
   .ap-table thead tr {
     background: linear-gradient(135deg, #f8faff 0%, ${colors.inputBg} 100%);
     border-bottom: 2px solid ${colors.border};
   }
-  .ap-table th {
+  .ap-th {
     padding: 12px 16px;
     font-size: 11px; font-weight: 700;
     letter-spacing: .06em; text-transform: uppercase;
     color: ${colors.textSecondary}; text-align: left;
     white-space: nowrap;
   }
+  .ap-th-sort {
+    cursor: pointer; user-select: none;
+    transition: color .12s;
+  }
+  .ap-th-sort:hover { color: ${colors.blue}; }
+  .ap-th-sort.ap-th-sort--active { color: ${colors.navy}; }
+  .ap-th-sort-inner {
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .ap-sort-icon { display: inline-flex; opacity: .3; }
+  .ap-sort-icon--active { opacity: 1; }
+
   .ap-table td {
-    padding: 13px 16px; font-size: 13.5px;
+    padding: 12px 16px; font-size: 13.5px;
     color: ${colors.textPrimary};
     border-bottom: 1px solid ${colors.border};
     vertical-align: middle;
@@ -118,13 +149,13 @@ const CSS = `
 
   .ap-student-cell { display: flex; align-items: center; gap: 10px; }
   .ap-avatar {
-    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; font-family: ${fonts.display};
+    font-size: 11.5px; font-weight: 700; font-family: ${fonts.display};
   }
 
-  .ap-score-bar { height: 4px; border-radius: 2px; background: #e8eaf2; overflow: hidden; width: 56px; }
-  .ap-score-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+  .ap-score-bar { height: 5px; border-radius: 3px; background: #e8eaf2; overflow: hidden; width: 56px; }
+  .ap-score-fill { height: 100%; border-radius: 3px; transition: width .3s; }
 
   .ap-action-btn {
     background: ${colors.inputBg}; border: 1.5px solid transparent;
@@ -133,13 +164,6 @@ const CSS = `
     transition: all .15s; font-family: ${fonts.body};
   }
   .ap-action-btn:hover { background: white; border-color: ${colors.blue}; color: ${colors.blue}; }
-
-  .ap-footer {
-    padding: 12px 20px;
-    border-top: 1px solid ${colors.border};
-    display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 8px; background: #fafbff;
-  }
 
   .ap-view-btn {
     display: flex; align-items: center; gap: 6px;
@@ -165,7 +189,6 @@ if (!document.getElementById('ap-css')) {
   document.head.appendChild(s);
 }
 
-/*  Helpers  */
 const STATUS_BADGE: Record<string, 'validated' | 'pending' | 'urgent' | 'info' | 'default'> = {
   draft:            'default',
   submitted:        'pending',
@@ -197,20 +220,20 @@ function scoreColor(n: number) {
   return colors.danger;
 }
 
-const FILTERS: ('Tous' | UIStatus)[] = ['Tous', 'En attente', 'Validé', 'Urgent', 'Refusé'];
+const FILTERS: ('Tous' | UIStatus)[] = ['Tous', 'Soumise', 'Correction', 'Vérifiée', 'Envoyée', 'En attente', 'Acceptée', 'Refusée', 'Archivée'];
 
-/*  Stat card  */
 function StatCard({ label, value, sub, accent, iconBg, iconColor, icon }: {
   label: string; value: number; sub?: string;
   accent: string; iconBg: string; iconColor: string;
   icon: React.ReactNode;
 }) {
   return (
-    <div className="ap-stat" style={{ borderLeft: `4px solid ${accent}` }}>
+    <div className="ap-stat">
+      <div style={{ height: 3, background: accent }} />
       <div className="ap-stat-inner">
         <div className="ap-stat-icon" style={{ background: iconBg, color: iconColor }}>{icon}</div>
         <div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: colors.navy, fontFamily: fonts.display, lineHeight: 1 }}>{value}</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: accent, fontFamily: fonts.display, lineHeight: 1 }}>{value}</div>
           <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 5, fontWeight: 500 }}>{label}</div>
           {sub && <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>{sub}</div>}
         </div>
@@ -219,9 +242,6 @@ function StatCard({ label, value, sub, accent, iconBg, iconColor, icon }: {
   );
 }
 
-/* 
-   ApplicationsPage
-    */
 export default function ApplicationsPage() {
   const [apps,        setApps]        = useState<Application[]>([]);
   const [search,      setSearch]      = useState('');
@@ -231,27 +251,46 @@ export default function ApplicationsPage() {
   const [view,        setView]        = useState<ViewMode>('table');
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [page,        setPage]        = useState(1);
+  const [pageSize,    setPageSize]    = useState(10);
+  const [sortBy,      setSortBy]      = useState<SortKey>('date');
+  const [sortDir,     setSortDir]     = useState<'asc' | 'desc'>('desc');
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     fetchApplications()
       .then(data => { setApps(data); setFetchError(null); })
       .catch(err  => { console.error('fetchApplications:', err); setFetchError(err?.message ?? String(err)); setApps([]); })
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => { reload(); }, [reload]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('ap-applications-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, reload)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [reload]);
+
   const handleUpdate = useCallback((id: string, patch: Partial<Application>) => {
     setApps(prev => prev.map(a => a.id === id ? { ...a, ...patch } : a));
     setSelectedApp(prev => prev?.id === id ? { ...prev, ...patch } as Application : prev);
   }, []);
 
-  const total     = apps.length;
-  const validated = apps.filter(a => a.status === 'Validé').length;
-  const pending   = apps.filter(a => a.status === 'En attente').length;
-  const urgent    = apps.filter(a => a.status === 'Urgent').length;
+  function toggleSort(col: SortKey) {
+    if (sortBy === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(col); setSortDir('asc'); }
+  }
+
+  const total    = apps.filter(a => a.status !== 'Archivée').length;
+  const accepted = apps.filter(a => a.status === 'Acceptée').length;
+  const pending  = apps.filter(a => a.status === 'En attente').length;
+  const urgent   = apps.filter(a => a.status === 'Correction').length;
 
   const filtered = useMemo(() => {
     let d = apps;
-    if (filter !== 'Tous') d = d.filter(a => a.status === filter);
+    if (filter === 'Tous') d = d.filter(a => a.status !== 'Archivée');
+    else d = d.filter(a => a.status === filter);
     if (search.trim()) {
       const q = search.toLowerCase();
       d = d.filter(a =>
@@ -261,18 +300,60 @@ export default function ApplicationsPage() {
         a.country.toLowerCase().includes(q)
       );
     }
-    return d;
-  }, [apps, search, filter]);
+    return [...d].sort((a, b) => {
+      let va: string | number = '', vb: string | number = '';
+      if (sortBy === 'student')    { va = a.student;    vb = b.student; }
+      if (sortBy === 'university') { va = a.university; vb = b.university; }
+      if (sortBy === 'date')       { va = a.date ?? ''; vb = b.date ?? ''; }
+      if (sortBy === 'score')      { va = a.score;      vb = b.score; }
+      if (sortBy === 'status')     { va = a.status;     vb = b.status; }
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [apps, search, filter, sortBy, sortDir]);
 
-  useEffect(() => setPage(1), [filter, search]);
+  useEffect(() => setPage(1), [filter, search, sortBy, sortDir]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated  = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated  = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const hasFilters = !!(search || filter !== 'Tous');
+
+  const fmtDate = (d: string) =>
+    new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  function SortTh({ col, label, right }: { col: SortKey; label: string; right?: boolean }) {
+    const active = sortBy === col;
+    return (
+      <th
+        className={`ap-th ap-th-sort${active ? ' ap-th-sort--active' : ''}`}
+        style={{ textAlign: right ? 'right' : 'left' }}
+        onClick={() => toggleSort(col)}
+      >
+        <span className="ap-th-sort-inner">
+          {label}
+          <span className={`ap-sort-icon${active ? ' ap-sort-icon--active' : ''}`}>
+            {active && sortDir === 'asc' ? (
+              <svg width={10} height={10} viewBox="0 0 10 10" fill="none"><path d="M5 2L9 8H1L5 2Z" fill="currentColor"/></svg>
+            ) : active ? (
+              <svg width={10} height={10} viewBox="0 0 10 10" fill="none"><path d="M5 8L1 2H9L5 8Z" fill="currentColor"/></svg>
+            ) : (
+              <svg width={10} height={12} viewBox="0 0 10 12" fill="none">
+                <path d="M5 1L9 5H1L5 1Z" fill="currentColor" opacity=".4"/>
+                <path d="M5 11L1 7H9L5 11Z" fill="currentColor" opacity=".4"/>
+              </svg>
+            )}
+          </span>
+        </span>
+      </th>
+    );
+  }
 
   if (loading) return <LoadingSpinner fullPage />;
 
   return (
     <div>
+      <style>{CSS}</style>
+
       <PageHeader
         title="Candidatures"
         subtitle={`${total} dossier${total !== 1 ? 's' : ''} · ${pending} en attente de traitement`}
@@ -291,30 +372,24 @@ export default function ApplicationsPage() {
               }))
             );
           }}>
-             Export CSV
+            Export CSV
           </Button>
         }
       />
 
-      {/*  Toggle vue  */}
+      {/* View toggle */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20, marginTop: -12 }}>
         <div style={{ display: 'flex', gap: 4, background: colors.inputBg, borderRadius: 10, padding: 4 }}>
-          <button
-            className={`ap-view-btn${view === 'table' ? ' ap-view-btn--active' : ''}`}
-            onClick={() => setView('table')}
-          >
+          <button className={`ap-view-btn${view === 'table' ? ' ap-view-btn--active' : ''}`} onClick={() => setView('table')}>
             <IconTable /> Tableau
           </button>
-          <button
-            className={`ap-view-btn${view === 'kanban' ? ' ap-view-btn--active' : ''}`}
-            onClick={() => setView('kanban')}
-          >
+          <button className={`ap-view-btn${view === 'kanban' ? ' ap-view-btn--active' : ''}`} onClick={() => setView('kanban')}>
             <IconKanban /> Kanban
           </button>
         </div>
       </div>
 
-      {/*  Erreur fetch  */}
+      {/* Error */}
       {fetchError && (
         <div style={{
           marginBottom: 20, padding: '12px 16px',
@@ -325,7 +400,7 @@ export default function ApplicationsPage() {
         </div>
       )}
 
-      {/*  Stats  */}
+      {/* Stats */}
       <div className="ap-stat-grid">
         <StatCard
           label="Total dossiers" value={total} sub="Toutes périodes"
@@ -333,7 +408,7 @@ export default function ApplicationsPage() {
           icon={<svg width={20} height={20} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>}
         />
         <StatCard
-          label="Validés" value={validated}
+          label="Acceptées" value={accepted}
           accent={colors.success} iconBg="rgba(22,163,74,0.10)" iconColor={colors.success}
           icon={<svg width={20} height={20} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
         />
@@ -349,32 +424,30 @@ export default function ApplicationsPage() {
         />
       </div>
 
-      {/*  Vue kanban  */}
+      {/* Kanban */}
       {view === 'kanban' && (
-        <ApplicationKanban
-          apps={apps}
-          onUpdate={handleUpdate}
-          onSelect={setSelectedApp}
-        />
+        <ApplicationKanban apps={apps} onUpdate={handleUpdate} onSelect={setSelectedApp} />
       )}
 
-      {/*  Vue tableau  */}
+      {/* Table */}
       {view === 'table' && (
         <div className="ap-table-card">
+          <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, #7c3aed)` }} />
 
           {/* Toolbar */}
           <div className="ap-toolbar">
             <div className="ap-search-wrap">
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: colors.textMuted, display: 'flex', pointerEvents: 'none' }}>
-                <IconSearch />
-              </span>
+              <span className="ap-search-icon"><IconSearch /></span>
               <input
                 className="ap-search"
                 type="search"
-                placeholder="Rechercher"
+                placeholder="Nom, université, programme, pays..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
+              {search && (
+                <button className="ap-search-clear" onClick={() => setSearch('')}>&times;</button>
+              )}
             </div>
             <div className="ap-filters">
               {FILTERS.map(f => (
@@ -387,6 +460,27 @@ export default function ApplicationsPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Results bar */}
+          <div className="ap-results-bar">
+            <span>
+              <strong style={{ color: colors.textPrimary }}>{filtered.length}</strong> candidature{filtered.length !== 1 ? 's' : ''}
+              {hasFilters && ' · filtrées'}
+            </span>
+            {hasFilters && (
+              <button
+                onClick={() => { setSearch(''); setFilter('Tous'); }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 12, color: colors.blue, fontWeight: 600, fontFamily: fonts.body,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}
+              >
+                <svg width={11} height={11} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Réinitialiser
+              </button>
+            )}
           </div>
 
           <div className="ap-table-wrap">
@@ -405,14 +499,14 @@ export default function ApplicationsPage() {
               <table className="ap-table">
                 <thead>
                   <tr>
-                    <th>Étudiant</th>
-                    <th>Université</th>
-                    <th>Programme</th>
-                    <th>Pays</th>
-                    <th>Date</th>
-                    <th>Score</th>
-                    <th>Statut</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
+                    <SortTh col="student"    label="Étudiant"   />
+                    <SortTh col="university" label="Université" />
+                    <th className="ap-th">Programme</th>
+                    <th className="ap-th">Pays</th>
+                    <SortTh col="date"   label="Date"   />
+                    <SortTh col="score"  label="Score"  />
+                    <SortTh col="status" label="Statut" />
+                    <th className="ap-th" style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -427,7 +521,7 @@ export default function ApplicationsPage() {
                             </div>
                             <div>
                               <div style={{ fontWeight: 600, fontSize: 13.5, color: colors.textPrimary }}>{app.student}</div>
-                              {app.email && <div style={{ fontSize: 12, color: colors.textMuted }}>{app.email}</div>}
+                              {app.email && <div style={{ fontSize: 11.5, color: colors.textMuted }}>{app.email}</div>}
                             </div>
                           </div>
                         </td>
@@ -438,17 +532,23 @@ export default function ApplicationsPage() {
                           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.program}</div>
                         </td>
                         <td>
-                          <span style={{ fontSize: 13, color: colors.textSecondary }}>{app.country}</span>
+                          <span style={{ fontSize: 13, color: colors.textSecondary, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <svg width={11} height={11} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                              <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                            </svg>
+                            {app.country}
+                          </span>
                         </td>
                         <td style={{ color: colors.textMuted, fontSize: 13, whiteSpace: 'nowrap' }}>
-                          {app.date ? new Date(app.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}
+                          {app.date ? fmtDate(app.date) : '—'}
                         </td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <div className="ap-score-bar">
                               <div className="ap-score-fill" style={{ width: `${app.score}%`, background: scoreColor(app.score) }} />
                             </div>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: scoreColor(app.score) }}>{app.score}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: scoreColor(app.score), minWidth: 24 }}>{app.score}</span>
                           </div>
                         </td>
                         <td>
@@ -473,14 +573,15 @@ export default function ApplicationsPage() {
             page={page}
             totalPages={totalPages}
             total={filtered.length}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             onChange={setPage}
+            onPageSizeChange={size => { setPageSize(size); setPage(1); }}
             label="candidatures"
           />
         </div>
       )}
 
-      {/*  Modal détail  */}
+      {/* Modal */}
       {selectedApp && (
         <ApplicationDetailModal
           app={selectedApp}
@@ -492,7 +593,6 @@ export default function ApplicationsPage() {
   );
 }
 
-/*  Icons  */
 function IconSearch()  { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>; }
 function IconEye()     { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>; }
 function IconTable()   { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>; }

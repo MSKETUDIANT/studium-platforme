@@ -1,30 +1,33 @@
 import { supabase } from '../../../shared/services/supabase';
 
 export interface PlatformSettings {
-  uploadMaxSizeMb:      number;
-  uploadAllowedFormats: string;
-  motivationMinWords:   number;
-  supportEmail:         string;
-  platformName:         string;
-  defaultLanguage:      string;
+  uploadMaxSizeMb:            number;
+  uploadAllowedFormats:       string;
+  motivationMinWords:         number;
+  supportEmail:               string;
+  platformName:               string;
+  defaultLanguage:            string;
+  ambassadorCommissionAmount: number;
 }
 
 const DEFAULTS: PlatformSettings = {
-  uploadMaxSizeMb:      10,
-  uploadAllowedFormats: 'pdf,doc,docx,jpg,jpeg,png',
-  motivationMinWords:   300,
-  supportEmail:         'support@studium.app',
-  platformName:         'Studium',
-  defaultLanguage:      'fr',
+  uploadMaxSizeMb:            10,
+  uploadAllowedFormats:       'pdf,doc,docx,jpg,jpeg,png',
+  motivationMinWords:         300,
+  supportEmail:               'support@studium.app',
+  platformName:               'Studium',
+  defaultLanguage:            'fr',
+  ambassadorCommissionAmount: 50,
 };
 
 const KEY_MAP: Record<keyof PlatformSettings, string> = {
-  uploadMaxSizeMb:      'upload_max_size_mb',
-  uploadAllowedFormats: 'upload_allowed_formats',
-  motivationMinWords:   'motivation_min_words',
-  supportEmail:         'support_email',
-  platformName:         'platform_name',
-  defaultLanguage:      'default_language',
+  uploadMaxSizeMb:            'upload_max_size_mb',
+  uploadAllowedFormats:       'upload_allowed_formats',
+  motivationMinWords:         'motivation_min_words',
+  supportEmail:               'support_email',
+  platformName:               'platform_name',
+  defaultLanguage:            'default_language',
+  ambassadorCommissionAmount: 'ambassador_commission_amount',
 };
 
 export async function fetchPlatformSettings(): Promise<PlatformSettings> {
@@ -44,6 +47,7 @@ export async function fetchPlatformSettings(): Promise<PlatformSettings> {
     supportEmail:         map['support_email']                   ?? DEFAULTS.supportEmail,
     platformName:         map['platform_name']                   ?? DEFAULTS.platformName,
     defaultLanguage:      map['default_language']                ?? DEFAULTS.defaultLanguage,
+    ambassadorCommissionAmount: Number(map['ambassador_commission_amount'] ?? DEFAULTS.ambassadorCommissionAmount),
   };
 }
 

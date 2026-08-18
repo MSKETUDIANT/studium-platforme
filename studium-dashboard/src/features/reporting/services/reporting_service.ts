@@ -1,14 +1,16 @@
 import { supabase } from '../../../shared/services/supabase';
 
 export interface KPISummary {
-  totalApplications:    number;
-  pendingReview:        number;
-  verified:             number;
-  sent:                 number;
-  accepted:             number;
-  rejected:             number;
-  avgCompletenessScore: number;
-  needsFix:             number;
+  totalApplications:      number;
+  pendingReview:          number;
+  verified:               number;
+  sent:                   number;
+  accepted:               number;
+  rejected:               number;
+  avgCompletenessScore:   number;
+  needsFix:               number;
+  acceptanceRate:         number; // % parmi les candidatures décidées (acceptées + refusées)
+  avgValidationDelayDays: number; // jours entre soumission et 1ère validation ('verified')
 }
 
 export interface MonthlyCount {
@@ -21,15 +23,46 @@ export interface TopItem {
   count: number;
 }
 
+const EMPTY_KPI: KPISummary = {
+  totalApplications: 0, pendingReview: 0, verified: 0,
+  sent: 0, accepted: 0, rejected: 0, avgCompletenessScore: 0, needsFix: 0,
+  acceptanceRate: 0, avgValidationDelayDays: 0,
+};
+
+// Délai moyen entre soumission (applications.submitted_at) et 1ère validation
+// (première transition vers 'verified' dans application_status_history).
+async function fetchAvgValidationDelayDays(): Promise<number> {
+  const [{ data: apps }, { data: history }] = await Promise.all([
+    supabase.from('applications').select('id, submitted_at').not('submitted_at', 'is', null),
+    supabase.from('application_status_history').select('application_id, created_at').eq('to_status', 'verified'),
+  ]);
+  if (!apps?.length || !history?.length) return 0;
+
+  // Garde la 1ère transition 'verified' par candidature
+  const verifiedAtByApp = new Map<string, string>();
+  history.forEach((h: any) => {
+    const existing = verifiedAtByApp.get(h.application_id);
+    if (!existing || h.created_at < existing) verifiedAtByApp.set(h.application_id, h.created_at);
+  });
+
+  const delaysDays: number[] = [];
+  apps.forEach((a: any) => {
+    const verifiedAt = verifiedAtByApp.get(a.id);
+    if (!verifiedAt) return;
+    const diffMs = new Date(verifiedAt).getTime() - new Date(a.submitted_at).getTime();
+    if (diffMs >= 0) delaysDays.push(diffMs / 86_400_000);
+  });
+  if (!delaysDays.length) return 0;
+
+  return Math.round((delaysDays.reduce((s, v) => s + v, 0) / delaysDays.length) * 10) / 10;
+}
+
 export async function fetchKPISummary(): Promise<KPISummary> {
   const { data, error } = await supabase
     .from('applications')
     .select('status, student_profiles!student_profile_id(id, completeness_score)');
 
-  if (error || !data) return {
-    totalApplications: 0, pendingReview: 0, verified: 0,
-    sent: 0, accepted: 0, rejected: 0, avgCompletenessScore: 0, needsFix: 0,
-  };
+  if (error || !data) return EMPTY_KPI;
 
   const total    = data.length;
   const byStatus = (s: string) => data.filter((a: any) => a.status === s).length;
@@ -48,15 +81,23 @@ export async function fetchKPISummary(): Promise<KPISummary> {
     ? Math.round(uniqueScores.reduce((s, v) => s + v, 0) / uniqueScores.length)
     : 0;
 
+  const accepted = byStatus('accepted');
+  const rejected = data.filter((a: any) => ['rejected', 'archived'].includes(a.status)).length;
+  const decided  = accepted + rejected;
+
+  const avgValidationDelayDays = await fetchAvgValidationDelayDays();
+
   return {
     totalApplications:    total,
     pendingReview:        data.filter((a: any) => ['draft', 'submitted', 'pending_decision'].includes(a.status)).length,
     needsFix:             byStatus('needsfix'),
     verified:             byStatus('verified'),
     sent:                 byStatus('sent'),
-    accepted:             byStatus('accepted'),
-    rejected:             data.filter((a: any) => ['rejected', 'archived'].includes(a.status)).length,
+    accepted,
+    rejected,
     avgCompletenessScore: avg,
+    acceptanceRate:         decided > 0 ? Math.round((accepted / decided) * 100) : 0,
+    avgValidationDelayDays,
   };
 }
 

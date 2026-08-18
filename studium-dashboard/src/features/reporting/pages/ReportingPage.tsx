@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { pdf } from '@react-pdf/renderer';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { colors, fonts } from '../../../shared/constants/theme';
@@ -7,6 +8,7 @@ import {
 } from '../services/reporting_service';
 import type { KPISummary, MonthlyCount, TopItem } from '../services/reporting_service';
 import { supabase } from '../../../shared/services/supabase';
+import ReportPDF from '../components/ReportPDF';
 
 /*  Icons  */
 const IconTotal    = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
@@ -16,14 +18,17 @@ const IconAccepted = () => <svg width={20} height={20} viewBox="0 0 24 24" fill=
 const IconFix      = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
 const IconRate     = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
 const IconScore    = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>;
+const IconTrophy   = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3a2 2 0 0 1-2 4M7 5H4a2 2 0 0 0 2 4"/></svg>;
+const IconClock    = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>;
 
 export default function ReportingPage() {
   const [kpi,       setKpi]       = useState<KPISummary | null>(null);
   const [monthly,   setMonthly]   = useState<MonthlyCount[]>([]);
   const [countries, setCountries] = useState<TopItem[]>([]);
   const [programs,  setPrograms]  = useState<TopItem[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [exporting, setExporting] = useState(false);
+  const [loading,      setLoading]      = useState(true);
+  const [exporting,    setExporting]    = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -35,6 +40,25 @@ export default function ReportingPage() {
       setKpi(k); setMonthly(m); setCountries(c); setPrograms(p);
     }).finally(() => setLoading(false));
   }, []);
+
+  async function handleExportPdf() {
+    if (!kpi) return;
+    setExportingPdf(true);
+    try {
+      const blob = await pdf(
+        <ReportPDF kpi={kpi} monthly={monthly} countries={countries} programs={programs} />
+      ).toBlob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      const month = new Date().toLocaleDateString('fr-FR', { month: '2-digit', year: 'numeric' }).replace('/', '-');
+      a.href     = url;
+      a.download = `studium_rapport_${month}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportingPdf(false);
+    }
+  }
 
   async function handleExportApplications() {
     setExporting(true);
@@ -66,21 +90,39 @@ export default function ReportingPage() {
         title="Rapports"
         subtitle="KPIs et statistiques de la plateforme"
         actions={
-          <button
-            onClick={handleExportApplications}
-            disabled={exporting}
-            style={{
-              padding: '9px 18px', borderRadius: 9, border: `1.5px solid rgba(255,255,255,.35)`,
-              background: 'rgba(255,255,255,.15)', color: 'white', backdropFilter: 'blur(4px)',
-              fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: fonts.body,
-              display: 'flex', alignItems: 'center', gap: 7, opacity: exporting ? 0.7 : 1,
-            }}
-          >
-            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            {exporting ? 'Export...' : 'Exporter CSV'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={handleExportPdf}
+              disabled={exportingPdf || loading || !kpi}
+              style={{
+                padding: '9px 18px', borderRadius: 9, border: `1.5px solid rgba(255,255,255,.35)`,
+                background: 'rgba(255,255,255,.15)', color: 'white', backdropFilter: 'blur(4px)',
+                fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: fonts.body,
+                display: 'flex', alignItems: 'center', gap: 7, opacity: (exportingPdf || loading || !kpi) ? 0.5 : 1,
+              }}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              {exportingPdf ? 'Generation...' : 'Exporter PDF'}
+            </button>
+            <button
+              onClick={handleExportApplications}
+              disabled={exporting}
+              style={{
+                padding: '9px 18px', borderRadius: 9, border: `1.5px solid rgba(255,255,255,.35)`,
+                background: 'rgba(255,255,255,.15)', color: 'white', backdropFilter: 'blur(4px)',
+                fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: fonts.body,
+                display: 'flex', alignItems: 'center', gap: 7, opacity: exporting ? 0.7 : 1,
+              }}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              {exporting ? 'Export...' : 'Exporter CSV'}
+            </button>
+          </div>
         }
       />
 
@@ -131,6 +173,20 @@ export default function ReportingPage() {
                 icon={<IconScore />} iconBg="rgba(8,145,178,0.10)" iconColor="#0891b2" accent="#0891b2"
                 label="Score profil moyen" value={`${kpi?.avgCompletenessScore ?? 0}%`}
                 sub="Complétude moyenne des dossiers"
+              />
+            </div>
+
+            {/* Ligne 2bis — taux d'acceptation & délai de validation */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+              <MetricCard
+                icon={<IconTrophy />} iconBg="rgba(22,163,74,0.10)" iconColor={colors.success} accent={colors.success}
+                label="Taux d'acceptation" value={`${kpi?.acceptanceRate ?? 0}%`}
+                sub="Acceptées parmi les décisions rendues (acceptées + refusées)"
+              />
+              <MetricCard
+                icon={<IconClock />} iconBg="rgba(124,58,237,0.10)" iconColor="#7c3aed" accent="#7c3aed"
+                label="Délai moyen de validation" value={`${kpi?.avgValidationDelayDays ?? 0} j`}
+                sub="Entre soumission et 1ère validation"
               />
             </div>
 

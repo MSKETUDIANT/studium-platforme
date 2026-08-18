@@ -244,6 +244,7 @@ function RulesTab() {
     uploadMaxSizeMb: 10, uploadAllowedFormats: 'pdf,doc,docx,jpg,jpeg,png',
     motivationMinWords: 300, supportEmail: 'support@studium.app',
     platformName: 'Studium', defaultLanguage: 'fr',
+    ambassadorCommissionAmount: 50,
   });
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
@@ -294,6 +295,19 @@ function RulesTab() {
           <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>Recommandé : 300 mots</div>
         </div>
 
+        <Divider />
+        <SectionTitle title="Commissions ambassadeurs" subtitle="Montant attribué par filleul converti (EPIC 10)" />
+
+        <div style={{ maxWidth: 300, marginBottom: 18 }}>
+          <Label>Montant par conversion</Label>
+          <input type="number" min={0} max={10000} value={settings.ambassadorCommissionAmount}
+            onChange={e => setSettings(s => ({ ...s, ambassadorCommissionAmount: Number(e.target.value) }))}
+            style={inputStyle} />
+          <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
+            Appliqué automatiquement à la prochaine conversion de filleul (candidature acceptée).
+          </div>
+        </div>
+
         {error && <div style={{ fontSize: 12.5, color: colors.danger, marginBottom: 12, padding: '8px 12px', background: '#fef2f2', borderRadius: 7 }}>{error}</div>}
         <BtnPrimary onClick={handleSave} disabled={saving} saved={saved} saving={saving}>
           {saved ? 'Enregistré' : saving ? 'Enregistrement' : 'Enregistrer les règles'}
@@ -310,6 +324,7 @@ function GeneralTab() {
     uploadMaxSizeMb: 10, uploadAllowedFormats: 'pdf,doc,docx,jpg,jpeg,png',
     motivationMinWords: 300, supportEmail: 'support@studium.app',
     platformName: 'Studium', defaultLanguage: 'fr',
+    ambassadorCommissionAmount: 50,
   });
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);

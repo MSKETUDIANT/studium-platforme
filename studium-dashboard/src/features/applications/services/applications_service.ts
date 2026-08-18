@@ -1,11 +1,11 @@
-import { supabase }    from '../../../shared/services/supabase';
-import { STATUS_MAP }  from '../types/application';
+import { supabase }              from '../../../shared/services/supabase';
+import { STATUS_MAP }            from '../types/application';
 import type { Application, RawStatus } from '../types/application';
 
 const SELECT = `
-  id, status, submitted_at, notes,
+  id, status, submitted_at, notes, motivation_letter,
   student_profiles!student_profile_id ( id, first_name, last_name, nationality, completeness_score ),
-  programs!program_id                  ( id, program_name, university_name, country, level, deadline, program_contacts!left ( email ) )
+  programs!program_id                  ( id, program_name, university_name, country, level, deadline, requirements, contact_email, cc_emails, program_contacts!left ( email, cc_emails ) )
 `;
 
 function mapRow(a: any): Application {
@@ -17,16 +17,24 @@ function mapRow(a: any): Application {
     rawStatus:    a.status               ?? 'submitted',
     status:       STATUS_MAP[a.status]   ?? 'En attente',
     student:      `${a.student_profiles?.first_name ?? ''} ${a.student_profiles?.last_name ?? ''}`.trim() || 'Inconnu',
-    email:        a.student_profiles?.nationality ?? '',
+    email:        '',
     university:   a.programs?.university_name    ?? '',
     program:      a.programs?.program_name       ?? '',
     country:      a.programs?.country            ?? '',
     level:        a.programs?.level              ?? '',
     date:         a.submitted_at                 ?? '',
     score:        a.student_profiles?.completeness_score ?? 0,
-    notes:        a.notes                        ?? undefined,
-    contactEmail: contacts[0]?.email             ?? undefined,
-    deadline:     a.programs?.deadline           ?? null,
+    notes:               a.notes                        ?? undefined,
+    motivationLetter:    a.motivation_letter             ?? undefined,
+    // program_contacts (email/name/cc dédiés) prime si renseigné ; sinon
+    // repli sur le champ simple programs.contact_email, seul réellement
+    // alimenté aujourd'hui via le formulaire de gestion des programmes.
+    contactEmail:        contacts[0]?.email ?? a.programs?.contact_email ?? undefined,
+    ccEmails:            Array.isArray(contacts[0]?.cc_emails) && contacts[0].cc_emails.length
+                            ? contacts[0].cc_emails.join(', ')
+                            : a.programs?.cc_emails ?? undefined,
+    deadline:            a.programs?.deadline           ?? null,
+    programRequirements: Array.isArray(a.programs?.requirements) ? a.programs.requirements : [],
   };
 }
 
@@ -35,6 +43,41 @@ export async function updateApplicationNotes(id: string, notes: string): Promise
     .from('applications')
     .update({ notes: notes || null })
     .eq('id', id);
+  if (error) throw error;
+}
+
+/*  Commentaires internes (fil horodaté/multi-auteurs, distinct de notes) */
+
+export interface ApplicationComment {
+  id:           string;
+  content:      string;
+  author_email: string | null;
+  created_at:   string;
+}
+
+export async function fetchApplicationComments(applicationId: string): Promise<ApplicationComment[]> {
+  const { data, error } = await supabase
+    .from('application_comments')
+    .select('id, content, author_email, created_at')
+    .eq('application_id', applicationId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addApplicationComment(applicationId: string, content: string): Promise<ApplicationComment> {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('application_comments')
+    .insert({ application_id: applicationId, content, author_id: user?.id, author_email: user?.email })
+    .select('id, content, author_email, created_at')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteApplicationComment(id: string): Promise<void> {
+  const { error } = await supabase.from('application_comments').delete().eq('id', id);
   if (error) throw error;
 }
 
@@ -62,14 +105,14 @@ async function sendStatusPush(applicationId: string, status: RawStatus): Promise
 
   const { data: app } = await supabase
     .from('applications')
-    .select('student_id')
+    .select('student_profile_id')
     .eq('id', applicationId)
     .single();
-  if (!app?.student_id) return;
+  if (!app?.student_profile_id) return;
 
   await supabase.functions.invoke('send-push-notification', {
     body: {
-      user_ids: [app.student_id],
+      user_ids: [app.student_profile_id],
       title: msg.title,
       body:  msg.body,
       data:  { type: 'status_change', application_id: applicationId, status },
@@ -90,6 +133,10 @@ export async function updateApplicationStatus(
 
   // Push notification asynchrone (ne bloque pas)
   sendStatusPush(id, status).catch(console.error);
+
+  // Les tâches de relance J+7/J+14 sont créées par un trigger SQL
+  // (create_reminder_tasks_on_sent), qui couvre aussi l'envoi email
+  // automatique — celui-ci ne passe jamais par cette fonction.
 
   if (note) {
     const { data: latest } = await supabase
@@ -119,12 +166,13 @@ export interface EmailLog {
   errorMessage:      string | null;
   isFollowup:        boolean;
   sentAt:            string;
+  retryCount:        number;
 }
 
 export async function fetchEmailLogs(applicationId: string): Promise<EmailLog[]> {
   const { data, error } = await supabase
     .from('email_logs')
-    .select('id, to_email, cc_emails, subject, provider, status, provider_message_id, error_message, is_followup, sent_at')
+    .select('id, to_email, cc_emails, subject, provider, status, provider_message_id, error_message, is_followup, sent_at, retry_count')
     .eq('application_id', applicationId)
     .order('sent_at', { ascending: false });
   if (error) return [];
@@ -139,7 +187,30 @@ export async function fetchEmailLogs(applicationId: string): Promise<EmailLog[]>
     errorMessage:      e.error_message       ?? null,
     isFollowup:        e.is_followup         ?? false,
     sentAt:            e.sent_at,
+    retryCount:        e.retry_count ?? 0,
   }));
+}
+
+// Trace un passage manuel à "Envoyée" (dépôt sur portail externe, cf. CDC
+// section 1) dans le même historique que les envois email automatiques,
+// pour que l'équipe distingue les deux cas au lieu de les confondre.
+export async function logManualSend(
+  applicationId: string,
+  destination:   string,
+  note:          string,
+): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const { error } = await supabase.from('email_logs').insert({
+    application_id: applicationId,
+    to_email:        destination || 'Dépôt manuel (portail externe)',
+    subject:         note,
+    provider:        'manual',
+    status:          'sent',
+    sent_by:         session?.user?.id ?? null,
+    sent_at:         new Date().toISOString(),
+    is_followup:     false,
+  });
+  if (error) throw error;
 }
 
 export async function sendApplicationEmail(
@@ -203,6 +274,62 @@ export async function sendCorrectionMessage(
       sender_id:       session?.user?.id ?? null,
       content:         message,
     });
+  if (error) throw error;
+}
+
+export interface ApplicationDocument {
+  id:               string;
+  type:             string;
+  file_url:         string | null;
+  file_name:        string | null;
+  size_bytes:       number | null;
+  status:           'pending' | 'approved' | 'rejected';
+  rejection_reason: string | null;
+  created_at:       string;
+}
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  cv:                'Curriculum Vitae',
+  transcript:        'Relevé de notes',
+  recommendation:    'Lettre de recommandation',
+  passport:          'Passeport / Pièce d\'identité',
+  motivation_letter: 'Lettre de motivation',
+  diploma:           'Diplôme',
+  language_cert:     'Attestation de langue',
+  financial_proof:   'Justificatif de financement',
+  other:             'Document complémentaire',
+};
+
+export function docTypeLabel(type: string): string {
+  return DOC_TYPE_LABELS[type] ?? type;
+}
+
+export async function fetchApplicationDocuments(studentProfileId: string): Promise<ApplicationDocument[]> {
+  const { data } = await supabase
+    .from('documents')
+    .select('id, type, file_url, file_name, size_bytes, status, rejection_reason, created_at')
+    .eq('student_profile_id', studentProfileId)
+    .order('created_at', { ascending: false });
+  return (data ?? []) as ApplicationDocument[];
+}
+
+export async function approveDocument(id: string, fileName?: string): Promise<void> {
+  const { error } = await supabase
+    .from('documents')
+    .update({
+      status:           'approved',
+      rejection_reason: null,
+      ...(fileName ? { file_name: fileName } : {}),
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function rejectDocument(id: string, reason: string): Promise<void> {
+  const { error } = await supabase
+    .from('documents')
+    .update({ status: 'rejected', rejection_reason: reason })
+    .eq('id', id);
   if (error) throw error;
 }
 

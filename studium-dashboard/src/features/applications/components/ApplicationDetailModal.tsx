@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { colors, fonts, radius } from '../../../shared/constants/theme';
 import { RAW_STATUS_LABELS } from '../types/application';
 import type { Application, RawStatus } from '../types/application';
-import { updateApplicationStatus, updateApplicationNotes, fetchStatusHistory, sendApplicationEmail, fetchEmailLogs, sendCorrectionMessage } from '../services/applications_service';
-import type { StatusHistoryEntry, EmailLog } from '../services/applications_service';
+import { updateApplicationStatus, updateApplicationNotes, fetchStatusHistory, sendApplicationEmail, fetchEmailLogs, logManualSend, sendCorrectionMessage, fetchApplicationDocuments, approveDocument, rejectDocument, docTypeLabel, fetchApplicationComments, addApplicationComment, deleteApplicationComment } from '../services/applications_service';
+import type { StatusHistoryEntry, EmailLog, ApplicationDocument, ApplicationComment } from '../services/applications_service';
 import ApplicationPDF from './ApplicationPDF';
+import { useRole } from '../../auth/hooks/useRole';
+import { can } from '../../auth/hooks/permissions';
 
 const AVAILABLE_STATUSES: RawStatus[] = [
   'submitted', 'needsfix', 'verified', 'sent', 'accepted', 'rejected', 'archived',
@@ -23,6 +25,28 @@ const STATUS_COLORS: Record<RawStatus, { bg: string; color: string }> = {
   archived:         { bg: '#f9fafb', color: '#6b7280' },
 };
 
+const DOC_TYPE_SHORT: Record<string, string> = {
+  cv:                'CV',
+  transcript:        'Releve',
+  recommendation:    'Recommandation',
+  passport:          'Passeport',
+  motivation_letter: 'Motivation',
+  diploma:           'Diplome',
+  language_cert:     'CertifLangue',
+  financial_proof:   'JustifFinancement',
+  other:             'Autre',
+};
+
+function buildDocFileName(studentName: string, docType: string, originalName: string | null): string {
+  const ext      = originalName?.split('.').pop()?.toLowerCase() ?? 'pdf';
+  const parts    = studentName.trim().split(/\s+/);
+  const last     = (parts.pop() ?? '').toUpperCase().replace(/[^A-Z]/gi, '').toUpperCase();
+  const first    = (parts[0] ?? '').replace(/[^a-zA-Z]/g, '');
+  const typeSlug = DOC_TYPE_SHORT[docType] ?? docType.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const date     = new Date().toISOString().split('T')[0];
+  return `${last}_${first}_${typeSlug}_${date}.${ext}`;
+}
+
 const TIMELINE_STEPS: { label: string; statuses: RawStatus[] }[] = [
   { label: 'Soumise',       statuses: ['submitted', 'needsfix', 'verified', 'sent', 'accepted', 'rejected', 'pending_decision', 'archived'] },
   { label: 'En vérification', statuses: ['verified', 'sent', 'accepted', 'rejected', 'archived'] },
@@ -37,9 +61,15 @@ interface Props {
 }
 
 export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props) {
+  const { role } = useRole();
+  const canReviewDocs = can(role, 'documents:review');
+
   const [status,         setStatus]         = useState<RawStatus>(app.rawStatus);
   const [notes,          setNotes]          = useState(app.notes ?? '');
   const [correctionMsg,  setCorrectionMsg]  = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [manualSendNote, setManualSendNote] = useState('');
+  const [manualSendWhere, setManualSendWhere] = useState('');
   const [saving,         setSaving]         = useState(false);
   const [saved,          setSaved]          = useState(false);
   const [archiveConfirm, setArchiveConfirm] = useState(false);
@@ -51,21 +81,89 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   const [sending,        setSending]        = useState(false);
   const [sendError,      setSendError]      = useState<string | null>(null);
   const [sendSuccess,    setSendSuccess]    = useState(false);
-  const [saveError,      setSaveError]      = useState<string | null>(null);
+  const [toast,          setToast]          = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Documents
+  const [docs,           setDocs]           = useState<ApplicationDocument[]>([]);
+  const [docsLoading,    setDocsLoading]    = useState(false);
+  const [rejectTarget,   setRejectTarget]   = useState<ApplicationDocument | null>(null);
+  const [rejectReason,   setRejectReason]   = useState('');
+  const [docActionId,    setDocActionId]    = useState<string | null>(null);
+
+  // Commentaires internes (fil horodaté/multi-auteurs)
+  const [comments,        setComments]        = useState<ApplicationComment[]>([]);
+  const [commentsLoading, setCommentsLoading]  = useState(false);
+  const [commentText,     setCommentText]      = useState('');
+  const [commentSaving,   setCommentSaving]    = useState(false);
 
   useEffect(() => {
     setStatus(app.rawStatus);
     setNotes(app.notes ?? '');
     setCorrectionMsg('');
+    setRejectionReason('');
+    setManualSendNote('');
+    setManualSendWhere('');
     setSaved(false);
     setSendError(null);
     setSendSuccess(false);
-    setSaveError(null);
+    setToast(null);
     setArchiveConfirm(false);
     setSendToEmail(app.contactEmail ?? '');
+    setSendCc(app.ccEmails ?? '');
     fetchStatusHistory(app.id).then(setHistory).catch(() => setHistory([]));
     fetchEmailLogs(app.id).then(setEmailLogs).catch(() => setEmailLogs([]));
+    setCommentText('');
+    setCommentsLoading(true);
+    fetchApplicationComments(app.id)
+      .then(setComments)
+      .catch(() => setComments([]))
+      .finally(() => setCommentsLoading(false));
+    if (app.studentId) {
+      setDocsLoading(true);
+      fetchApplicationDocuments(app.studentId)
+        .then(setDocs)
+        .finally(() => setDocsLoading(false));
+    }
   }, [app]);
+
+  async function handleApproveDoc(doc: ApplicationDocument) {
+    setDocActionId(doc.id);
+    try {
+      const newName = buildDocFileName(app.student, doc.type, doc.file_name);
+      await approveDocument(doc.id, newName);
+      setDocs(prev => prev.map(d => d.id === doc.id
+        ? { ...d, status: 'approved', rejection_reason: null, file_name: newName }
+        : d
+      ));
+    } finally { setDocActionId(null); }
+  }
+
+  async function handleConfirmReject() {
+    if (!rejectTarget || !rejectReason.trim()) return;
+    setDocActionId(rejectTarget.id);
+    try {
+      await rejectDocument(rejectTarget.id, rejectReason.trim());
+      setDocs(prev => prev.map(d => d.id === rejectTarget.id ? { ...d, status: 'rejected', rejection_reason: rejectReason.trim() } : d));
+      setRejectTarget(null);
+      setRejectReason('');
+    } finally { setDocActionId(null); }
+  }
+
+  async function handleAddComment() {
+    if (!commentText.trim()) return;
+    setCommentSaving(true);
+    try {
+      const created = await addApplicationComment(app.id, commentText.trim());
+      setComments(prev => [created, ...prev]);
+      setCommentText('');
+    } finally { setCommentSaving(false); }
+  }
+
+  async function handleDeleteComment(id: string) {
+    await deleteApplicationComment(id);
+    setComments(prev => prev.filter(c => c.id !== id));
+  }
 
   async function handleSendEmail() {
     if (!sendToEmail.trim()) return;
@@ -84,7 +182,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
       const cc = sendCc.split(',').map(e => e.trim()).filter(Boolean);
       await sendApplicationEmail(app.id, sendToEmail.trim(), cc);
       setSendSuccess(true);
-      onUpdate(app.id, { rawStatus: 'sent', status: 'Validé' });
+      onUpdate(app.id, { rawStatus: 'sent', status: 'Envoyée' });
       fetchEmailLogs(app.id).then(setEmailLogs).catch(() => {});
     } catch (err) {
       setSendError(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -93,25 +191,58 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
     }
   }
 
+  function showToast(type: 'success' | 'error', message: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ type, message });
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
+  }
+
+  const isManualSend = status === 'sent' && app.rawStatus !== 'sent';
+
   async function handleSave() {
     if (status === 'verified' && app.score < 70) {
-      setSaveError(`Impossible de valider : score ${app.score}% insuffisant (minimum 70%). Demandez une correction.`);
+      showToast('error', `Validation impossible : score ${app.score}% insuffisant (minimum 70%). Demandez une correction.`);
       return;
     }
-    setSaveError(null);
+    if (status === 'rejected' && !rejectionReason.trim()) {
+      showToast('error', 'Veuillez indiquer la raison du refus avant de sauvegarder.');
+      return;
+    }
+    if (isManualSend && !manualSendNote.trim()) {
+      showToast('error', "Précisez comment ce dossier a été transmis à l'université avant de marquer \"Envoyée\".");
+      return;
+    }
     setSaving(true);
     try {
       const ops: Promise<void>[] = [];
+      let correctionToSend: string | null = null;
+
       if (status !== app.rawStatus) {
-        const note = status === 'needsfix' && correctionMsg.trim() ? correctionMsg.trim() : undefined;
+        const note = status === 'needsfix' && correctionMsg.trim()
+          ? correctionMsg.trim()
+          : status === 'rejected' && rejectionReason.trim()
+            ? rejectionReason.trim()
+            : undefined;
         ops.push(updateApplicationStatus(app.id, status, note));
-        // Envoyer le message de correction dans la messagerie étudiant
         if (status === 'needsfix' && correctionMsg.trim()) {
-          ops.push(sendCorrectionMessage(app.studentId, correctionMsg.trim()));
+          correctionToSend = correctionMsg.trim();
+        }
+        if (status === 'rejected' && rejectionReason.trim()) {
+          correctionToSend = `Votre candidature a été refusée. Motif : ${rejectionReason.trim()}`;
+        }
+        if (isManualSend) {
+          ops.push(logManualSend(app.id, manualSendWhere.trim(), manualSendNote.trim()));
         }
       }
       if (notes !== (app.notes ?? '')) ops.push(updateApplicationNotes(app.id, notes));
+
       await Promise.all(ops);
+
+      // Envoi message de correction : non bloquant — échec silencieux
+      if (correctionToSend && app.studentId) {
+        sendCorrectionMessage(app.studentId, correctionToSend).catch(console.error);
+      }
+
       onUpdate(app.id, {
         rawStatus: status,
         status:    STATUS_MAP_UI[status],
@@ -119,8 +250,20 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
       });
       setSaved(true);
       setCorrectionMsg('');
+      setRejectionReason('');
+      setManualSendNote('');
+      setManualSendWhere('');
+      if (isManualSend) fetchEmailLogs(app.id).then(setEmailLogs).catch(() => {});
       setArchiveConfirm(false);
-      setTimeout(() => setSaved(false), 2000);
+      setTimeout(() => setSaved(false), 3000);
+      showToast('success',
+        status !== app.rawStatus
+          ? `Statut mis à jour : ${RAW_STATUS_LABELS[status]}. Modifications enregistrées.`
+          : 'Notes enregistrées avec succès.'
+      );
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : (typeof e === 'object' && e !== null && 'message' in e ? String((e as any).message) : String(e));
+      showToast('error', msg || 'Une erreur est survenue. Veuillez réessayer.');
     } finally {
       setSaving(false);
     }
@@ -140,7 +283,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   async function handleDownloadPdf() {
     setGeneratingPdf(true);
     try {
-      const blob = await pdf(<ApplicationPDF app={app} history={history} />).toBlob();
+      const blob = await pdf(<ApplicationPDF app={app} history={history} docs={docs} />).toBlob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
@@ -154,9 +297,24 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
 
   const sc = STATUS_COLORS[status];
   const canVerify = app.score >= 70;
-  const isDirty = status !== app.rawStatus || notes !== (app.notes ?? '') || (status === 'needsfix' && correctionMsg.trim() !== '');
+
+  // Conformité : requis du programme vs docs soumis
+  const requirements   = app.programRequirements ?? [];
+  const conformity     = requirements.length > 0 ? computeConformity(requirements, docs) : [];
+  const missingReqs    = conformity.filter(c => c.docStatus === 'missing');
+  const docsAllPresent = requirements.length === 0 || missingReqs.length === 0;
+  const canVerifyFull  = canVerify && docsAllPresent;
+
+  const isDirty = status !== app.rawStatus || notes !== (app.notes ?? '') || (status === 'needsfix' && correctionMsg.trim() !== '') || (status === 'rejected' && rejectionReason.trim() !== '');
 
   return (
+    <>
+      <style>{`
+        @keyframes adm-spin { to { transform: rotate(360deg); } }
+        @keyframes adm-toast-in { from { opacity: 0; transform: translateY(-16px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .adm-spin { animation: adm-spin .7s linear infinite; transform-origin: center; }
+        .adm-toast { animation: adm-toast-in .22s ease both; }
+      `}</style>
     <div
       onClick={onClose}
       style={{
@@ -176,8 +334,40 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
           maxHeight: '90vh', overflowY: 'auto',
           boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
           fontFamily: fonts.body,
+          position: 'relative',
         }}
       >
+        {/* Toast notification */}
+        {toast && (
+          <div className="adm-toast" style={{
+            position: 'sticky', top: 12, zIndex: 10,
+            margin: '12px 16px 0',
+            padding: '12px 16px',
+            borderRadius: 10,
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            background: toast.type === 'success' ? '#f0fdf4' : '#fef2f2',
+            border: `1.5px solid ${toast.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+          }}>
+            {toast.type === 'success' ? (
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth={2.5} strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+            ) : (
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth={2.5} strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            )}
+            <span style={{
+              flex: 1, fontSize: 13, fontWeight: 500, lineHeight: 1.5,
+              color: toast.type === 'success' ? '#15803d' : '#dc2626',
+            }}>
+              {toast.message}
+            </span>
+            <button
+              onClick={() => setToast(null)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: toast.type === 'success' ? '#86efac' : '#fca5a5', lineHeight: 1, fontSize: 16 }}
+            >
+              &#x2715;
+            </button>
+          </div>
+        )}
         {/* Header */}
         <div style={{
           padding: '20px 24px 16px',
@@ -249,6 +439,166 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
             <ChecklistSection app={app} />
           </Section>
 
+          {/* Documents soumis — validation B5 CDC */}
+          <Section label="Documents soumis">
+            {docsLoading ? (
+              <div style={{ fontSize: 13, color: colors.textMuted }}>Chargement…</div>
+            ) : docs.length === 0 ? (
+              <div style={{ fontSize: 13, color: colors.textMuted, fontStyle: 'italic' }}>Aucun document soumis.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {docs.map(doc => {
+                  const isApproved = doc.status === 'approved';
+                  const isRejected = doc.status === 'rejected';
+                  const isActing   = docActionId === doc.id;
+                  const isRejecting = rejectTarget?.id === doc.id;
+                  const sizeMb = doc.size_bytes ? (doc.size_bytes / 1_048_576).toFixed(1) + ' Mo' : null;
+                  return (
+                    <div key={doc.id} style={{
+                      border: `1.5px solid ${isApproved ? '#bbf7d0' : isRejected ? '#fecaca' : colors.border}`,
+                      borderRadius: 10, padding: '10px 14px',
+                      background: isApproved ? '#f0fdf4' : isRejected ? '#fef2f2' : colors.inputBg,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                          {/* Icône statut */}
+                          <div style={{
+                            width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+                            background: isApproved ? '#dcfce7' : isRejected ? '#fee2e2' : '#e5e7eb',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            {isApproved
+                              ? <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth={3} strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                              : isRejected
+                              ? <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth={3} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                              : <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth={2} strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            }
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: colors.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {docTypeLabel(doc.type)}
+                            </div>
+                            <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+                              {doc.file_name ?? 'Sans nom'}{sizeMb ? ` · ${sizeMb}` : ''}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
+                          {doc.file_url && (
+                            <a
+                              href={doc.file_url} target="_blank" rel="noreferrer"
+                              style={{
+                                height: 28, padding: '0 10px', borderRadius: 7,
+                                border: `1px solid ${colors.border}`, background: 'white',
+                                fontSize: 11.5, fontWeight: 600, color: colors.blue,
+                                display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none',
+                              }}
+                            >
+                              <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                              Voir
+                            </a>
+                          )}
+                          {!isApproved && canReviewDocs && (
+                            <button
+                              onClick={() => handleApproveDoc(doc)}
+                              disabled={isActing}
+                              style={{
+                                height: 28, padding: '0 10px', borderRadius: 7,
+                                border: 'none', background: '#16a34a',
+                                fontSize: 11.5, fontWeight: 700, color: 'white',
+                                cursor: 'pointer', opacity: isActing ? 0.6 : 1,
+                              }}
+                            >
+                              Approuver
+                            </button>
+                          )}
+                          {!isRejected && !isRejecting && canReviewDocs && (
+                            <button
+                              onClick={() => { setRejectTarget(doc); setRejectReason(''); }}
+                              disabled={isActing}
+                              style={{
+                                height: 28, padding: '0 10px', borderRadius: 7,
+                                border: '1.5px solid #dc2626', background: 'white',
+                                fontSize: 11.5, fontWeight: 700, color: '#dc2626',
+                                cursor: 'pointer', opacity: isActing ? 0.6 : 1,
+                              }}
+                            >
+                              Rejeter
+                            </button>
+                          )}
+                          {isRejecting && (
+                            <button
+                              onClick={() => { setRejectTarget(null); setRejectReason(''); }}
+                              style={{
+                                height: 28, padding: '0 10px', borderRadius: 7,
+                                border: `1px solid ${colors.border}`, background: 'white',
+                                fontSize: 11.5, color: colors.textSecondary, cursor: 'pointer',
+                              }}
+                            >
+                              Annuler
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Raison du rejet existante */}
+                      {isRejected && doc.rejection_reason && !isRejecting && (
+                        <div style={{ fontSize: 11.5, color: '#dc2626', marginTop: 6, paddingLeft: 38, fontStyle: 'italic' }}>
+                          Raison : {doc.rejection_reason}
+                        </div>
+                      )}
+
+                      {/* Inline reject form */}
+                      {isRejecting && (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+                          <input
+                            autoFocus
+                            value={rejectReason}
+                            onChange={e => setRejectReason(e.target.value)}
+                            placeholder="Raison du rejet (ex: image floue, mauvais format…)"
+                            style={{
+                              flex: 1, height: 32, padding: '0 10px', borderRadius: 7,
+                              border: `1.5px solid #dc2626`, background: 'white',
+                              fontSize: 12.5, fontFamily: fonts.body, outline: 'none',
+                            }}
+                          />
+                          <button
+                            onClick={handleConfirmReject}
+                            disabled={!rejectReason.trim() || isActing}
+                            style={{
+                              height: 32, padding: '0 12px', borderRadius: 7,
+                              border: 'none', background: rejectReason.trim() ? '#dc2626' : colors.border,
+                              fontSize: 12, fontWeight: 700, color: 'white', cursor: rejectReason.trim() ? 'pointer' : 'default',
+                            }}
+                          >
+                            Confirmer
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Section>
+
+          {/* Conformité dossier */}
+          {requirements.length > 0 && (
+            <Section label="Conformité dossier">
+              {docsLoading ? (
+                <div style={{ fontSize: 13, color: colors.textMuted }}>Vérification en cours…</div>
+              ) : (
+                <ConformitySection
+                  conformity={conformity}
+                  missingCount={missingReqs.length}
+                  total={requirements.length}
+                />
+              )}
+            </Section>
+          )}
+
           {/* Timeline */}
           <Section label="Progression">
             <div style={{ display: 'flex', gap: 0 }}>
@@ -291,9 +641,11 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                 disabled={!canVerify}
                 style={{
                   flex: 1, padding: '10px 16px', borderRadius: 10, border: 'none',
-                  background: canVerify
-                    ? `linear-gradient(135deg, ${colors.success} 0%, #15803d 100%)`
-                    : colors.border,
+                  background: !canVerify
+                    ? colors.border
+                    : canVerifyFull
+                      ? `linear-gradient(135deg, ${colors.success} 0%, #15803d 100%)`
+                      : `linear-gradient(135deg, #f59e0b 0%, #d97706 100%)`,
                   color: canVerify ? 'white' : colors.textMuted,
                   fontWeight: 700, fontSize: 13.5,
                   cursor: canVerify ? 'pointer' : 'not-allowed',
@@ -301,7 +653,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                 }}
               >
                 <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Valider le dossier
+                {canVerifyFull ? 'Valider le dossier' : 'Valider quand même'}
               </button>
               <button
                 onClick={() => setStatus('needsfix')}
@@ -382,6 +734,63 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
             </Section>
           )}
 
+          {/* Raison du refus (obligatoire si statut = rejected) */}
+          {status === 'rejected' && (
+            <Section label="Raison du refus *">
+              <textarea
+                value={rejectionReason}
+                onChange={e => setRejectionReason(e.target.value)}
+                rows={3}
+                placeholder="Expliquez à l'étudiant pourquoi sa candidature a été refusée..."
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 10,
+                  border: `1.5px solid #dc2626`,
+                  background: '#fef2f2', fontFamily: fonts.body,
+                  fontSize: 13.5, color: colors.textPrimary,
+                  resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ fontSize: 11.5, color: '#dc2626', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Ce message sera envoyé à l'étudiant via la messagerie. Ce champ est obligatoire.
+              </div>
+            </Section>
+          )}
+
+          {/* Dépôt manuel (statut "Envoyée" choisi sans passer par l'envoi email) */}
+          {isManualSend && (
+            <Section label="Dépôt manuel — hors envoi email *">
+              <input
+                type="text"
+                value={manualSendWhere}
+                onChange={e => setManualSendWhere(e.target.value)}
+                placeholder="Où ? (ex : portail d'admission de l'université, dépôt en personne...)"
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 10,
+                  border: `1.5px solid #7c3aed`, background: '#f5f3ff',
+                  fontFamily: fonts.body, fontSize: 13.5, color: colors.textPrimary,
+                  outline: 'none', boxSizing: 'border-box', marginBottom: 8,
+                }}
+              />
+              <textarea
+                value={manualSendNote}
+                onChange={e => setManualSendNote(e.target.value)}
+                rows={2}
+                placeholder="Précisez comment ce dossier a été transmis à l'université"
+                style={{
+                  width: '100%', padding: '10px 14px', borderRadius: 10,
+                  border: `1.5px solid #7c3aed`, background: '#f5f3ff',
+                  fontFamily: fonts.body, fontSize: 13.5, color: colors.textPrimary,
+                  resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ fontSize: 11.5, color: '#7c3aed', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Ce statut n'est pas passé par l'envoi email automatique — cette précision apparaîtra dans l'historique, marquée "Manuel", pour que l'équipe ne la confonde pas avec un vrai envoi tracé.
+              </div>
+            </Section>
+          )}
+
           {/* Historique des changements */}
           <Section label="Historique des changements">
             {history.length === 0 ? (
@@ -395,12 +804,18 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                   const date = entry.createdAt
                     ? new Date(entry.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
                     : '';
+                  const dotColor = STATUS_COLORS[entry.toStatus as RawStatus]?.color ?? colors.blue;
+                  const noteColor = entry.toStatus === 'rejected'
+                    ? '#dc2626'
+                    : entry.toStatus === 'needsfix'
+                      ? '#d97706'
+                      : colors.textSecondary;
                   return (
                     <div key={entry.id} style={{ display: 'flex', gap: 12 }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                         <div style={{
                           width: 10, height: 10, borderRadius: '50%',
-                          background: colors.blue, marginTop: 3, flexShrink: 0,
+                          background: dotColor, marginTop: 3, flexShrink: 0,
                         }} />
                         {!isLast && <div style={{ width: 2, flex: 1, background: colors.border, minHeight: 24 }} />}
                       </div>
@@ -418,7 +833,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                           {date && <span style={{ fontSize: 11, color: colors.textMuted, marginLeft: 4 }}>{date}</span>}
                         </div>
                         {entry.note && (
-                          <div style={{ fontSize: 12, color: colors.textSecondary, fontStyle: 'italic', marginTop: 2 }}>
+                          <div style={{ fontSize: 12, color: noteColor, fontStyle: 'italic', marginTop: 2 }}>
                             {entry.note}
                           </div>
                         )}
@@ -493,27 +908,58 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
 
           {/* Logs d'envoi email */}
           {emailLogs.length > 0 && (
-            <Section label="Historique des envois email">
+            <Section label="Historique des envois">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {emailLogs.map(log => (
+                {emailLogs.map(log => {
+                  const isManual = log.provider === 'manual';
+                  return (
                   <div key={log.id} style={{
                     padding: '9px 12px', borderRadius: 8,
-                    background: log.status === 'sent' ? '#f0fdf4' : '#fef2f2',
-                    border: `1px solid ${log.status === 'sent' ? '#bbf7d0' : '#fecaca'}`,
+                    background: isManual ? '#f5f3ff' : log.status === 'sent' ? '#f0fdf4' : '#fef2f2',
+                    border: `1px solid ${isManual ? '#ddd6fe' : log.status === 'sent' ? '#bbf7d0' : '#fecaca'}`,
                     fontSize: 12.5,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, color: log.status === 'sent' ? colors.success : colors.danger }}>
-                        {log.status === 'sent' ? 'Envoyé' : log.status === 'failed' ? 'Échec' : 'Bounce'}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: 700, color: isManual ? '#7c3aed' : log.status === 'sent' ? colors.success : colors.danger }}>
+                          {isManual ? 'Dépôt manuel' : log.status === 'sent' ? 'Envoyé' : log.status === 'failed' ? 'Échec' : 'Bounce'}
+                        </span>
+                        {!isManual && (
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 10, background: '#eff6ff', color: colors.blue }}>
+                            EMAIL AUTOMATIQUE
+                          </span>
+                        )}
                       </span>
                       <span style={{ fontSize: 11, color: colors.textMuted }}>
                         {new Date(log.sentAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                     <div style={{ color: colors.textSecondary, marginTop: 2 }}> {log.toEmail}</div>
+                    {isManual && log.subject && <div style={{ color: '#7c3aed', fontSize: 11.5, marginTop: 2 }}>{log.subject}</div>}
+                    {!isManual && log.retryCount > 0 && (
+                      <div style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                        {log.retryCount} nouvelle{log.retryCount > 1 ? 's' : ''} tentative{log.retryCount > 1 ? 's' : ''} avant {log.status === 'sent' ? 'succès' : "l'échec final"}
+                      </div>
+                    )}
                     {log.errorMessage && <div style={{ color: colors.danger, fontSize: 11.5, marginTop: 2 }}>{log.errorMessage}</div>}
                   </div>
-                ))}
+                  );
+                })}
+              </div>
+            </Section>
+          )}
+
+          {/* Lettre de motivation (rédigée par l'étudiant pour ce programme) */}
+          {app.motivationLetter && (
+            <Section label="Lettre de motivation">
+              <div style={{
+                padding: '10px 14px', borderRadius: radius.md,
+                border: `1.5px solid ${colors.border}`,
+                background: colors.inputBg, fontFamily: fonts.body,
+                fontSize: 13.5, color: colors.textPrimary,
+                lineHeight: 1.6, whiteSpace: 'pre-wrap',
+              }}>
+                {app.motivationLetter}
               </div>
             </Section>
           )}
@@ -533,6 +979,66 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                 resize: 'vertical', outline: 'none', boxSizing: 'border-box',
               }}
             />
+          </Section>
+
+          {/* Commentaires internes — fil horodaté/multi-auteurs */}
+          <Section label="Commentaires internes (équipe)">
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <textarea
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                rows={2}
+                placeholder="Ajouter un commentaire visible par toute l'équipe"
+                style={{
+                  flex: 1, padding: '10px 14px', borderRadius: radius.md,
+                  border: `1.5px solid ${colors.borderInput}`,
+                  background: colors.inputBg, fontFamily: fonts.body,
+                  fontSize: 13.5, color: colors.textPrimary,
+                  resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <button
+                onClick={handleAddComment}
+                disabled={!commentText.trim() || commentSaving}
+                style={{
+                  alignSelf: 'flex-end', height: 34, padding: '0 14px', borderRadius: 7,
+                  border: 'none', background: colors.blue, color: 'white',
+                  fontSize: 12.5, fontWeight: 700,
+                  cursor: !commentText.trim() || commentSaving ? 'not-allowed' : 'pointer',
+                  opacity: !commentText.trim() || commentSaving ? 0.6 : 1,
+                }}
+              >
+                {commentSaving ? '...' : 'Ajouter'}
+              </button>
+            </div>
+
+            {commentsLoading ? (
+              <div style={{ fontSize: 12.5, color: colors.textMuted }}>Chargement…</div>
+            ) : comments.length === 0 ? (
+              <div style={{ fontSize: 12.5, color: colors.textMuted }}>Aucun commentaire pour cette candidature.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {comments.map(c => (
+                  <div key={c.id} style={{
+                    padding: '10px 12px', borderRadius: radius.md,
+                    border: `1px solid ${colors.border}`, background: colors.cardBg,
+                  }}>
+                    <div style={{ fontSize: 13, color: colors.textPrimary, whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                      <span style={{ fontSize: 11, color: colors.textMuted }}>
+                        {c.author_email ?? 'Équipe'} · {new Date(c.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteComment(c.id)}
+                        style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
 
         </div>
@@ -601,11 +1107,6 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                 </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                {saveError && (
-                  <div style={{ fontSize: 12.5, color: colors.danger, padding: '6px 12px', background: '#fef2f2', borderRadius: 7, maxWidth: 340, textAlign: 'right' }}>
-                    {saveError}
-                  </div>
-                )}
                 <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={onClose} style={{
                   padding: '9px 20px', borderRadius: radius.md,
@@ -633,7 +1134,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                   }}
                 >
                   {saving ? (
-                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                    <svg className="adm-spin" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
                       <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
                     </svg>
                   ) : saved ? (
@@ -648,21 +1149,61 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
         </div>
       </div>
     </div>
+    </>
   );
 }
 
 /*  Helpers  */
 
+function normalizeStr(s: string) {
+  return s.toLowerCase()
+    .replace(/[éèêë]/g, 'e').replace(/[àâ]/g, 'a')
+    .replace(/[îï]/g, 'i').replace(/[ôö]/g, 'o')
+    .replace(/[ûùü]/g, 'u').replace(/ç/g, 'c');
+}
+
+const DOC_TYPE_KEYWORDS: Record<string, string[]> = {
+  'curriculum vitae':             ['cv', 'curriculum'],
+  'releve de notes':              ['releve', 'notes', 'bulletin', 'transcript'],
+  'lettre de recommandation':     ['recommandation'],
+  'passeport / piece d\'identite':['passeport', 'passport', 'identite'],
+  'lettre de motivation':         ['motivation'],
+  'diplome':                      ['diplome', 'licence', 'master', 'bac', 'bachelor'],
+  'attestation de langue':        ['attestation', 'langue', 'b1', 'b2', 'c1', 'c2', 'toefl', 'ielts', 'delf', 'dalf', 'tcf'],
+  'justificatif de financement':  ['financement', 'bourse', 'bancaire', 'ressources'],
+};
+
+function matchesReq(docType: string, req: string): boolean {
+  const label = normalizeStr(docTypeLabel(docType));
+  const r     = normalizeStr(req);
+  if (r.includes(label) || label.includes(r)) return true;
+  const keywords = DOC_TYPE_KEYWORDS[label];
+  if (keywords) return keywords.some(kw => r.includes(kw));
+  return false;
+}
+
+type ReqStatus = 'ok' | 'pending' | 'missing';
+interface ReqResult { req: string; docStatus: ReqStatus; doc: ApplicationDocument | null }
+
+function computeConformity(requirements: string[], docs: ApplicationDocument[]): ReqResult[] {
+  return requirements.map(req => {
+    const matched  = docs.filter(d => matchesReq(d.type, req) && d.status !== 'rejected');
+    const approved = matched.filter(d => d.status === 'approved');
+    const docStatus: ReqStatus = matched.length === 0 ? 'missing' : approved.length > 0 ? 'ok' : 'pending';
+    return { req, docStatus, doc: matched[0] ?? null };
+  });
+}
+
 const STATUS_MAP_UI: Record<RawStatus, Application['status']> = {
-  draft:            'En attente',
-  submitted:        'En attente',
-  needsfix:         'Urgent',
-  verified:         'Validé',
-  sent:             'Validé',
-  accepted:         'Validé',
-  rejected:         'Refusé',
+  draft:            'Brouillon',
+  submitted:        'Soumise',
+  needsfix:         'Correction',
+  verified:         'Vérifiée',
+  sent:             'Envoyée',
+  accepted:         'Acceptée',
+  rejected:         'Refusée',
   pending_decision: 'En attente',
-  archived:         'Refusé',
+  archived:         'Archivée',
 };
 
 function levelLabel(level: string) {
@@ -688,6 +1229,89 @@ function Tag({ children }: { children: React.ReactNode }) {
     }}>
       {children}
     </span>
+  );
+}
+
+function ConformitySection({ conformity, missingCount, total }: {
+  conformity:   ReqResult[];
+  missingCount: number;
+  total:        number;
+}) {
+  const covered      = total - missingCount;
+  const allOk        = missingCount === 0;
+  const summaryColor = allOk ? colors.success : missingCount < total ? colors.warning : colors.danger;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ fontSize: 12, color: colors.textMuted }}>{covered}/{total} documents couverts</span>
+        <span style={{
+          fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20,
+          color: summaryColor, background: `${summaryColor}18`,
+        }}>
+          {allOk ? 'Conforme' : missingCount === total ? 'Non conforme' : 'Partiel'}
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0, borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${colors.border}` }}>
+        {conformity.map((item, i) => {
+          const isLast  = i === conformity.length - 1;
+          const iconColor = item.docStatus === 'ok'      ? colors.success
+                          : item.docStatus === 'pending' ? colors.warning
+                          : colors.danger;
+          const rowBg     = item.docStatus === 'ok'      ? '#f0fdf4'
+                          : item.docStatus === 'pending' ? '#fffbeb'
+                          : '#fef2f2';
+          const label     = item.docStatus === 'ok'      ? 'OK'
+                          : item.docStatus === 'pending' ? 'En attente'
+                          : 'Manquant';
+          return (
+            <div key={item.req} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '9px 13px',
+              background: rowBg,
+              borderBottom: isLast ? 'none' : `1px solid ${colors.border}`,
+            }}>
+              <div style={{
+                width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                background: `${iconColor}18`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {item.docStatus === 'ok' ? (
+                  <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke={colors.success} strokeWidth={3} strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                ) : item.docStatus === 'pending' ? (
+                  <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke={colors.warning} strokeWidth={2.5} strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                ) : (
+                  <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke={colors.danger} strokeWidth={3} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: colors.navy }}>{item.req}</div>
+                {item.doc && (
+                  <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.doc.file_name ?? docTypeLabel(item.doc.type)}
+                  </div>
+                )}
+              </div>
+              <span style={{
+                fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 20, flexShrink: 0,
+                color: iconColor, background: `${iconColor}15`,
+              }}>
+                {label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {missingCount > 0 && (
+        <div style={{
+          marginTop: 8, padding: '7px 11px', borderRadius: 8,
+          background: '#fff7ed', border: '1px solid #fed7aa', fontSize: 12.5, color: '#c2410c',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          {missingCount} document{missingCount > 1 ? 's' : ''} requis manquant{missingCount > 1 ? 's' : ''}. Le bouton "Valider" passera en orange.
+        </div>
+      )}
+    </div>
   );
 }
 

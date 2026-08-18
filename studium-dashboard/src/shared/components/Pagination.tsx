@@ -8,8 +8,26 @@ const CSS = `
     background: #fafbff;
     flex-wrap: wrap; gap: 10px;
   }
-  .pg-info { font-size: 12.5px; color: ${colors.textMuted}; font-family: ${fonts.body}; }
+  .pg-left  { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .pg-info  { font-size: 12.5px; color: ${colors.textMuted}; font-family: ${fonts.body}; }
   .pg-info b { color: ${colors.textSecondary}; font-weight: 600; }
+  .pg-sizer-wrap {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12.5px; color: ${colors.textMuted}; font-family: ${fonts.body};
+  }
+  .pg-sizer {
+    height: 32px; padding: 0 8px; border-radius: 8px;
+    border: 1.5px solid ${colors.borderInput};
+    background: white; color: ${colors.textSecondary};
+    font-size: 12.5px; font-weight: 600; font-family: ${fonts.body};
+    cursor: pointer; outline: none; transition: border-color .15s;
+    appearance: none; -webkit-appearance: none;
+    padding-right: 22px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 7px center;
+  }
+  .pg-sizer:focus { border-color: ${colors.blue}; }
   .pg-controls { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
   .pg-btn {
     display: inline-flex; align-items: center; gap: 4px;
@@ -50,13 +68,16 @@ function injectCSS() {
 
 injectCSS();
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
+
 interface PaginationProps {
-  page: number;
-  totalPages: number;
-  total: number;
-  pageSize: number;
-  onChange: (page: number) => void;
-  label?: string;
+  page:             number;
+  totalPages:       number;
+  total:            number;
+  pageSize:         number;
+  onChange:         (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
+  label?:           string;
 }
 
 function pageNums(current: number, total: number): (number | '...')[] {
@@ -66,8 +87,11 @@ function pageNums(current: number, total: number): (number | '...')[] {
   return [1, '...', current - 1, current, current + 1, '...', total];
 }
 
-export function Pagination({ page, totalPages, total, pageSize, onChange, label = 'elements' }: PaginationProps) {
-  if (totalPages <= 1) return null;
+export function Pagination({
+  page, totalPages, total, pageSize,
+  onChange, onPageSizeChange, label = 'elements',
+}: PaginationProps) {
+  if (total === 0) return null;
 
   const from = (page - 1) * pageSize + 1;
   const to   = Math.min(page * pageSize, total);
@@ -75,38 +99,58 @@ export function Pagination({ page, totalPages, total, pageSize, onChange, label 
 
   return (
     <div className="pg-wrap">
-      <span className="pg-info">
-        <b>{from}–{to}</b> sur <b>{total}</b> {label}
-      </span>
-      <div className="pg-controls">
-        <button
-          className="pg-btn"
-          disabled={page === 1}
-          onClick={() => onChange(page - 1)}
-        >
-          <svg width={11} height={11} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><polyline points="15 18 9 12 15 6"/></svg>
-          Préc.
-        </button>
-        {nums.map((n, i) =>
-          n === '...'
-            ? <span key={`e${i}`} className="pg-dot">...</span>
-            : <button
-                key={n}
-                className={`pg-num${n === page ? ' pg-num--active' : ''}`}
-                onClick={() => onChange(n as number)}
-              >
-                {n}
-              </button>
+      <div className="pg-left">
+        {onPageSizeChange && (
+          <div className="pg-sizer-wrap">
+            <span>Afficher</span>
+            <select
+              className="pg-sizer"
+              value={pageSize}
+              onChange={e => { onPageSizeChange(Number(e.target.value)); onChange(1); }}
+            >
+              {PAGE_SIZE_OPTIONS.map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <span>par page</span>
+          </div>
         )}
-        <button
-          className="pg-btn"
-          disabled={page === totalPages}
-          onClick={() => onChange(page + 1)}
-        >
-          Suiv.
-          <svg width={11} height={11} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
+        <span className="pg-info">
+          <b>{from}–{to}</b> sur <b>{total}</b> {label}
+        </span>
       </div>
+
+      {totalPages > 1 && (
+        <div className="pg-controls">
+          <button
+            className="pg-btn"
+            disabled={page === 1}
+            onClick={() => onChange(page - 1)}
+          >
+            <svg width={11} height={11} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><polyline points="15 18 9 12 15 6"/></svg>
+            Préc.
+          </button>
+          {nums.map((n, i) =>
+            n === '...'
+              ? <span key={`e${i}`} className="pg-dot">...</span>
+              : <button
+                  key={n}
+                  className={`pg-num${n === page ? ' pg-num--active' : ''}`}
+                  onClick={() => onChange(n as number)}
+                >
+                  {n}
+                </button>
+          )}
+          <button
+            className="pg-btn"
+            disabled={page === totalPages}
+            onClick={() => onChange(page + 1)}
+          >
+            Suiv.
+            <svg width={11} height={11} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
