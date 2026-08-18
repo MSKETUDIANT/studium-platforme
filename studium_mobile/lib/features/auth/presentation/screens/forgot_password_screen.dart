@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
+import '../../../../core/validators/field_validators.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -106,11 +107,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               prefixIcon: Icon(Icons.email_outlined),
               border: OutlineInputBorder(),
             ),
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Email requis';
-              if (!v.contains('@')) return 'Email invalide';
-              return null;
-            },
+            validator: emailValidator,
           ),
           const SizedBox(height: 24),
           ElevatedButton(

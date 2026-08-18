@@ -4,9 +4,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/validators/field_validators.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+  final String? refCode;
+  const RegisterScreen({super.key, this.refCode});
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -15,17 +17,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _emailCtrl    = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl  = TextEditingController();
+  late final _refCodeCtrl = TextEditingController(text: widget.refCode ?? '');
   final _formKey      = GlobalKey<FormState>();
 
   bool _obscurePw      = true;
   bool _obscureConfirm = true;
   bool _acceptedTerms  = false;
+  bool _showRefCode    = false;
   int  _pwStrength     = 0;
 
   @override
   void initState() {
     super.initState();
     _passwordCtrl.addListener(_updateStrength);
+    _showRefCode = widget.refCode != null && widget.refCode!.isNotEmpty;
   }
 
   void _updateStrength() {
@@ -44,6 +49,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
+    _refCodeCtrl.dispose();
     super.dispose();
   }
 
@@ -90,57 +96,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     ));
   }
 
-  void _showConfirmationDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 60, height: 60,
-            decoration: BoxDecoration(
-              color: AppColors.blue.withValues(alpha: 0.10),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.mark_email_unread_outlined,
-                color: AppColors.blue, size: 28),
-          ),
-          const SizedBox(height: 16),
-          const Text('Confirmez votre email',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary)),
-          const SizedBox(height: 10),
-          Text(
-            'Un lien de confirmation a été envoyé à :\n${_emailCtrl.text.trim()}',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13.5, color: AppColors.textSecondary, height: 1.5),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Cliquez sur le lien pour activer votre compte.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: _GradientButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                context.go('/login');
-              },
-              child: const Text('Aller à la connexion',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
-                    color: Colors.white)),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptedTerms) {
@@ -157,16 +112,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return;
     }
     try {
+      final email = _emailCtrl.text.trim();
+      final refCode = _refCodeCtrl.text.trim();
       await ref.read(authStateProvider.notifier).signUp(
-        email: _emailCtrl.text.trim(),
+        email: email,
         password: _passwordCtrl.text,
+        refCode: refCode.isEmpty ? null : refCode,
       );
       if (!mounted) return;
-      ref.read(authStateProvider).when(
-        data: (_) => _showConfirmationDialog(),
-        error: (e, _) => _showError(e),
-        loading: () {},
-      );
+      final loggedIn = ref.read(authStateProvider).valueOrNull != null;
+      if (loggedIn) {
+        // Confirmation email désactivée : session déjà active, on enchaîne
+        // sur l'onboarding (le redirect du router s'en charge depuis /home).
+        context.go('/home');
+      } else {
+        context.go('/email-sent?email=${Uri.encodeComponent(email)}');
+      }
     } catch (e) {
       if (mounted) _showError(e);
     }
@@ -226,13 +187,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         color: AppColors.textMuted, size: 20),
                     prefixIconConstraints: const BoxConstraints(minWidth: 48),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Email requis';
-                    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
-                      return 'Format d\'email invalide';
-                    }
-                    return null;
-                  },
+                  validator: emailValidator,
                 ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.25, end: 0),
                 const SizedBox(height: 14),
 
@@ -259,11 +214,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           setState(() => _obscurePw = !_obscurePw),
                     ),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Mot de passe requis';
-                    if (v.length < 8) return 'Minimum 8 caractères';
-                    return null;
-                  },
+                  validator: passwordValidator,
                 ).animate().fadeIn(duration: 400.ms, delay: 140.ms).slideY(begin: 0.25, end: 0),
                 if (_pwStrength > 0) ...[
                   const SizedBox(height: 8),
@@ -295,14 +246,41 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           setState(() => _obscureConfirm = !_obscureConfirm),
                     ),
                   ),
-                  validator: (v) {
-                    if (v != _passwordCtrl.text) {
-                      return 'Les mots de passe ne correspondent pas';
-                    }
-                    return null;
-                  },
+                  validator: (v) => confirmPasswordValidator(v, _passwordCtrl.text),
                 ).animate().fadeIn(duration: 400.ms, delay: 180.ms).slideY(begin: 0.25, end: 0),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
+
+                // Code de parrainage (optionnel)
+                if (_showRefCode) ...[
+                  _FieldLabel('Code de parrainage'),
+                  const SizedBox(height: 6),
+                  TextFormField(
+                    controller: _refCodeCtrl,
+                    autocorrect: false,
+                    textInputAction: TextInputAction.next,
+                    style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Ex : Mohammed224',
+                      prefixIcon: Icon(Icons.card_giftcard_outlined,
+                          color: AppColors.textMuted, size: 20),
+                      prefixIconConstraints: const BoxConstraints(minWidth: 48),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ] else
+                  GestureDetector(
+                    onTap: () => setState(() => _showRefCode = true),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: Text(
+                        "J'ai un code de parrainage",
+                        style: TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.w600,
+                          color: AppColors.blue,
+                        ),
+                      ),
+                    ),
+                  ),
 
                 // Terms checkbox
                 GestureDetector(

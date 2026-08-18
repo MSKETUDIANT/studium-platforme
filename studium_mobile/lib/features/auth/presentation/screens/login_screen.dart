@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/auth_provider.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/validators/field_validators.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -68,6 +70,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'Veuillez confirmer votre adresse email.';
     } else if (msg.contains('Google annulée')) {
       return 'Connexion Google annulée.';
+    } else if (msg.contains('Apple annulée')) {
+      return 'Connexion Apple annulée.';
     } else if (msg.contains('timeout')) {
       return 'Delai depassé. Verifiez votre connexion.';
     }
@@ -176,6 +180,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  Future<void> _signInWithApple() async {
+    await ref.read(authStateProvider.notifier).signInWithApple();
+    if (!mounted) return;
+    ref.read(authStateProvider).whenOrNull(
+      data: (user) { if (user != null) context.go('/home'); },
+      error: (e, _) => _showError(e),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authStateProvider).isLoading;
@@ -199,6 +212,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     onTogglePw:      () => setState(() => _obscurePw = !_obscurePw),
     onSignIn:        _signIn,
     onGoogleSignIn:  _signInWithGoogle,
+    onAppleSignIn:   _signInWithApple,
     onResendEmail:   _resendConfirmationEmail,
   );
 }
@@ -245,7 +259,7 @@ class _LoginForm extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final bool obscurePw, emailTouched, isLoading, showResendBtn;
   final int cooldownSecs;
-  final VoidCallback onTogglePw, onSignIn, onGoogleSignIn, onResendEmail;
+  final VoidCallback onTogglePw, onSignIn, onGoogleSignIn, onAppleSignIn, onResendEmail;
 
   const _LoginForm({
     required this.emailCtrl, required this.passwordCtrl,
@@ -254,7 +268,8 @@ class _LoginForm extends StatelessWidget {
     required this.showResendBtn,
     required this.cooldownSecs,
     required this.onTogglePw, required this.onSignIn,
-    required this.onGoogleSignIn, required this.onResendEmail,
+    required this.onGoogleSignIn, required this.onAppleSignIn,
+    required this.onResendEmail,
   });
 
   @override
@@ -285,12 +300,7 @@ class _LoginForm extends StatelessWidget {
             prefixIcon:  Icon(Icons.email_outlined, color: AppColors.textMuted, size: 20),
             prefixIconConstraints: const BoxConstraints(minWidth: 48),
           ),
-          validator: (v) {
-            if (!emailTouched) return null;
-            if (v == null || v.isEmpty) return 'Ce champ est requis';
-            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) return "Format d'email invalide";
-            return null;
-          },
+          validator: (v) => emailTouched ? emailValidator(v) : null,
           onChanged: (_) { if (emailTouched) formKey.currentState?.validate(); },
         ).animate().fadeIn(duration: 400.ms, delay: 120.ms).slideY(begin: 0.25, end: 0),
 
@@ -329,7 +339,7 @@ class _LoginForm extends StatelessWidget {
               tooltip: obscurePw ? 'Afficher' : 'Masquer',
             ),
           ),
-          validator: (v) => (v == null || v.isEmpty) ? 'Mot de passe requis' : null,
+          validator: (v) => requiredValidator(v, message: 'Mot de passe requis'),
         ).animate().fadeIn(duration: 400.ms, delay: 180.ms).slideY(begin: 0.25, end: 0),
 
         const SizedBox(height: 20),
@@ -444,6 +454,42 @@ class _LoginForm extends StatelessWidget {
             ),
           ),
         ).animate().fadeIn(duration: 400.ms, delay: 280.ms).slideY(begin: 0.25, end: 0),
+
+        // Apple exige cette option dès qu'une connexion tierce (Google) est
+        // proposée sur iOS — inutile sur Android (pas de contrainte store).
+        if (Platform.isIOS) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: isLoading ? null : onAppleSignIn,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.apple, size: 20, color: Colors.white),
+                      SizedBox(width: 10),
+                      Text('Continuer avec Apple',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        )),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ).animate().fadeIn(duration: 400.ms, delay: 320.ms).slideY(begin: 0.25, end: 0),
+        ],
 
         const SizedBox(height: 16),
 
@@ -573,27 +619,34 @@ class _MobileHeader extends StatelessWidget {
         Positioned(bottom: 20, left: -30, child: _Orb(size: 120, opacity: 0.12)),
         SafeArea(bottom: false, child: Center(child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 36),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Flexible(child: Image.asset('assets/images/stlogo.png', width: 120, color: Colors.white)
-              .animate().fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0)),
-            const SizedBox(height: 10),
-            Container(width: 32, height: 2,
-              decoration: BoxDecoration(
-                color: Colors.white38,
-                borderRadius: BorderRadius.circular(1),
+          // SingleChildScrollView + mainAxisSize.min : quand le clavier
+          // réduit fortement la hauteur disponible (header en Expanded
+          // dans le parent), le contenu se clippe/scrolle proprement au
+          // lieu de provoquer un RenderFlex overflow.
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            child: Column(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+              Image.asset('assets/images/stlogo.png', width: 120, color: Colors.white)
+                .animate().fadeIn(duration: 500.ms).slideY(begin: 0.2, end: 0),
+              const SizedBox(height: 10),
+              Container(width: 32, height: 2,
+                decoration: BoxDecoration(
+                  color: Colors.white38,
+                  borderRadius: BorderRadius.circular(1),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Étudiez sans frontières',
-              style: TextStyle(
-                fontSize: 11.5,
-                color: Colors.white54,
-                letterSpacing: 1.8,
-                fontWeight: FontWeight.w500,
-              ),
-            ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
-          ]),
+              const SizedBox(height: 10),
+              const Text(
+                'Étudiez sans frontières',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: Colors.white54,
+                  letterSpacing: 1.8,
+                  fontWeight: FontWeight.w500,
+                ),
+              ).animate().fadeIn(duration: 500.ms, delay: 200.ms),
+            ]),
+          ),
         ))),
       ]),
     ),

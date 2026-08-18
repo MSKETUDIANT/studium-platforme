@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/models/auth_user.dart';
 import 'auth_remote_datasource.dart';
@@ -21,11 +26,20 @@ class AuthRepositoryImpl {
   Future<StudiumUser> register({
     required String email,
     required String password,
-  }) => _datasource.register(email: email, password: password);
+    String? refCode,
+  }) => _datasource.register(email: email, password: password, refCode: refCode);
 
   Future<void> logout() async {
     await _googleSignIn.signOut();
     await _datasource.logout();
+  }
+
+  String _randomNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)])
+        .join();
   }
 
   Future<void> resetPassword(String email) =>
@@ -54,6 +68,56 @@ class AuthRepositoryImpl {
     if (user == null) throw Exception('Utilisateur introuvable');
 
     // Accès mobile réservé aux étudiants et ambassadeurs
+    const mobileRoles = ['student', 'ambassador'];
+    if (!mobileRoles.contains(user.role)) {
+      await logout();
+      throw Exception(
+        'Accès non autorisé. Cette application est réservée aux étudiants et ambassadeurs.',
+      );
+    }
+
+    return user;
+  }
+
+  Future<StudiumUser> signInWithApple() async {
+    // nonce en clair envoyé à Apple, sa version hashée (SHA-256) est
+    // vérifiée par Supabase contre le idToken retourné — protection
+    // standard contre le replay des jetons Apple.
+    final rawNonce = _randomNonce();
+    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+    late final AuthorizationCredentialAppleID credential;
+    try {
+      credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        throw Exception('Connexion Apple annulée');
+      }
+      rethrow;
+    }
+
+    final idToken = credential.identityToken;
+    if (idToken == null) {
+      throw Exception('Connexion Apple : jeton introuvable');
+    }
+
+    final response = await Supabase.instance.client.auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: idToken,
+      nonce: rawNonce,
+    );
+
+    if (response.user == null) throw Exception('Échec de la connexion Apple');
+
+    final user = await _datasource.getCurrentUser();
+    if (user == null) throw Exception('Utilisateur introuvable');
+
     const mobileRoles = ['student', 'ambassador'];
     if (!mobileRoles.contains(user.role)) {
       await logout();

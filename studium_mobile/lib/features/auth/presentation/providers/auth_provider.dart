@@ -16,13 +16,16 @@ final authStateProvider =
 
 class AuthNotifier extends StateNotifier<AsyncValue<StudiumUser?>> {
   final AuthRepositoryImpl _repository;
+  final GoTrueClient _auth;
 
-  AuthNotifier(this._repository) : super(const AsyncValue.loading()) {
+  AuthNotifier(this._repository, {GoTrueClient? auth})
+      : _auth = auth ?? Supabase.instance.client.auth,
+        super(const AsyncValue.loading()) {
     _init();
   }
 
   Future<void> _init() async {
-    final supabaseUser = Supabase.instance.client.auth.currentUser;
+    final supabaseUser = _auth.currentUser;
     if (supabaseUser != null) {
       try {
         final user = await _repository.getCurrentUser();
@@ -34,7 +37,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<StudiumUser?>> {
       state = const AsyncValue.data(null);
     }
 
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
+    _auth.onAuthStateChange.listen((data) async {
       final event = data.event;
 
       if (event == AuthChangeEvent.passwordRecovery) return;
@@ -81,16 +84,21 @@ class AuthNotifier extends StateNotifier<AsyncValue<StudiumUser?>> {
   Future<void> signUp({
     required String email,
     required String password,
+    String? refCode,
   }) async {
     state = const AsyncValue.loading();
     try {
-      final user = await _repository.register(
-        email: email,
-        password: password,
-      );
-      state = AsyncValue.data(user);
+      final user = await _repository.register(email: email, password: password, refCode: refCode);
+      // Si la confirmation email est désactivée côté Supabase (auto-confirm),
+      // signUp() ouvre déjà une session active : on enchaîne directement sur
+      // l'onboarding au lieu de déconnecter inutilement l'utilisateur. Si la
+      // confirmation est requise, aucune session n'existe encore ici et on
+      // laisse l'écran /email-sent (route publique) prendre le relais.
+      final hasSession = _auth.currentSession != null;
+      state = AsyncValue.data(hasSession ? user : null);
     } catch (e) {
       state = AsyncValue.error(e, StackTrace.current);
+      rethrow;
     }
   }
 
@@ -98,6 +106,16 @@ class AuthNotifier extends StateNotifier<AsyncValue<StudiumUser?>> {
     state = const AsyncValue.loading();
     try {
       final user = await _repository.signInWithGoogle();
+      state = AsyncValue.data(user);
+    } catch (e) {
+      state = AsyncValue.error(e, StackTrace.current);
+    }
+  }
+
+  Future<void> signInWithApple() async {
+    state = const AsyncValue.loading();
+    try {
+      final user = await _repository.signInWithApple();
       state = AsyncValue.data(user);
     } catch (e) {
       state = AsyncValue.error(e, StackTrace.current);

@@ -75,12 +75,20 @@ class AuthRemoteDatasource {
   Future<UserModel> register({
     required String email,
     required String password,
+    String? refCode,
   }) async {
     late AuthResponse response;
     try {
       response = await _client.auth.signUp(
         email: email,
         password: password,
+        // L'appelant (register_screen.dart) bloque déjà l'appel tant que la
+        // case CGU/politique de confidentialité n'est pas cochée : on fixe
+        // le consentement dès la création du compte, y compris quand la
+        // confirmation email est requise (pas de session pour un updateUser
+        // ultérieur dans ce cas). Google/Apple n'ont pas cette garantie
+        // amont -> gérés séparément par l'écran d'interstitiel /accept-terms.
+        data: {'terms_accepted': true},
       );
     } on AuthException catch (e) {
       if (e.message.contains('already registered') ||
@@ -99,6 +107,14 @@ class AuthRemoteDatasource {
       });
     } catch (e) {
       debugPrint('=== INSERT ROLE ERROR: $e');
+    }
+
+    if (refCode != null && refCode.isNotEmpty) {
+      try {
+        await _client.rpc('register_referral', params: {'p_code': refCode});
+      } catch (e) {
+        debugPrint('=== REGISTER REFERRAL ERROR: $e');
+      }
     }
 
     return UserModel.fromSupabase({

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../router/app_router.dart';
+import '../../../../core/validators/field_validators.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
   final String? code;
@@ -115,11 +116,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 onPressed: () => setState(() => _obscurePw = !_obscurePw),
               ),
             ),
-            validator: (v) {
-              if (v == null || v.isEmpty) return 'Mot de passe requis';
-              if (v.length < 8) return 'Minimum 8 caractères';
-              return null;
-            },
+            validator: passwordValidator,
           ),
           const SizedBox(height: 16),
           TextFormField(
@@ -137,12 +134,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                     setState(() => _obscureConfirm = !_obscureConfirm),
               ),
             ),
-            validator: (v) {
-              if (v != _passwordController.text) {
-                return 'Les mots de passe ne correspondent pas';
-              }
-              return null;
-            },
+            validator: (v) => confirmPasswordValidator(v, _passwordController.text),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
