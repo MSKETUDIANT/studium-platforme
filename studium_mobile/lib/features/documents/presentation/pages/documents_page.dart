@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,14 +7,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/services/platform_settings_provider.dart';
 import '../../domain/entities/document.dart';
 import '../providers/document_providers.dart';
 import 'upload_document_page.dart';
+import '../../../../core/constants/app_colors.dart';
 
-const _kNavy   = Color(0xFF1A1D2E);
-const _kBlue   = Color(0xFF4880FF);
-const _kGrey   = Color(0xFF9CA3AF);
-const _kBorder = Color(0xFFE5E7EB);
+const _kBlue   = AppColors.blueLight;
+const _kGrey   = AppColors.textMuted;
+const _kBorder = AppColors.borderInput;
 
 class DocumentsPage extends ConsumerWidget {
   const DocumentsPage({super.key});
@@ -30,8 +33,26 @@ class DocumentsPage extends ConsumerWidget {
             error: (e, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child: Text(e.toString(),
-                    style: const TextStyle(color: Colors.red)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(e.toString(),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => ref.invalidate(documentsProvider),
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Réessayer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _kBlue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             data: (docs) => CustomScrollView(
@@ -216,11 +237,11 @@ class DocumentsPage extends ConsumerWidget {
                   size: 36, color: _kBlue),
             ),
             const SizedBox(height: 20),
-            const Text('Aucun document',
+            Text('Aucun document',
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: _kNavy)),
+                    color: Theme.of(context).colorScheme.onSurface)),
             const SizedBox(height: 8),
             const Text(
               'Uploadez vos fichiers pour\ncomplèter votre dossier.',
@@ -373,10 +394,10 @@ class _DocumentCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(doc.typeLabel,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
-                                color: _kNavy)),
+                                color: Theme.of(sheetCtx).colorScheme.onSurface)),
                         const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -465,10 +486,28 @@ class _DocumentCard extends ConsumerWidget {
                       onPressed: replacing
                           ? null
                           : () async {
-                              final result = await FilePicker.platform
-                                  .pickFiles(type: FileType.any);
+                              final settings = await ref.read(uploadSettingsProvider.future);
+                              final result = await FilePicker.platform.pickFiles(
+                                type: FileType.custom,
+                                allowedExtensions: settings.allowedExtensions,
+                              );
                               if (result == null ||
                                   result.files.single.path == null) { return; }
+                              final sizeBytes = await File(result.files.single.path!).length();
+                              if (sizeBytes > settings.maxSizeMb * 1024 * 1024) {
+                                if (sheetCtx.mounted) {
+                                  ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Fichier trop volumineux (max ${settings.maxSizeMb} Mo).'),
+                                      backgroundColor: const Color(0xFFEF4444),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      margin: const EdgeInsets.all(16),
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
                               setModalState(() => replacing = true);
                               try {
                                 await ref
@@ -526,18 +565,25 @@ class _DocumentCard extends ConsumerWidget {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () async {
-                      final uri = Uri.tryParse(doc.fileUrl);
-                      if (uri != null && await canLaunchUrl(uri)) {
-                        await launchUrl(uri,
-                            mode: LaunchMode.externalApplication);
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text("Impossible d'ouvrir le fichier")),
-                          );
+                      // Bucket prive : on signe une URL de courte duree juste
+                      // avant l'ouverture plutot que d'utiliser fileUrl tel quel.
+                      try {
+                        final signedUrl = await ref
+                            .read(documentRepositoryProvider)
+                            .getSignedUrl(doc.fileUrl);
+                        final uri = Uri.tryParse(signedUrl);
+                        if (uri != null && await canLaunchUrl(uri)) {
+                          await launchUrl(uri,
+                              mode: LaunchMode.externalApplication);
+                          return;
                         }
+                      } catch (_) {}
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text("Impossible d'ouvrir le fichier")),
+                        );
                       }
                     },
                     icon: const Icon(Icons.open_in_new, size: 18),
@@ -791,7 +837,7 @@ class _InfoRow extends StatelessWidget {
           ),
           Expanded(
             child: Text(value,
-                style: const TextStyle(fontSize: 13, color: _kNavy)),
+                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface)),
           ),
         ],
       ),

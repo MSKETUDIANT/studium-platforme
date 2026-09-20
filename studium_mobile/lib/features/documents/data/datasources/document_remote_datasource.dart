@@ -27,29 +27,69 @@ class DocumentRemoteDatasource {
     required String mimeType,
     UploadProgressCallback? onProgress,
   }) async {
-    final api     = _client.storage.from(_kDocsBucket);
-    final url     = '${api.url}/object/$_kDocsBucket/$storagePath';
-    final headers = {...api.headers, 'x-upsert': 'true'};
+    final api = _client.storage.from(_kDocsBucket);
+    // Chaque segment du chemin doit être encodé individuellement (le nom de
+    // fichier peut contenir espaces/accents/parenthèses) : une concaténation
+    // brute produit une URL invalide, rejetée par le serveur avec un 400.
+    final encodedPath = storagePath.split('/').map(Uri.encodeComponent).join('/');
+    final url = '${api.url}/object/$_kDocsBucket/$encodedPath';
+    // api.headers est fige au moment de la creation du SupabaseClient (juste
+    // l'apikey) : contrairement a postgrest/functions, le client storage ne
+    // recoit jamais l'Authorization dynamiquement (pas d'AuthHttpClient sur
+    // cet appel Dio manuel). Il faut donc lire le token de session courant
+    // nous-memes, sinon le serveur rejette la requete (400, authorization
+    // manquant), peu importe le fichier envoye.
+    final accessToken = _client.auth.currentSession?.accessToken;
+    final headers = {
+      ...api.headers,
+      if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+      'x-upsert': 'true',
+    };
 
-    final formData = FormData()
-      ..files.add(MapEntry(
-        '',
-        await MultipartFile.fromFile(
-          file.path,
-          filename: '',
-          contentType: DioMediaType.parse(mimeType),
-        ),
-      ))
-      ..fields.add(const MapEntry('cacheControl', '3600'));
+    // Pas de reprise octet-par-octet (demanderait le protocole TUS, hors
+    // scope) : une coupure reseau pendant l'envoi relance l'upload depuis le
+    // debut, jusqu'a 3 tentatives, pour absorber les coupures breves/timeouts
+    // sans faire echouer l'upload au premier accroc. 'x-upsert' garantit
+    // qu'une tentative reussie apres echec ecrase proprement, sans doublon.
+    const maxAttempts = 3;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      final formData = FormData()
+        ..files.add(MapEntry(
+          '',
+          await MultipartFile.fromFile(
+            file.path,
+            filename: '',
+            contentType: DioMediaType.parse(mimeType),
+          ),
+        ))
+        ..fields.add(const MapEntry('cacheControl', '3600'));
 
-    await _dio.post(
-      url,
-      data: formData,
-      options: Options(headers: headers),
-      onSendProgress: (sent, total) {
-        if (total > 0) onProgress?.call(sent, total);
-      },
-    );
+      try {
+        await _dio.post(
+          url,
+          data: formData,
+          options: Options(headers: headers),
+          onSendProgress: (sent, total) {
+            if (total > 0) onProgress?.call(sent, total);
+          },
+        );
+        return;
+      } on DioException catch (e) {
+        // Pas de reponse serveur (timeout, coupure, DNS...) ou 5xx : probablement
+        // transitoire, on retente. Une reponse 4xx (fichier invalide, auth...)
+        // ne changera pas au prochain essai, inutile d'insister.
+        final retryable = e.response == null || (e.response!.statusCode ?? 0) >= 500;
+        if (!retryable || attempt == maxAttempts) {
+          // Le message par defaut de Dio ("bad syntax") masque la vraie raison
+          // renvoyee par Supabase Storage dans le corps de la reponse.
+          throw DocumentException(
+            'Upload failed (${e.response?.statusCode}): ${e.response?.data}',
+            type: DocumentErrorType.server,
+          );
+        }
+        await Future.delayed(Duration(seconds: attempt));
+      }
+    }
   }
 
   Future<List<DocumentModel>> getDocuments(String studentProfileId) async {
@@ -175,6 +215,27 @@ class DocumentRemoteDatasource {
     } on StorageException catch (e) {
       throw DocumentException(e.message, type: DocumentErrorType.server);
     } on PostgrestException catch (e) {
+      throw DocumentException(e.message, type: DocumentErrorType.server);
+    } catch (e) {
+      throw DocumentException(e.toString());
+    }
+  }
+
+  // Le bucket "documents" est prive : fileUrl garde le format d'URL publique
+  // historique (pratique pour en extraire le chemin de facon fiable), mais
+  // n'est plus directement accessible. On signe une URL de courte duree
+  // juste avant l'ouverture du fichier plutot que de la stocker.
+  Future<String> getSignedUrl(String fileUrl, {int expiresInSeconds = 60}) async {
+    try {
+      final uri  = Uri.parse(fileUrl);
+      final path = uri.pathSegments
+          .skipWhile((s) => s != _kDocsBucket)
+          .skip(1)
+          .join('/');
+      return await _client.storage
+          .from(_kDocsBucket)
+          .createSignedUrl(path, expiresInSeconds);
+    } on StorageException catch (e) {
       throw DocumentException(e.message, type: DocumentErrorType.server);
     } catch (e) {
       throw DocumentException(e.toString());

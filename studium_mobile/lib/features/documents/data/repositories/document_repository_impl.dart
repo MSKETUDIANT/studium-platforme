@@ -30,6 +30,10 @@ class DocumentRepositoryImpl implements DocumentRepository {
       _datasource.deleteDocument(documentId, fileUrl);
 
   @override
+  Future<String> getSignedUrl(String fileUrl) =>
+      _datasource.getSignedUrl(fileUrl);
+
+  @override
   Future<Document> replaceDocument({
     required String documentId,
     required String studentProfileId,

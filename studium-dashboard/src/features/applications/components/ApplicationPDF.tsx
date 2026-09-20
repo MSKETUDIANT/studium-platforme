@@ -1,6 +1,6 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { Application, RawStatus } from '../types/application';
-import type { StatusHistoryEntry, ApplicationDocument } from '../services/applications_service';
+import type { StatusHistoryEntry, ApplicationDocument, AcademicBackground, WorkExperience } from '../services/applications_service';
 import { docTypeLabel } from '../services/applications_service';
 import { RAW_STATUS_LABELS } from '../types/application';
 
@@ -21,14 +21,18 @@ const BG     = '#F8FAFC';
 
 const s = StyleSheet.create({
   page:       { fontFamily: 'Helvetica', fontSize: 10, color: TEXT, padding: '40 48' },
-  cover:      { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  coverBrand: { fontSize: 28, fontFamily: 'Helvetica-Bold', color: NAVY, letterSpacing: 2 },
-  coverTitle: { fontSize: 14, color: GREY, marginTop: 4 },
-  coverSep:   { width: 60, height: 2, backgroundColor: NAVY, marginVertical: 16 },
-  coverName:  { fontSize: 20, fontFamily: 'Helvetica-Bold', color: TEXT },
-  coverProg:  { fontSize: 13, color: BLUE, marginTop: 4 },
-  coverUniv:  { fontSize: 11, color: GREY },
-  coverDate:  { fontSize: 9, color: MUTED, marginTop: 20 },
+
+  header:     { marginBottom: 22 },
+  headerBrand:{ fontSize: 13, fontFamily: 'Helvetica-Bold', color: NAVY, letterSpacing: 1.5 },
+  headerLine: { height: 1, backgroundColor: BORDER, marginTop: 6, marginBottom: 14 },
+  headerName: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: TEXT },
+  headerProg: { fontSize: 12, color: BLUE, marginTop: 3 },
+  headerUniv: { fontSize: 10, color: GREY, marginTop: 2 },
+
+  entryBox:   { backgroundColor: BG, borderRadius: 6, borderWidth: 1, borderColor: BORDER, padding: '10 12', marginBottom: 10 },
+  entryTitle: { fontSize: 10.5, fontFamily: 'Helvetica-Bold', color: TEXT },
+  entrySub:   { fontSize: 9, color: GREY, marginTop: 2 },
+  entryDesc:  { fontSize: 9.5, color: TEXT, marginTop: 4, lineHeight: 1.4 },
 
   section:    { marginBottom: 20 },
   sLabel:     { fontSize: 8, fontFamily: 'Helvetica-Bold', letterSpacing: 1.5, color: MUTED, textTransform: 'uppercase', marginBottom: 8 },
@@ -80,40 +84,32 @@ const DOC_STATUS_COLOR: Record<ApplicationDocument['status'], { bg: string; colo
 };
 
 interface Props {
-  app:     Application;
-  history: StatusHistoryEntry[];
-  docs?:   ApplicationDocument[];
+  app:         Application;
+  history:     StatusHistoryEntry[];
+  docs?:       ApplicationDocument[];
+  academics?:  AcademicBackground[];
+  experiences?: WorkExperience[];
 }
 
-export default function ApplicationPDF({ app, history, docs = [] }: Props) {
-  const generatedAt = new Date().toLocaleDateString('fr-FR', {
-    day: '2-digit', month: 'long', year: 'numeric',
-  });
+function Header({ app }: { app: Application }) {
+  return (
+    <View style={s.header}>
+      <Text style={s.headerBrand}>STUDIUM</Text>
+      <View style={s.headerLine} />
+      <Text style={s.headerName}>{app.student}</Text>
+      <Text style={s.headerProg}>{app.program}</Text>
+      <Text style={s.headerUniv}>{app.university}{app.country ? `  ${app.country}` : ''}</Text>
+    </View>
+  );
+}
 
+export default function ApplicationPDF({ app, history, docs = [], academics = [], experiences = [] }: Props) {
   return (
     <Document title={`Dossier  ${app.student}`} author="Studium">
 
-      {/* Page de couverture */}
+      {/* Page 1 — Résumé de la candidature + score */}
       <Page size="A4" style={s.page}>
-        <View style={s.cover}>
-          <Text style={s.coverBrand}>STUDIUM</Text>
-          <Text style={s.coverTitle}>Pack de candidature</Text>
-          <View style={s.coverSep} />
-          <Text style={s.coverName}>{app.student}</Text>
-          <Text style={s.coverProg}>{app.program}</Text>
-          <Text style={s.coverUniv}>{app.university}{app.country ? `  ${app.country}` : ''}</Text>
-          {app.level && <Text style={{ ...s.coverDate, marginTop: 8, fontSize: 10, color: GREY }}>{LEVEL_LABELS[app.level] ?? app.level}</Text>}
-          <Text style={s.coverDate}>Généré le {generatedAt}</Text>
-        </View>
-
-        <View style={s.footer}>
-          <Text style={s.footerText}>Studium  Plateforme de gestion des candidatures</Text>
-          <Text style={s.footerText}>Confidentiel</Text>
-        </View>
-      </Page>
-
-      {/* Page détails */}
-      <Page size="A4" style={s.page}>
+        <Header app={app} />
 
         {/* Résumé candidature */}
         <View style={s.section}>
@@ -148,6 +144,59 @@ export default function ApplicationPDF({ app, history, docs = [] }: Props) {
             <View style={{ ...s.scoreFill, width: `${app.score}%`, backgroundColor: scoreColor(app.score) }} />
           </View>
         </View>
+
+        <View style={s.footer}>
+          <Text style={s.footerText}>Studium  {app.student} / {app.program}</Text>
+          <Text style={s.footerText} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
+        </View>
+      </Page>
+
+      {/* Page 2 — Parcours académique et expériences */}
+      {(academics.length > 0 || experiences.length > 0) && (
+        <Page size="A4" style={s.page}>
+          <Header app={app} />
+
+          {academics.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sLabel}>Formations</Text>
+              <View style={s.sLine} />
+              {academics.map((a, i) => (
+                <View key={i} style={s.entryBox}>
+                  <Text style={s.entryTitle}>{a.degree}  {a.university}</Text>
+                  {(a.year || a.average != null) && (
+                    <Text style={s.entrySub}>
+                      {[a.year ? `Obtenu en ${a.year}` : null, a.average != null ? `Moyenne : ${a.average}` : null]
+                        .filter(Boolean).join('   ')}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {experiences.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sLabel}>Expériences</Text>
+              <View style={s.sLine} />
+              {experiences.map((e, i) => (
+                <View key={i} style={s.entryBox}>
+                  <Text style={s.entryTitle}>{e.position}  {e.company}</Text>
+                  {e.description && <Text style={s.entryDesc}>{e.description}</Text>}
+                </View>
+              ))}
+            </View>
+          )}
+
+          <View style={s.footer}>
+            <Text style={s.footerText}>Studium  {app.student} / {app.program}</Text>
+            <Text style={s.footerText} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
+          </View>
+        </Page>
+      )}
+
+      {/* Page 3 — Historique, notes internes, documents */}
+      <Page size="A4" style={s.page}>
+        <Header app={app} />
 
         {/* Historique des statuts */}
         {history.length > 0 && (
@@ -212,6 +261,7 @@ export default function ApplicationPDF({ app, history, docs = [] }: Props) {
       {/* Lettre de motivation (spécifique à cette candidature) */}
       {app.motivationLetter && (
         <Page size="A4" style={s.page}>
+          <Header app={app} />
           <View style={s.section}>
             <Text style={s.sLabel}>Lettre de motivation</Text>
             <View style={s.sLine} />

@@ -18,8 +18,10 @@ class DocumentException implements Exception {
     this.type = DocumentErrorType.unknown,
   });
 
+  // Le nom de la classe et le type ne doivent pas fuiter dans l'UI : de
+  // nombreux ecrans affichent directement e.toString() a l'utilisateur.
   @override
-  String toString() => 'DocumentException(${type.name}): $message';
+  String toString() => message;
 }
 
 typedef UploadProgressCallback = void Function(int sent, int total);
@@ -33,6 +35,7 @@ abstract interface class DocumentRepository {
     UploadProgressCallback? onProgress,
   });
   Future<void> deleteDocument(String documentId, String fileUrl);
+  Future<String> getSignedUrl(String fileUrl);
   Future<Document> replaceDocument({
     required String documentId,
     required String studentProfileId,

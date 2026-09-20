@@ -1,14 +1,18 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/services/platform_settings_provider.dart';
 import '../../domain/entities/document.dart';
 import '../providers/document_providers.dart';
+import '../../../../core/constants/app_colors.dart';
 
-const _kBlue = Color(0xFF4880FF);
-const _kGrey = Color(0xFF9CA3AF);
+const _kBlue = AppColors.blueLight;
+const _kGrey = AppColors.textMuted;
 
 // Etat par type de document
 class _TypeState {
@@ -49,6 +53,8 @@ class _UploadDocumentPageState
     final s = _states[type]!;
     if (s.uploading) return;
 
+    final settings = await ref.read(uploadSettingsProvider.future);
+
     String filePath;
     String fileName;
 
@@ -60,11 +66,19 @@ class _UploadDocumentPageState
     } else {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
+        allowedExtensions: settings.allowedExtensions,
       );
       if (result == null || result.files.single.path == null) return;
       filePath = result.files.single.path!;
       fileName = result.files.single.name;
+
+      final sizeBytes = await File(filePath).length();
+      if (sizeBytes > settings.maxSizeMb * 1024 * 1024) {
+        _showError(
+          'Fichier trop volumineux (max ${settings.maxSizeMb} Mo).',
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -335,6 +349,7 @@ class _TypeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark      = Theme.of(context).brightness == Brightness.dark;
     final isDone      = state.done;
     final isUploading = state.uploading;
     final hasError    = state.error != null;
@@ -366,10 +381,10 @@ class _TypeRow extends StatelessWidget {
                     ? const Color(0xFFEF4444).withValues(alpha: 0.30)
                     : isUploading
                         ? color.withValues(alpha: 0.30)
-                        : const Color(0xFFE5E7EB),
+                        : (isDark ? const Color(0xFF1E2A52) : const Color(0xFFE5E7EB)),
             width: (isDone || isUploading || hasError) ? 1.5 : 1,
           ),
-          boxShadow: [
+          boxShadow: isDark ? [] : [
             BoxShadow(
               color: Colors.black.withValues(alpha: isDone ? 0.05 : 0.03),
               blurRadius: 8, offset: const Offset(0, 2),

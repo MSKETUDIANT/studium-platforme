@@ -7,6 +7,8 @@ export interface PlatformSettings {
   supportEmail:               string;
   platformName:               string;
   defaultLanguage:            string;
+  /** Langues activables par les étudiants dans l'app (liste séparée par virgules, ex "fr,en"). */
+  availableLanguages:         string;
   ambassadorCommissionAmount: number;
 }
 
@@ -17,6 +19,7 @@ const DEFAULTS: PlatformSettings = {
   supportEmail:               'support@studium.app',
   platformName:               'Studium',
   defaultLanguage:            'fr',
+  availableLanguages:         'fr,en',
   ambassadorCommissionAmount: 50,
 };
 
@@ -27,6 +30,7 @@ const KEY_MAP: Record<keyof PlatformSettings, string> = {
   supportEmail:               'support_email',
   platformName:               'platform_name',
   defaultLanguage:            'default_language',
+  availableLanguages:         'available_languages',
   ambassadorCommissionAmount: 'ambassador_commission_amount',
 };
 
@@ -47,6 +51,7 @@ export async function fetchPlatformSettings(): Promise<PlatformSettings> {
     supportEmail:         map['support_email']                   ?? DEFAULTS.supportEmail,
     platformName:         map['platform_name']                   ?? DEFAULTS.platformName,
     defaultLanguage:      map['default_language']                ?? DEFAULTS.defaultLanguage,
+    availableLanguages:   map['available_languages']              ?? DEFAULTS.availableLanguages,
     ambassadorCommissionAmount: Number(map['ambassador_commission_amount'] ?? DEFAULTS.ambassadorCommissionAmount),
   };
 }
