@@ -11,12 +11,14 @@ import '../../../../core/constants/app_colors.dart';
 import '../../data/datasources/messaging_remote_datasource.dart';
 import '../providers/messaging_providers.dart';
 
-//  Palette (identique aux autres pages) 
+//  Palette (identique aux autres pages)
+// _kNavy reste une teinte dediee au degrade d'en-tete (voir usage plus bas),
+// distincte du texte/bordures alignes sur AppColors.
 const _kNavy   = Color(0xFF08122E);
-const _kAccent = Color(0xFF4880FF);
-const _kText   = Color(0xFF1A1D2E);
-const _kMuted  = Color(0xFF9CA3AF);
-const _kBorder = Color(0xFFE5E7EB);
+const _kAccent = AppColors.blueLight;
+const _kText   = AppColors.textPrimary;
+const _kMuted  = AppColors.textMuted;
+const _kBorder = AppColors.borderInput;
 
 //  MessagesPage 
 class MessagesPage extends ConsumerStatefulWidget {
@@ -288,7 +290,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               context.s.noConversation,
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: _kText),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Theme.of(context).colorScheme.onSurface),
             ).animate().fadeIn(delay: 100.ms),
             const SizedBox(height: 8),
             Text(
@@ -326,9 +328,9 @@ class _ErrorState extends StatelessWidget {
               child: const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 32),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Erreur de chargement',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: _kText),
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Theme.of(context).colorScheme.onSurface),
             ),
             const SizedBox(height: 8),
             Container(
@@ -704,7 +706,7 @@ class _ReplyBoxState extends State<_ReplyBox> {
                     controller:      widget.controller,
                     maxLines:        null,
                     textInputAction: TextInputAction.newline,
-                    style: const TextStyle(fontSize: 14.5, color: _kText),
+                    style: TextStyle(fontSize: 14.5, color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                       hintText:  context.s.writeMessage,
@@ -728,7 +730,7 @@ class _ReplyBoxState extends State<_ReplyBox> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                    color:        widget.sending ? _kBorder : null,
+                    color:        widget.sending ? (isDark ? const Color(0xFF1E2A52) : _kBorder) : null,
                     borderRadius: BorderRadius.circular(23),
                     boxShadow: widget.sending ? [] : [
                       BoxShadow(color: _kAccent.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4)),

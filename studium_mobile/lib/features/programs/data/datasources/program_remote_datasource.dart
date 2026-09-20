@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/program_model.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/services/cache_service.dart';
 
 class ProgramRemoteDatasource {
@@ -14,18 +15,30 @@ class ProgramRemoteDatasource {
     }
 
     try {
-      final data = await _client
-          .from('programs')
-          .select()
-          .eq('is_active', true)
-          .order('program_name', ascending: true);
+      // Supabase plafonne chaque reponse a 1000 lignes (db-max-rows) meme
+      // sans .range() explicite : on boucle par pages de 1000 pour ne
+      // jamais tronquer silencieusement le catalogue.
+      const pageSize = 1000;
+      final all = <dynamic>[];
+      var from = 0;
+      while (true) {
+        final page = await _client
+            .from('programs')
+            .select()
+            .eq('is_active', true)
+            .order('program_name', ascending: true)
+            .range(from, from + pageSize - 1);
+        all.addAll(page as List);
+        if (page.length < pageSize) break;
+        from += pageSize;
+      }
       // Mettre en cache 6 heures
-      await CacheService.instance.set(CacheKeys.programs, data, ttl: const Duration(hours: 6));
-      return (data as List).map((e) => ProgramModel.fromJson(e)).toList();
+      await CacheService.instance.set(CacheKeys.programs, all, ttl: const Duration(hours: 6));
+      return all.map((e) => ProgramModel.fromJson(e)).toList();
     } on PostgrestException catch (e) {
-      throw Exception(e.message);
+      throw AppException(e.message);
     } catch (e) {
-      throw Exception(e.toString());
+      throw AppException(e.toString());
     }
   }
 

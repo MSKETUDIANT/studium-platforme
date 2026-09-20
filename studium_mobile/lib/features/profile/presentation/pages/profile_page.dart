@@ -779,9 +779,12 @@ class _InfoSection extends StatelessWidget {
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
-            boxShadow: [
+            border: Theme.of(context).brightness == Brightness.dark
+                ? Border.all(color: const Color(0xFF1E2A52))
+                : null,
+            boxShadow: Theme.of(context).brightness == Brightness.dark ? [] : [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
@@ -823,10 +826,10 @@ class _InfoSection extends StatelessWidget {
                                         fontSize: 11,
                                         color: _AppColors.textLight)),
                               Text(item.value!,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
-                                    color: _AppColors.textPrimary,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                     height: 1.45,
                                   )),
                             ],
@@ -867,9 +870,9 @@ class _AcademicCard extends ConsumerWidget {
         maxChildSize: 0.85,
         expand: false,
         builder: (_, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: SingleChildScrollView(
             controller: scrollController,
@@ -897,10 +900,10 @@ class _AcademicCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(academic.degree,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
-                                color: _AppColors.textPrimary)),
+                                color: Theme.of(ctx).colorScheme.onSurface)),
                         Text(academic.university,
                             style: const TextStyle(
                                 fontSize: 13, color: _AppColors.textMuted)),
@@ -984,10 +987,10 @@ class _AcademicCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(academic.degree,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
-                      color: _AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     )),
                 const SizedBox(height: 3),
                 Text(academic.university,
@@ -1077,9 +1080,9 @@ class _ExperienceCard extends ConsumerWidget {
         maxChildSize: 0.92,
         expand: false,
         builder: (_, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: SingleChildScrollView(
             controller: scrollController,
@@ -1107,10 +1110,10 @@ class _ExperienceCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(experience.position,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
-                                color: _AppColors.textPrimary)),
+                                color: Theme.of(ctx).colorScheme.onSurface)),
                         Text(experience.company,
                             style: const TextStyle(
                                 fontSize: 13, color: _AppColors.textMuted)),
@@ -1152,25 +1155,31 @@ class _ExperienceCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text('Description',
+                    Text('Description',
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: _AppColors.textPrimary)),
+                            color: Theme.of(ctx).colorScheme.onSurface)),
                   ]),
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFF),
+                      color: Theme.of(ctx).brightness == Brightness.dark
+                          ? const Color(0xFF0D1121)
+                          : const Color(0xFFF8FAFF),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE8ECF8)),
+                      border: Border.all(
+                        color: Theme.of(ctx).brightness == Brightness.dark
+                            ? const Color(0xFF1E2A52)
+                            : const Color(0xFFE8ECF8),
+                      ),
                     ),
                     child: Text(experience.description!,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 14,
-                            color: _AppColors.textPrimary,
+                            color: Theme.of(ctx).colorScheme.onSurface,
                             height: 1.6)),
                   ),
                 ],
@@ -1242,10 +1251,10 @@ class _ExperienceCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(experience.position,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
-                      color: _AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     )),
                 const SizedBox(height: 3),
                 Text(experience.company,
@@ -1464,10 +1473,10 @@ class _EmptyStateCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: _AppColors.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               )),
           const SizedBox(height: 6),
           Text(subtitle,
@@ -1523,8 +1532,8 @@ class _DetailRow extends StatelessWidget {
                   fontWeight: FontWeight.w500)),
           Expanded(
             child: Text(value,
-                style: const TextStyle(
-                    fontSize: 13, color: _AppColors.textPrimary)),
+                style: TextStyle(
+                    fontSize: 13, color: Theme.of(context).colorScheme.onSurface)),
           ),
         ],
       ),

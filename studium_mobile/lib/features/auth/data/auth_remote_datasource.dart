@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/errors/app_exception.dart';
 import 'models/user_model.dart';
 
 class AuthRemoteDatasource {
@@ -40,25 +41,25 @@ class AuthRemoteDatasource {
       if (e.code == 'email_not_confirmed' ||
           e.message.contains('email_not_confirmed') ||
           e.message.contains('Email not confirmed')) {
-        throw Exception('email_not_confirmed');
+        throw const AppException('email_not_confirmed');
       }
       rethrow;
     }
 
-    if (response.user == null) throw Exception('Échec de la connexion');
+    if (response.user == null) throw const AppException('Échec de la connexion');
 
     final role = await _fetchRole(response.user!.id);
     debugPrint('=== ROLE TROUVÉ: $role');
 
     if (role == null) {
       await _client.auth.signOut();
-      throw Exception('Profil introuvable. Contactez le support.');
+      throw const AppException('Profil introuvable. Contactez le support.');
     }
 
     const mobileRoles = ['student', 'ambassador'];
     if (!mobileRoles.contains(role)) {
       await _client.auth.signOut();
-      throw Exception(
+      throw const AppException(
         'Accès non autorisé. Cette application est réservée aux étudiants et ambassadeurs.',
       );
     }
@@ -93,12 +94,12 @@ class AuthRemoteDatasource {
     } on AuthException catch (e) {
       if (e.message.contains('already registered') ||
           e.message.contains('User already registered')) {
-        throw Exception('Cet email est déjà utilisé.');
+        throw const AppException('Cet email est déjà utilisé.');
       }
       rethrow;
     }
 
-    if (response.user == null) throw Exception("Échec de l'inscription");
+    if (response.user == null) throw const AppException("Échec de l'inscription");
 
     try {
       await _client.from('user_roles').insert({

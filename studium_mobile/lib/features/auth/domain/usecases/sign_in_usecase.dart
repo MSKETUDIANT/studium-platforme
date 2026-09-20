@@ -1,3 +1,4 @@
+import '../../../../core/errors/app_exception.dart';
 import '../models/auth_user.dart';
 import '../../data/auth_repository_impl.dart';
 
@@ -11,10 +12,10 @@ class SignInUsecase {
     required String password,
   }) async {
     if (email.isEmpty || password.isEmpty) {
-      throw Exception('Email et mot de passe requis');
+      throw const AppException('Email et mot de passe requis');
     }
     if (password.length < 8) {
-      throw Exception('Le mot de passe doit contenir au moins 8 caractères');
+      throw const AppException('Le mot de passe doit contenir au moins 8 caractères');
     }
     return _repository.login(email: email, password: password);
   }

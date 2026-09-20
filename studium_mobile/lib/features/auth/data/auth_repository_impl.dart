@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/errors/app_exception.dart';
 import '../domain/models/auth_user.dart';
 import 'auth_remote_datasource.dart';
 
@@ -51,7 +52,7 @@ class AuthRepositoryImpl {
     await _googleSignIn.signOut();
 
     final googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) throw Exception('Connexion Google annulée');
+    if (googleUser == null) throw const AppException('Connexion Google annulée');
 
     final googleAuth = await googleUser.authentication;
 
@@ -61,17 +62,17 @@ class AuthRepositoryImpl {
       accessToken: googleAuth.accessToken,
     );
 
-    if (response.user == null) throw Exception('Échec de la connexion Google');
+    if (response.user == null) throw const AppException('Échec de la connexion Google');
 
     // Vérifier le rôle via datasource
     final user = await _datasource.getCurrentUser();
-    if (user == null) throw Exception('Utilisateur introuvable');
+    if (user == null) throw const AppException('Utilisateur introuvable');
 
     // Accès mobile réservé aux étudiants et ambassadeurs
     const mobileRoles = ['student', 'ambassador'];
     if (!mobileRoles.contains(user.role)) {
       await logout();
-      throw Exception(
+      throw const AppException(
         'Accès non autorisé. Cette application est réservée aux étudiants et ambassadeurs.',
       );
     }
@@ -97,14 +98,14 @@ class AuthRepositoryImpl {
       );
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) {
-        throw Exception('Connexion Apple annulée');
+        throw const AppException('Connexion Apple annulée');
       }
       rethrow;
     }
 
     final idToken = credential.identityToken;
     if (idToken == null) {
-      throw Exception('Connexion Apple : jeton introuvable');
+      throw const AppException('Connexion Apple : jeton introuvable');
     }
 
     final response = await Supabase.instance.client.auth.signInWithIdToken(
@@ -113,15 +114,15 @@ class AuthRepositoryImpl {
       nonce: rawNonce,
     );
 
-    if (response.user == null) throw Exception('Échec de la connexion Apple');
+    if (response.user == null) throw const AppException('Échec de la connexion Apple');
 
     final user = await _datasource.getCurrentUser();
-    if (user == null) throw Exception('Utilisateur introuvable');
+    if (user == null) throw const AppException('Utilisateur introuvable');
 
     const mobileRoles = ['student', 'ambassador'];
     if (!mobileRoles.contains(user.role)) {
       await logout();
-      throw Exception(
+      throw const AppException(
         'Accès non autorisé. Cette application est réservée aux étudiants et ambassadeurs.',
       );
     }

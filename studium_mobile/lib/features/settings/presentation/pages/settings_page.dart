@@ -11,13 +11,14 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/platform_settings_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_providers.dart';
 
-const _kNavy   = Color(0xFF1A1D2E);
-const _kBlue   = Color(0xFF4880FF);
-const _kBorder = Color(0xFFE5E7EB);
-const _kGrey   = Color(0xFF9CA3AF);
+const _kBlue   = AppColors.blueLight;
+const _kBorder = AppColors.borderInput;
+const _kGrey   = AppColors.textMuted;
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -31,6 +32,8 @@ class SettingsPage extends ConsumerWidget {
     final email     = Supabase.instance.client.auth.currentUser?.email ?? '';
     final s         = context.s;
     final isAmbassador = ref.watch(authStateProvider).valueOrNull?.role == 'ambassador';
+    final availableLanguages = ref.watch(availableLanguagesProvider)
+        .valueOrNull ?? const ['fr', 'en'];
 
     final isDarkSystem = Theme.of(context).brightness == Brightness.dark;
 
@@ -78,15 +81,18 @@ class SettingsPage extends ConsumerWidget {
 
                     _SectionHeader(s.language),
                     _SettingsCard(children: [
-                      _RadioTile(
-                        icon: Icons.language_outlined,
-                        iconColor: const Color(0xFF10B981),
-                        title: 'Français',
-                        selected: isFr,
-                        onTap: () => ref.read(localeProvider.notifier).setLocale(const Locale('fr')),
-                      ),
-                      const _Divider(),
-                      _RadioTile(
+                      if (availableLanguages.contains('fr'))
+                        _RadioTile(
+                          icon: Icons.language_outlined,
+                          iconColor: const Color(0xFF10B981),
+                          title: 'Français',
+                          selected: isFr,
+                          onTap: () => ref.read(localeProvider.notifier).setLocale(const Locale('fr')),
+                        ),
+                      if (availableLanguages.contains('fr') && availableLanguages.contains('en'))
+                        const _Divider(),
+                      if (availableLanguages.contains('en'))
+                        _RadioTile(
                         icon: Icons.language_outlined,
                         iconColor: const Color(0xFF10B981),
                         title: 'English',
@@ -256,7 +262,7 @@ class SettingsPage extends ConsumerWidget {
                       children: [
                         Text(
                           s.myAccount,
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -355,7 +361,12 @@ class SettingsPage extends ConsumerWidget {
               try {
                 await Supabase.instance.client.rpc('delete_my_account');
               } catch (_) {
-                // continuer même si le RPC échoue (données déjà supprimées ou réseau)
+                if (context.mounted) {
+                  _showInfoDialog(context,
+                      title: s.deleteTitle,
+                      body: 'Erreur lors de la suppression du compte.');
+                }
+                return;
               }
               await ref.read(authStateProvider.notifier).signOut();
               if (context.mounted) context.go('/login');
@@ -492,6 +503,7 @@ class _SwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = Theme.of(context).colorScheme.onSurface;
+    final isDark    = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(children: [
@@ -508,8 +520,8 @@ class _SwitchTile extends StatelessWidget {
           onChanged: onChanged,
           activeThumbColor: Colors.white,
           activeTrackColor: _kBlue,
-          inactiveThumbColor: Colors.white,
-          inactiveTrackColor: _kBorder,
+          inactiveThumbColor: isDark ? const Color(0xFF6B7A9E) : Colors.white,
+          inactiveTrackColor: isDark ? const Color(0xFF1E2A52) : _kBorder,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ]),
@@ -880,8 +892,8 @@ class _ExportSheetState extends State<_ExportSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(s.exportTitle,
-                      style: const TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w800, color: _kNavy)),
+                      style: TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w800, color: Theme.of(ctx).colorScheme.onSurface)),
                   IconButton(
                     onPressed: () async {
                       await Clipboard.setData(ClipboardData(text: rawJson));
@@ -1042,9 +1054,15 @@ class _ExportCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FC),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF0D1121)
+            : const Color(0xFFF8F9FC),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _kBorder),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF1E2A52)
+              : _kBorder,
+        ),
       ),
       child: Column(children: rows),
     );
@@ -1071,8 +1089,8 @@ class _ExportRow extends StatelessWidget {
           ),
           Expanded(
             child: Text(value,
-                style: const TextStyle(
-                    fontSize: 12.5, color: _kNavy, height: 1.4)),
+                style: TextStyle(
+                    fontSize: 12.5, color: Theme.of(context).colorScheme.onSurface, height: 1.4)),
           ),
         ],
       ),
@@ -1133,12 +1151,14 @@ class _FaqItemState extends State<_FaqItem> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final border = isDark ? const Color(0xFF1E2A52) : _kBorder;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _open ? _kBlue.withValues(alpha: 0.4) : _kBorder),
+        border: Border.all(color: _open ? _kBlue.withValues(alpha: 0.4) : border),
       ),
       child: Column(children: [
         InkWell(
@@ -1151,7 +1171,7 @@ class _FaqItemState extends State<_FaqItem> {
                 child: Text(widget.q,
                     style: TextStyle(
                         fontSize: 13.5, fontWeight: FontWeight.w600,
-                        color: _open ? _kBlue : _kNavy)),
+                        color: _open ? _kBlue : Theme.of(context).colorScheme.onSurface)),
               ),
               Icon(
                 _open ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
@@ -1161,7 +1181,7 @@ class _FaqItemState extends State<_FaqItem> {
           ),
         ),
         if (_open) ...[
-          const Divider(height: 1, color: _kBorder),
+          Divider(height: 1, color: border),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
             child: Text(widget.a,

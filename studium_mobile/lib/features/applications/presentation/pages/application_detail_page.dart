@@ -11,11 +11,11 @@ import '../providers/application_providers.dart';
 import '../pdf/application_pdf_builder.dart';
 import '../../../documents/presentation/providers/document_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
+import '../../../../core/constants/app_colors.dart';
 
-const _kNavy   = Color(0xFF1A1D2E);
-const _kBlue   = Color(0xFF4880FF);
-const _kGrey   = Color(0xFF9CA3AF);
-const _kBorder = Color(0xFFE5E7EB);
+const _kBlue   = AppColors.blueLight;
+const _kGrey   = AppColors.textMuted;
+const _kBorder = AppColors.borderInput;
 
 class ApplicationDetailPage extends ConsumerStatefulWidget {
   final Application app;
@@ -228,7 +228,7 @@ class _ApplicationDetailPageState
                       child: OutlinedButton(
                         onPressed: _generatingPdf ? null : _generatePdf,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: _kNavy,
+                          foregroundColor: Theme.of(context).colorScheme.onSurface,
                           side: const BorderSide(color: _kBorder, width: 1.5),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
@@ -284,7 +284,7 @@ class _ApplicationDetailPageState
                           child: OutlinedButton(
                             onPressed: _generatingPdf ? null : _generatePdf,
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: _kNavy,
+                              foregroundColor: Theme.of(context).colorScheme.onSurface,
                               side: const BorderSide(color: _kBorder, width: 1.5),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14)),
@@ -319,7 +319,7 @@ class _ApplicationDetailPageState
                                 fontWeight: FontWeight.w600, fontSize: 15),
                           ),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: _kNavy,
+                            foregroundColor: Theme.of(context).colorScheme.onSurface,
                             side: const BorderSide(color: _kBorder, width: 1.5),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
@@ -1174,7 +1174,7 @@ class _ResubmitButton extends StatelessWidget {
                 ? const SizedBox(
                     width: 20, height: 20,
                     child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5),
+                        color: AppColors.textMuted, strokeWidth: 2.5),
                   )
                 : const Row(
                     mainAxisSize: MainAxisSize.min,

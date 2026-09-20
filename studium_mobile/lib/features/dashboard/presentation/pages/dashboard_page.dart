@@ -9,14 +9,16 @@ import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../notifications/presentation/providers/notifications_providers.dart';
 import '../../../applications/presentation/providers/application_providers.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/constants/app_colors.dart';
 
-//  Palette 
+//  Palette
+// _kNavy/_kBlue restent dediees au degrade d'en-tete (voir usage plus bas),
+// distinctes du texte/accents alignes sur AppColors.
 const _kNavy   = Color(0xFF08122E);
 const _kBlue   = Color(0xFF153EA8);
-const _kAccent = Color(0xFF4880FF);
-const _kText   = Color(0xFF1A1D2E);
-const _kMuted  = Color(0xFF9CA3AF);
-const _kDanger = Color(0xFFEF4444);
+const _kAccent = AppColors.blueLight;
+const _kMuted  = AppColors.textMuted;
+const _kDanger = AppColors.danger;
 
 String _greeting() {
   final h = DateTime.now().hour;
@@ -410,10 +412,10 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     title,
-    style: const TextStyle(
+    style: TextStyle(
       fontSize: 16,
       fontWeight: FontWeight.w800,
-      color: _kText,
+      color: Theme.of(context).colorScheme.onSurface,
       letterSpacing: 0.1,
     ),
   );
@@ -745,9 +747,9 @@ class _ProfileCompletionCard extends StatelessWidget {
                       )),
                   ),
                   const SizedBox(height: 10),
-                  const Text('Complétion du profil',
+                  Text('Complétion du profil',
                     style: TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w700, color: _kText)),
+                      fontSize: 15, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
                   const SizedBox(height: 4),
                   Text(msg,
                     style: const TextStyle(
@@ -762,7 +764,7 @@ class _ProfileCompletionCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       child: LinearProgressIndicator(
                         value: v, minHeight: 8,
-                        backgroundColor: const Color(0xFFE5E7EB),
+                        backgroundColor: isDark ? const Color(0xFF1E2A52) : const Color(0xFFE5E7EB),
                         valueColor: AlwaysStoppedAnimation<Color>(accent),
                       ),
                     ),
@@ -791,13 +793,13 @@ class _ProfileCompletionCard extends StatelessWidget {
                   children: [
                     CircularProgressIndicator(
                       value: v, strokeWidth: 7,
-                      backgroundColor: const Color(0xFFE5E7EB),
+                      backgroundColor: isDark ? const Color(0xFF1E2A52) : const Color(0xFFE5E7EB),
                       valueColor: AlwaysStoppedAnimation<Color>(accent),
                     ),
                     Center(
                       child: Text('${(v * 100).round()}%',
-                        style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w800, color: _kText)),
+                        style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface)),
                     ),
                   ],
                 ),

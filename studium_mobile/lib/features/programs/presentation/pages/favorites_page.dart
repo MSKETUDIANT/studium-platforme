@@ -2,15 +2,16 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../domain/entities/program.dart';
 import '../providers/program_providers.dart';
-import 'program_detail_page.dart';
+import '../../../../core/constants/app_colors.dart';
 
-const _kNavy   = Color(0xFF1A1D2E);
-const _kGrey   = Color(0xFF9CA3AF);
-const _kBorder = Color(0xFFE5E7EB);
-const _kRed    = Color(0xFFEF4444);
+const _kNavy   = AppColors.textPrimary;
+const _kGrey   = AppColors.textMuted;
+const _kBorder = AppColors.borderInput;
+const _kRed    = AppColors.danger;
 
 class FavoritesPage extends ConsumerWidget {
   const FavoritesPage({super.key});
@@ -198,10 +199,7 @@ class _FavoriteCard extends ConsumerWidget {
     final isFav     = favIds.contains(program.id);
 
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => ProgramDetailPage(program: program)),
-      ),
+      onTap: () => context.push('/programs/detail', extra: program),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(

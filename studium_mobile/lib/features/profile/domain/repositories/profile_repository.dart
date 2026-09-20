@@ -22,8 +22,10 @@ class ProfileException implements Exception {
     this.type = ProfileErrorType.unknown,
   });
 
+  // Le nom de la classe et le type ne doivent pas fuiter dans l'UI : de
+  // nombreux ecrans affichent directement e.toString() a l'utilisateur.
   @override
-  String toString() => 'ProfileException(type: $type, message: $message)';
+  String toString() => message;
 }
 
 //  Repository interface 

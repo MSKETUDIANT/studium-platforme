@@ -11,14 +11,15 @@ import '../../../programs/domain/entities/program.dart';
 import '../../../programs/presentation/providers/program_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../providers/application_providers.dart';
+import '../../../../core/constants/app_colors.dart';
 
 // Design tokens
-const _kNavy   = Color(0xFF0B1852);
-const _kBlue   = Color(0xFF4880FF);
-const _kGreen  = Color(0xFF10B981);
-const _kOrange = Color(0xFFF59E0B);
-const _kGrey   = Color(0xFF9CA3AF);
-const _kBorder = Color(0xFFE5E7EB);
+const _kNavy   = AppColors.textPrimary;
+const _kBlue   = AppColors.blueLight;
+const _kGreen  = AppColors.success;
+const _kOrange = AppColors.warning;
+const _kGrey   = AppColors.textMuted;
+const _kBorder = AppColors.borderInput;
 const _kBg     = Color(0xFFF7F8FC);
 
 // Mots-clés par typeLabel normalisé pour le matching requis ↔ document

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/i18n/strings.dart';
 import '../../features/messaging/presentation/providers/messaging_providers.dart';
 
@@ -20,8 +21,8 @@ List<_NavItem> _navItems(AppStrings s) => [
   _NavItem(Icons.person_outline_rounded,      Icons.person_rounded,          s.navProfile),
 ];
 
-const _kBlue     = Color(0xFF4880FF);
-const _kInactive = Color(0xFFB0B7C3);
+const _kBlue     = AppColors.blueLight;
+const _kInactive = AppColors.textMuted;
 
 // Index de l'onglet Messages dans la barre de navigation
 const _kMessagesIndex = 3;
@@ -145,7 +146,12 @@ class _NavButton extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: const Color(0xFFFF4757),
                             borderRadius: BorderRadius.circular(7),
-                            border: Border.all(color: Colors.white, width: 1.5),
+                            border: Border.all(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Theme.of(context).colorScheme.surface
+                                  : Colors.white,
+                              width: 1.5,
+                            ),
                           ),
                           child: Center(
                             child: Text(

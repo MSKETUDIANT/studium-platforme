@@ -15,13 +15,16 @@ import '../../domain/entities/student_profile.dart';
 import '../providers/profile_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../../../../core/validators/field_validators.dart';
+import '../../../../core/constants/app_colors.dart';
 
-//  Palette 
-const _kBlue   = Color(0xFF4880FF);
+//  Palette
+// _kNavy reste dediee au degrade d'en-tete (voir usage plus bas), distincte
+// du texte/bordures alignes sur AppColors.
+const _kBlue   = AppColors.blueLight;
 const _kNavy   = Color(0xFF08122E);
-const _kDark   = Color(0xFF1A1D2E);
-const _kGrey   = Color(0xFF9CA3AF);
-const _kBorder = Color(0xFFE5E7EB);
+const _kDark   = AppColors.textPrimary;
+const _kGrey   = AppColors.textMuted;
+const _kBorder = AppColors.borderInput;
 const _kFill   = Color(0xFFFAFAFC);
 
 class EditProfilePage extends ConsumerStatefulWidget {
@@ -189,11 +192,15 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     setState(() => _photoLoading = true);
     try {
       final ext      = _photoFile!.path.split('.').last.toLowerCase();
-      final path     = 'avatars/$userId.$ext';
+      // Bucket "profile-photos" (public), pas "documents" (prive, reserve
+      // aux pieces sensibles type passeport/releves) — meme chemin que
+      // ProfileRemoteDatasource.updatePhoto pour eviter deux fichiers
+      // differents pour la meme photo selon l'ecran utilise.
+      final path     = '$userId/photo.$ext';
       final bytes    = await _photoFile!.readAsBytes();
       final supabase = Supabase.instance.client;
 
-      await supabase.storage.from('documents').uploadBinary(
+      await supabase.storage.from('profile-photos').uploadBinary(
         path,
         bytes,
         fileOptions: FileOptions(
@@ -202,7 +209,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         ),
       );
 
-      return supabase.storage.from('documents').getPublicUrl(path);
+      return supabase.storage.from('profile-photos').getPublicUrl(path);
     } catch (e) {
       debugPrint('Upload photo error: $e');
       return _photoUrl;

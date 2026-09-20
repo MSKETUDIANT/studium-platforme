@@ -11,13 +11,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../settings/presentation/providers/settings_providers.dart';
 import '../providers/auth_provider.dart';
+import '../../../../core/constants/app_colors.dart';
 
 // Design tokens
-const _kNavy   = Color(0xFF08122E);
-const _kBlue   = Color(0xFF4880FF);
-const _kGreen  = Color(0xFF10B981);
-const _kGrey   = Color(0xFF9CA3AF);
-const _kBorder = Color(0xFFE5E7EB);
+const _kNavy   = AppColors.textPrimary;
+const _kBlue   = AppColors.blueLight;
+const _kGreen  = AppColors.success;
+const _kGrey   = AppColors.textMuted;
+const _kBorder = AppColors.borderInput;
 const _kFill   = Color(0xFFF8F9FC);
 
 class OnboardingWizard extends ConsumerStatefulWidget {

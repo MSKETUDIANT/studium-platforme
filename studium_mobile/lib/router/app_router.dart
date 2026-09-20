@@ -20,6 +20,8 @@ import '../features/profile/presentation/pages/edit_profile_page.dart';
 import '../features/documents/presentation/pages/documents_page.dart';
 import '../features/programs/domain/entities/program.dart';
 import '../features/programs/presentation/pages/programs_page.dart';
+import '../features/programs/presentation/pages/favorites_page.dart';
+import '../features/programs/presentation/pages/program_detail_page.dart';
 import '../shared/widgets/main_shell.dart';
 import '../shared/widgets/placeholder_screen.dart';
 import '../features/messaging/presentation/pages/messages_page.dart';
@@ -216,6 +218,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/documents',
         parentNavigatorKey: navigatorKey,
         builder: (_, __) => const DocumentsPage(),
+      ),
+      GoRoute(
+        path: '/favorites',
+        name: 'favorites',
+        parentNavigatorKey: navigatorKey,
+        builder: (_, __) => const FavoritesPage(),
+      ),
+      GoRoute(
+        path: '/programs/detail',
+        name: 'program-detail',
+        parentNavigatorKey: navigatorKey,
+        builder: (context, state) {
+          final program = state.extra as Program;
+          return ProgramDetailPage(program: program);
+        },
       ),
       GoRoute(
         path: '/applications/new',

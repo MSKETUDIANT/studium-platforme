@@ -6,10 +6,11 @@ import 'package:go_router/go_router.dart';
 import '../../domain/entities/program.dart';
 import '../providers/program_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
+import '../../../../core/constants/app_colors.dart';
 
-const _kText   = Color(0xFF1A1D2E);
-const _kGrey   = Color(0xFF9CA3AF);
-const _kBorder = Color(0xFFE5E7EB);
+const _kText   = AppColors.textPrimary;
+const _kGrey   = AppColors.textMuted;
+const _kBorder = AppColors.borderInput;
 
 class ProgramDetailPage extends ConsumerWidget {
   final Program program;

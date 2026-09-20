@@ -5,13 +5,14 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../domain/entities/application.dart';
 import '../providers/application_providers.dart';
 import '../../../programs/presentation/providers/program_providers.dart';
 
-const _kNavy   = Color(0xFF1A1D2E);
-const _kBlue   = Color(0xFF4880FF);
-const _kGrey   = Color(0xFF9CA3AF);
+const _kNavy   = AppColors.textPrimary;
+const _kBlue   = AppColors.blueLight;
+const _kGrey   = AppColors.textMuted;
 
 enum _StatusFilter { all, pending, needsFix, sent, accepted, rejected }
 
@@ -83,8 +84,26 @@ class _ApplicationsPageState extends ConsumerState<ApplicationsPage> {
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text(e.toString(),
-                  style: const TextStyle(color: Colors.red)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(e.toString(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red)),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => ref.invalidate(myApplicationsProvider),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Réessayer'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kBlue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           data: (apps) {
@@ -221,9 +240,9 @@ class _ApplicationsPageState extends ConsumerState<ApplicationsPage> {
           children: [
             const Icon(Icons.search_off_rounded, size: 40, color: _kGrey),
             const SizedBox(height: 14),
-            const Text('Aucun résultat',
+            Text('Aucun résultat',
                 style: TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w700, color: _kNavy)),
+                    fontSize: 15, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
             const SizedBox(height: 6),
             const Text(
               'Aucune candidature ne correspond à ta recherche.',
@@ -486,7 +505,7 @@ class _ApplicationsPageState extends ConsumerState<ApplicationsPage> {
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: _kNavy)),
+                    color: Theme.of(context).colorScheme.onSurface)),
             const SizedBox(height: 8),
             Text(
               context.s.noApplicationsDesc,
@@ -715,10 +734,10 @@ class _ApplicationCard extends StatelessWidget {
                     children: [
                       Text(
                         app.programName ?? 'Programme',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: _kNavy),
+                            color: Theme.of(context).colorScheme.onSurface),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),

@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../models/application_model.dart';
 
 class StatusHistoryEntry {
@@ -64,7 +65,10 @@ class ApplicationRemoteDatasource {
         .maybeSingle();
 
     if (existing != null) {
-      throw Exception('Une candidature est déjà en cours pour ce programme.');
+      throw const AppException(
+        'Vous avez déjà une candidature en cours pour ce programme. '
+        'Retrouvez-la dans votre liste de candidatures.',
+      );
     }
 
     final data = await _client

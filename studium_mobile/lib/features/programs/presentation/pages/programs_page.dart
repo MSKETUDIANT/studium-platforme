@@ -5,15 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../domain/entities/program.dart';
 import '../providers/program_providers.dart';
-import 'program_detail_page.dart';
-import 'favorites_page.dart';
 import '../../../../core/services/cache_service.dart';
+import '../../../../core/constants/app_colors.dart';
 
-//  Constantes design 
+//  Constantes design
 
-const _kBlue    = Color(0xFF4880FF);
-const _kGrey    = Color(0xFF9CA3AF);
-const _kBorder  = Color(0xFFE5E7EB);
+const _kBlue    = AppColors.blueLight;
+const _kGrey    = AppColors.textMuted;
+const _kBorder  = AppColors.borderInput;
 
 const _kLevels = [
   {'value': '',         'label': 'Tous'},
@@ -213,13 +212,7 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
                       delegate: SliverChildBuilderDelegate(
                         (_, i) => _ProgramCard(
                           program: filtered[i],
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ProgramDetailPage(program: filtered[i]),
-                            ),
-                          ),
+                          onTap: () => context.push('/programs/detail', extra: filtered[i]),
                         ).animate(delay: Duration(milliseconds: 60 * i))
                             .fadeIn(duration: 300.ms)
                             .slideY(begin: 0.05),
@@ -325,10 +318,7 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
                 const SizedBox(height: 14),
                 // Bouton Mes Favoris
                 GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const FavoritesPage()),
-                  ),
+                  onTap: () => context.push('/favorites'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                     decoration: BoxDecoration(
@@ -600,12 +590,7 @@ class _ProgramsPageState extends ConsumerState<ProgramsPage> {
                     padding: const EdgeInsets.only(right: 12),
                     child: _RecommendedCard(
                       program: recos[i],
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProgramDetailPage(program: recos[i]),
-                        ),
-                      ),
+                      onTap: () => context.push('/programs/detail', extra: recos[i]),
                     ),
                   ),
                 ),
