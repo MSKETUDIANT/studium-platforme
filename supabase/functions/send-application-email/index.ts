@@ -1,5 +1,8 @@
 // @ts-nocheck  Deno Edge Function (erreurs IDE normales, pas de compilation Node)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  replaceVars, replaceVarsHtml, buildEmailHtml, buildEmailText, bytesToBase64, extractBucketAndPath,
+} from './email_templates.ts';
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!;
@@ -96,103 +99,139 @@ Deno.serve(async (req) => {
     const submittedAt  = app.submitted_at
       ? new Date(app.submitted_at).toLocaleDateString('fr-FR') : '';
 
-    //  2. Documents sélectionnés pour cette candidature
-    //     Deux requêtes séparées pour éviter la dépendance FK sur application_documents
-    const { data: linkedRows } = await supabase
-      .from('application_documents')
-      .select('document_id')
-      .eq('application_id', application_id);
+    //  2. Pack PDF assemblé (résumé + documents fusionnés) — génère au premier
+    //     envoi, réutilise ensuite (voir generate-application-pack)
+    const { data: packData, error: packErr } = await supabase.functions.invoke(
+      'generate-application-pack',
+      { body: { application_id, sent_by } },
+    );
 
-    const hasPivot = linkedRows && linkedRows.length > 0;
-    let docs: any[] = [];
-
-    if (hasPivot) {
-      const docIds = linkedRows.map((r: any) => r.document_id).filter(Boolean);
-      if (docIds.length > 0) {
-        const { data: docData } = await supabase
-          .from('documents')
-          .select('id, type, file_url, file_name, size_bytes, status')
-          .in('id', docIds);
-        docs = docData ?? [];
-      }
-    } else {
-      // Fallback : tous les docs approuvés du profil (anciennes candidatures sans pivot)
-      const { data } = await supabase
-        .from('documents')
-        .select('id, type, file_url, file_name, size_bytes, status')
-        .eq('student_profile_id', app.student_profile_id)
-        .eq('status', 'approved');
-      docs = data ?? [];
+    if (packErr || !packData?.pack_url) {
+      return jsonError(`Pack generation failed: ${packErr?.message ?? 'no pack_url returned'}`, 500);
     }
 
-    const approvedDocs   = docs;
-    const totalSizeBytes = approvedDocs.reduce((s: number, d: any) => s + (d.size_bytes ?? 0), 0);
-    const totalSizeMb    = totalSizeBytes / (1024 * 1024);
+    const packUrl  = packData.pack_url as string;
+    const packPath = (packData.pack_path as string) ?? `${application_id}/pack_v${packData.version}.pdf`;
+    const unmerged = (packData.unmerged ?? []) as Array<
+      { id: string; type: string; file_url: string; file_name: string; size_bytes?: number }
+    >;
 
-    //  3. Mode attachments : < MAX_ATTACH_MB  joint, sinon liens signés 
+    // Taille du pack renvoyée directement par generate-application-pack —
+    // évite de dépendre de la propagation de l'URL publique juste après
+    // l'upload (source du 400 observé lors des premiers tests).
+    const packSizeBytes    = (packData.size_bytes as number) ?? 0;
+    const unmergedSizeBytes = unmerged.reduce((s, d) => s + (d.size_bytes ?? 0), 0);
+    const totalSizeMb       = (packSizeBytes + unmergedSizeBytes) / (1024 * 1024);
+
+    //  3. Mode attachments : ≤ MAX_ATTACH_MB  joint, sinon liens signés
     let attachments: Array<{ filename: string; content: string; type?: string }> = [];
     let signedLinksHtml = '';
     let signedLinksText = '';
 
-    // Liste dynamique des documents réels (pour le corps de l'email)
-    const docsListHtml = approvedDocs.length > 0
-      ? approvedDocs.map((d: any) => {
-          const label    = TYPE_LABELS[d.type] ?? d.type;
-          const filename = d.file_name ? ` <span style="color:#6b7280;font-size:12px;">(${d.file_name})</span>` : '';
-          return `<li>${label}${filename}</li>`;
-        }).join('')
-      : '<li style="color:#6b7280;">Aucun document approuvé</li>';
+    // Reflète ce qui a réellement été joint/lié — jamais ce qui était prévu.
+    const includedLabels: string[] = [];   // pour le corps de l'email (texte simple)
+    const includedHtmlItems: string[] = [];
 
-    const docsListText = approvedDocs.length > 0
-      ? approvedDocs.map((d: any) => `  - ${TYPE_LABELS[d.type] ?? d.type}${d.file_name ? ` (${d.file_name})` : ''}`).join('\n')
-      : '  - Aucun document approuvé';
+    const packFilename = `Dossier_${(studentName || 'candidature').replace(/\s+/g, '_')}.pdf`;
 
-    if (approvedDocs.length > 0) {
-      if (totalSizeMb <= MAX_ATTACH_MB) {
-        // Mode 1  Télécharger et attacher les fichiers
-        for (const doc of approvedDocs) {
-          try {
-            const res = await fetch(doc.file_url);
-            if (!res.ok) continue;
-            const buf     = await res.arrayBuffer();
-            const uint8   = new Uint8Array(buf);
-            let   binary  = '';
-            for (let i = 0; i < uint8.length; i++) {
-              binary += String.fromCharCode(uint8[i]);
-            }
-            const b64 = btoa(binary);
-            const filename = doc.file_name || `${doc.type}_${doc.id.slice(0, 8)}.pdf`;
-            attachments.push({ filename, content: b64 });
-          } catch (_) {
-            // Ignorer les fichiers non téléchargeables
-          }
+    if (totalSizeMb <= MAX_ATTACH_MB) {
+      // Mode 1  Télécharger et attacher le pack + les documents non fusionnés
+      try {
+        // Téléchargement via l'API Storage authentifiée (pas fetch(packUrl)) :
+        // juste après l'upload, l'URL publique peut renvoyer 400/404 le temps
+        // de sa propagation côté CDN ; .download() lit l'objet directement.
+        const { data: blob, error: dlErr } = await supabase.storage
+          .from('application-packs')
+          .download(packPath);
+
+        if (blob) {
+          const bytes = new Uint8Array(await blob.arrayBuffer());
+          attachments.push({ filename: packFilename, content: bytesToBase64(bytes) });
+          includedLabels.push('Dossier complet de candidature (pack PDF)');
+          includedHtmlItems.push('<li>Dossier complet de candidature (pack PDF)</li>');
+        } else {
+          console.error(`Pack download failed for ${packPath}: ${dlErr?.message}`);
         }
-      } else {
-        // Mode 2  Liens signés (fichiers trop lourds)
-        for (const doc of approvedDocs) {
-          try {
-            // Extraire le chemin relatif depuis l'URL Supabase Storage
-            const urlObj  = new URL(doc.file_url);
-            const pathParts = urlObj.pathname.split('/object/public/');
-            if (pathParts.length < 2) continue;
-            const bucketAndPath = pathParts[1];
-            const slashIdx      = bucketAndPath.indexOf('/');
-            const bucket        = bucketAndPath.slice(0, slashIdx);
-            const storagePath   = bucketAndPath.slice(slashIdx + 1);
+      } catch (fetchErr) {
+        // Ne doit jamais passer inaperçu : sans ce log, un email part en
+        // prétendant joindre le dossier alors qu'aucune pièce n'est attachée.
+        console.error(`Pack download threw: ${String(fetchErr)} for ${packPath}`);
+      }
 
-            const { data: signed } = await supabase.storage
-              .from(bucket)
-              .createSignedUrl(storagePath, 7 * 24 * 3600); // 7 jours
+      for (const doc of unmerged) {
+        try {
+          // Le bucket "documents" est prive : fetch(url) echoue desormais.
+          // .download() via service role contourne RLS, comme pour le pack.
+          const parsed = extractBucketAndPath(doc.file_url);
+          if (!parsed) continue;
+          const { bucket, path: storagePath } = parsed;
 
-            if (signed?.signedUrl) {
-              const label = doc.file_name || doc.type;
-              signedLinksHtml += `<li><a href="${signed.signedUrl}">${label}</a></li>`;
-              signedLinksText += `  - ${label}: ${signed.signedUrl}\n`;
-            }
-          } catch (_) {}
+          const { data: blob, error: dlErr } = await supabase.storage.from(bucket).download(storagePath);
+          if (dlErr || !blob) {
+            console.error(`Document download failed for ${doc.file_url}: ${dlErr?.message}`);
+            continue;
+          }
+          const filename = doc.file_name || `${doc.type}_${doc.id.slice(0, 8)}`;
+          attachments.push({ filename, content: bytesToBase64(new Uint8Array(await blob.arrayBuffer())) });
+          includedLabels.push(`${TYPE_LABELS[doc.type] ?? doc.type}${doc.file_name ? ` (${doc.file_name})` : ''}`);
+          includedHtmlItems.push(
+            `<li>${TYPE_LABELS[doc.type] ?? doc.type}${doc.file_name ? ` <span style="color:#6b7280;font-size:12px;">(${doc.file_name})</span>` : ''}</li>`,
+          );
+        } catch (fetchErr) {
+          console.error(`Document download threw: ${String(fetchErr)} for ${doc.file_url}`);
         }
       }
+    } else {
+      // Mode 2  Liens signés (dossier trop volumineux)
+      try {
+        const { data: signed } = await supabase.storage
+          .from('application-packs')
+          .createSignedUrl(packPath, 7 * 24 * 3600); // 7 jours
+
+        if (signed?.signedUrl) {
+          signedLinksHtml += `<li><a href="${signed.signedUrl}">Dossier complet de candidature (pack PDF)</a></li>`;
+          signedLinksText += `  - Dossier complet de candidature (pack PDF): ${signed.signedUrl}\n`;
+          includedLabels.push('Dossier complet de candidature (pack PDF)');
+          includedHtmlItems.push('<li>Dossier complet de candidature (pack PDF)</li>');
+        } else {
+          console.error(`createSignedUrl failed for pack path ${packPath}`);
+        }
+      } catch (signErr) {
+        console.error(`createSignedUrl threw: ${String(signErr)} for pack path ${packPath}`);
+      }
+
+      for (const doc of unmerged) {
+        try {
+          // Extraire le chemin relatif depuis l'URL Supabase Storage
+          const parsed = extractBucketAndPath(doc.file_url);
+          if (!parsed) continue;
+          const { bucket, path: storagePath } = parsed;
+
+          const { data: signed } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(storagePath, 7 * 24 * 3600); // 7 jours
+
+          if (signed?.signedUrl) {
+            const label = doc.file_name || doc.type;
+            signedLinksHtml += `<li><a href="${signed.signedUrl}">${label}</a></li>`;
+            signedLinksText += `  - ${label}: ${signed.signedUrl}\n`;
+            includedLabels.push(`${TYPE_LABELS[doc.type] ?? doc.type}${doc.file_name ? ` (${doc.file_name})` : ''}`);
+            includedHtmlItems.push(
+              `<li>${TYPE_LABELS[doc.type] ?? doc.type}${doc.file_name ? ` <span style="color:#6b7280;font-size:12px;">(${doc.file_name})</span>` : ''}</li>`,
+            );
+          }
+        } catch (_) {}
+      }
     }
+
+    // Construits APRÈS coup, à partir de ce qui a réellement été joint/lié —
+    // jamais depuis ce qui était seulement prévu.
+    const docsListHtml = includedHtmlItems.length > 0
+      ? includedHtmlItems.join('')
+      : '<li style="color:#6b7280;">Aucun document n\'a pu être transmis</li>';
+    const docsListText = includedLabels.length > 0
+      ? includedLabels.map((l) => `  - ${l}`).join('\n')
+      : '  - Aucun document n\'a pu être transmis';
 
     //  4. Template email 
     const { data: programTpl } = await supabase
@@ -215,7 +254,7 @@ Deno.serve(async (req) => {
     const vars      = { studentName, programName, univName, country, submittedAt, documentsListText: docsListText };
     const subject   = tpl
       ? replaceVars(tpl.subject_template, vars)
-      : `[Studium] Candidature  ${studentName}  ${programName}`;
+      : `[Studium] Application – ${studentName} – ${programName}`;
     const bodyTxt   = tpl
       ? replaceVars(tpl.body_template, vars)
       : buildEmailText({ studentName, programName, univName, country, submittedAt, signedLinksText, docsListText });
@@ -309,131 +348,6 @@ Deno.serve(async (req) => {
     return jsonError(String(err), 500);
   }
 });
-
-/*  Email templates  */
-
-interface TemplateData {
-  studentName:      string;
-  programName:      string;
-  univName:         string;
-  country:          string;
-  submittedAt:      string;
-  notes?:           string | null;
-  customBody?:      string | null;
-  attachCount?:     number;
-  signedLinksHtml?: string;
-  signedLinksText?: string;
-  docsListHtml?:    string;
-  docsListText?:    string;
-}
-
-function replaceVars(tpl: string, vars: Record<string, string>): string {
-  return tpl
-    .replace(/\{\{student_name\}\}/g,     vars.studentName         ?? '')
-    .replace(/\{\{program_name\}\}/g,     vars.programName         ?? '')
-    .replace(/\{\{university_name\}\}/g,  vars.univName            ?? '')
-    .replace(/\{\{country\}\}/g,          vars.country ? ` (${vars.country})` : '')
-    .replace(/\{\{submitted_at\}\}/g,     vars.submittedAt         ?? '')
-    .replace(/\{\{documents_list\}\}/g,   vars.documentsListText   ?? '');
-}
-
-// Version HTML avec rendu liste pour les templates
-function replaceVarsHtml(tpl: string, vars: Record<string, string>, docsListHtml: string): string {
-  return tpl
-    .replace(/\{\{student_name\}\}/g,     vars.studentName       ?? '')
-    .replace(/\{\{program_name\}\}/g,     vars.programName       ?? '')
-    .replace(/\{\{university_name\}\}/g,  vars.univName          ?? '')
-    .replace(/\{\{country\}\}/g,          vars.country ? ` (${vars.country})` : '')
-    .replace(/\{\{submitted_at\}\}/g,     vars.submittedAt       ?? '')
-    .replace(/\{\{documents_list\}\}/g,   `<ul style="margin:8px 0 16px;padding-left:20px;">${docsListHtml}</ul>`);
-}
-
-function buildEmailHtml(d: TemplateData): string {
-  const docsSection = `
-    <p style="font-size:14px;font-weight:bold;color:#111827;margin:0 0 8px;"> Documents transmis :</p>
-    <ul style="font-size:14px;color:#374151;margin:0 0 16px;padding-left:20px;line-height:1.8;">
-      ${d.docsListHtml ?? '<li style="color:#6b7280;">Aucun document approuvé</li>'}
-    </ul>`;
-
-  const attachInfo = d.attachCount && d.attachCount > 0
-    ? `${docsSection}<p style="font-size:13px;color:#6b7280;margin:0 0 16px;"> Ces documents sont joints en pièce jointe à cet email.</p>`
-    : d.signedLinksHtml
-      ? `${docsSection}<p style="font-size:13px;color:#374151;margin:0 0 8px;"> <strong>Liens de téléchargement (valables 7 jours) :</strong></p>
-         <ul style="font-size:13px;color:#2563eb;margin:0 0 20px;padding-left:20px;">${d.signedLinksHtml}</ul>`
-      : `<p style="font-size:14px;color:#6b7280;margin:0 0 12px;font-style:italic;">Aucun document approuvé à joindre.</p>`;
-
-  const bodyContent = d.customBody
-    ? d.customBody.split('\n').map(line =>
-        `<p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 12px;">${line || '&nbsp;'}</p>`
-      ).join('') + attachInfo
-    : `<p style="font-size:15px;color:#374151;margin:0 0 20px;">Madame, Monsieur,</p>
-       <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 24px;">
-         Nous vous transmettons la candidature de <strong>${d.studentName}</strong>
-         pour le programme <strong>${d.programName}</strong>
-         à <strong>${d.univName}</strong>${d.country ? ` (${d.country})` : ''}.
-       </p>
-       <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:24px;">
-         <tr><td style="padding:20px 24px;">
-           <table width="100%" cellpadding="4" cellspacing="0">
-             <tr><td style="font-size:12px;color:#6b7280;width:40%;">Candidat</td><td style="font-size:14px;font-weight:bold;color:#111827;">${d.studentName}</td></tr>
-             <tr><td style="font-size:12px;color:#6b7280;">Programme</td><td style="font-size:14px;font-weight:bold;color:#111827;">${d.programName}</td></tr>
-             <tr><td style="font-size:12px;color:#6b7280;">Université</td><td style="font-size:14px;color:#111827;">${d.univName}</td></tr>
-             <tr><td style="font-size:12px;color:#6b7280;">Date soumission</td><td style="font-size:14px;color:#111827;">${d.submittedAt}</td></tr>
-           </table>
-         </td></tr>
-       </table>
-       ${attachInfo}
-       <p style="font-size:14px;color:#374151;font-weight:bold;margin:0;">L'équipe Studium Admissions</p>`;
-
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f7fb;font-family:Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;padding:40px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
-        <tr><td style="background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 100%);padding:32px 40px;">
-          <h1 style="margin:0;color:#fff;font-size:24px;letter-spacing:2px;">STUDIUM</h1>
-          <p style="margin:6px 0 0;color:rgba(255,255,255,.75);font-size:13px;">Plateforme de gestion des candidatures académiques</p>
-        </td></tr>
-        <tr><td style="padding:36px 40px;">${bodyContent}</td></tr>
-        <tr><td style="background:#f8fafc;padding:20px 40px;border-top:1px solid #e2e8f0;">
-          <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">
-            Cet email a été envoyé automatiquement par la plateforme Studium.<br>
-            Pour toute question : support@studium.app
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-}
-
-function buildEmailText(d: TemplateData): string {
-  const docsList    = d.docsListText ? `\nDOCUMENTS TRANSMIS :\n${d.docsListText}` : '';
-  const docsSection = d.signedLinksText
-    ? `${docsList}\n\nLIENS DE TÉLÉCHARGEMENT (valables 7 jours) :\n${d.signedLinksText}`
-    : d.attachCount && d.attachCount > 0
-      ? `${docsList}\n(Documents joints en pièce jointe)`
-      : '';
-
-  return `STUDIUM  Candidature académique
-
-Madame, Monsieur,
-
-Nous vous transmettons la candidature de ${d.studentName} pour le programme ${d.programName} à ${d.univName}${d.country ? ` (${d.country})` : ''}.
-
-DÉTAILS :
-- Candidat        : ${d.studentName}
-- Programme       : ${d.programName}
-- Université      : ${d.univName}
-- Date soumission : ${d.submittedAt}
-${docsSection}
-Cordialement,
-L'équipe Studium Admissions
-support@studium.app`;
-}
 
 /*  Helpers  */
 
