@@ -1,6 +1,7 @@
 import { useState, useEffect, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../shared/services/supabase';
+import { colors } from '../../../shared/constants/theme';
 import stlogo from '../../../assets/stlogo.png';
 
 /*  CSS partagé (même guard que LoginPage / ForgotPasswordPage)  */
@@ -329,10 +330,10 @@ export default function ResetPasswordPage() {
           <h2 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:26, fontWeight:800, color:'#0b1852', marginBottom:8 }}>
             Mot de passe défini !
           </h2>
-          <p style={{ color:'#6b7a9e', fontSize:14.5, lineHeight:1.6, marginBottom:6 }}>
+          <p style={{ color:colors.textSecondary, fontSize:14.5, lineHeight:1.6, marginBottom:6 }}>
             Votre compte est maintenant sécurisé.
           </p>
-          <p style={{ color:'#9ba3bc', fontSize:13 }}>Redirection vers le dashboard</p>
+          <p style={{ color:colors.textMuted, fontSize:13 }}>Redirection vers le dashboard</p>
         </div>
       </div>
     </div>
@@ -361,7 +362,7 @@ export default function ResetPasswordPage() {
               <h3 style={{ fontFamily:"'Bricolage Grotesque',sans-serif", fontSize:20, color:'#0b1852', marginBottom:8 }}>
                 Lien invalide
               </h3>
-              <p style={{ color:'#6b7a9e', fontSize:14, lineHeight:1.6, marginBottom:24 }}>{error}</p>
+              <p style={{ color:colors.textSecondary, fontSize:14, lineHeight:1.6, marginBottom:24 }}>{error}</p>
               <button className="stl-btn" onClick={() => navigate('/login')}>
                 Retour à la connexion
               </button>
@@ -371,7 +372,7 @@ export default function ResetPasswordPage() {
               <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
                 <Spinner />
               </div>
-              <p style={{ color:'#6b7a9e', fontSize:14 }}>Vérification du lien</p>
+              <p style={{ color:colors.textSecondary, fontSize:14 }}>Vérification du lien</p>
             </>
           )}
         </div>
@@ -418,7 +419,7 @@ export default function ResetPasswordPage() {
                       <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                     </svg>
                   </div>
-                  <span style={{ fontSize:11.5, fontWeight:700, letterSpacing:'1px', color:'#9ba3bc', textTransform:'uppercase' }}>
+                  <span style={{ fontSize:11.5, fontWeight:700, letterSpacing:'1px', color:colors.textMuted, textTransform:'uppercase' }}>
                     Sécurisation du compte
                   </span>
                 </div>
@@ -429,7 +430,7 @@ export default function ResetPasswordPage() {
                 }}>
                   Définir mon mot de passe
                 </h1>
-                <p style={{ fontSize:14.5, color:'#6b7a9e', lineHeight:1.5 }}>
+                <p style={{ fontSize:14.5, color:colors.textSecondary, lineHeight:1.5 }}>
                   Choisissez un mot de passe sécurisé pour votre compte.
                 </p>
               </div>

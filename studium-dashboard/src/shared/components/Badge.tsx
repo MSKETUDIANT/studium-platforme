@@ -2,6 +2,7 @@
  * Badge.tsx  Statuts colorés Studium
  * Variantes : pending | validated | urgent | info | default
  */
+import { colors } from '../constants/theme';
 
 type BadgeVariant = 'pending' | 'validated' | 'urgent' | 'info' | 'default';
 
@@ -16,7 +17,7 @@ const STYLES: Record<BadgeVariant, { bg: string; color: string; dot: string }> =
   validated: { bg: 'rgba(22,163,74,0.10)',   color: '#14532d', dot: '#16a34a' },
   urgent:    { bg: 'rgba(220,38,38,0.10)',   color: '#7f1d1d', dot: '#dc2626' },
   info:      { bg: 'rgba(37,70,204,0.10)',   color: '#1e3a8a', dot: '#2546cc' },
-  default:   { bg: 'rgba(11,24,82,0.07)',    color: '#4e5a78', dot: '#9ba3bc' },
+  default:   { bg: 'rgba(11,24,82,0.07)',    color: '#4e5a78', dot: colors.textMuted },
 };
 
 export function Badge({ variant = 'default', children, dot = false }: BadgeProps) {

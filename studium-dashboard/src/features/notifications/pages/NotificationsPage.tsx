@@ -93,7 +93,7 @@ const studentInitials = (name: string) =>
 
 const AVATAR_COLORS = [
   ['#2546cc', 'rgba(37,70,204,0.10)'],
-  ['#7c3aed', 'rgba(124,58,237,0.10)'],
+  [colors.violet, 'rgba(124,58,237,0.10)'],
   ['#16a34a', 'rgba(22,163,74,0.10)'],
   ['#d97706', 'rgba(217,119,6,0.10)'],
   ['#0891b2', 'rgba(8,145,178,0.10)'],
@@ -470,7 +470,7 @@ export default function NotificationsPage() {
                   <line x1="16" y1="13" x2="8" y2="13"/>
                 </svg>
                 <span className="np-section-title">Candidatures a traiter</span>
-                {totalPending > 0 && <span className="np-section-count" style={{ background: '#7c3aed' }}>{totalPending}</span>}
+                {totalPending > 0 && <span className="np-section-count" style={{ background: colors.violet }}>{totalPending}</span>}
                 {totalPending > 0 && (
                   <button className="np-section-action" onClick={() => navigate('/applications')}>
                     Voir toutes les candidatures

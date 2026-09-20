@@ -46,7 +46,7 @@ const initials = (s: Conversation['student']) =>
 
 const AVATAR_COLORS = [
   ['#2546cc', 'rgba(37,70,204,0.12)'],
-  ['#7c3aed', 'rgba(124,58,237,0.12)'],
+  [colors.violet, 'rgba(124,58,237,0.12)'],
   ['#16a34a', 'rgba(22,163,74,0.12)'],
   ['#d97706', 'rgba(217,119,6,0.12)'],
   ['#0891b2', 'rgba(8,145,178,0.12)'],
@@ -795,12 +795,12 @@ export default function MessagingPage() {
                       <span>Reponses rapides</span>
                       <button
                         onClick={() => setShowTemplates(false)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7a9e', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: colors.textSecondary, fontSize: 16, lineHeight: 1, padding: '0 2px' }}
                       >x</button>
                     </div>
                     <div className="mp-tpl-list">
                       {templates.length === 0 ? (
-                        <div style={{ padding: '14px 16px', fontSize: 12.5, color: '#6b7a9e', fontStyle: 'italic' }}>
+                        <div style={{ padding: '14px 16px', fontSize: 12.5, color: colors.textSecondary, fontStyle: 'italic' }}>
                           Aucun template — creez-en un ci-dessous.
                         </div>
                       ) : templates.map(t => (

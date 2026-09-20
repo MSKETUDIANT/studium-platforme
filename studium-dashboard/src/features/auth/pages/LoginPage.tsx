@@ -18,6 +18,7 @@
 import { useState, useEffect, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
+import { colors } from '../../../shared/constants/theme';
 import stlogo from '../../../assets/stlogo.png';
 
 
@@ -124,7 +125,7 @@ const CSS = `
   .stl-error-shake { animation:stShake .4s ease; }
 
   /* Force-champ helper text */
-  .stl-helper { font-size:12.5px; color:#6b7a9e; margin-top:6px; min-height:18px; line-height:1.4; }
+  .stl-helper { font-size:12.5px; color:${colors.textSecondary}; margin-top:6px; min-height:18px; line-height:1.4; }
 
   /*  Responsive  */
   @media (max-width: 900px) {
@@ -407,7 +408,7 @@ export default function LoginPage() {
                     <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                   </svg>
                 </div>
-                <span style={{ fontSize:11.5, fontWeight:700, letterSpacing:'1px', color:'#9ba3bc', textTransform:'uppercase' }}>
+                <span style={{ fontSize:11.5, fontWeight:700, letterSpacing:'1px', color:colors.textMuted, textTransform:'uppercase' }}>
                   Accès sécurisé
                 </span>
               </div>
@@ -418,7 +419,7 @@ export default function LoginPage() {
               }}>
                 Connexion
               </h1>
-              <p style={{ fontSize:14.5, color:'#6b7a9e', lineHeight:1.5 }}>
+              <p style={{ fontSize:14.5, color:colors.textSecondary, lineHeight:1.5 }}>
                 Accès réservé à l'équipe interne Studium
               </p>
             </div>

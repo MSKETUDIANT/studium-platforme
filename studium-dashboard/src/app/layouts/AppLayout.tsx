@@ -217,7 +217,7 @@ const CSS = `
   /*  Badge messagerie sidebar  */
   .sl-badge {
     min-width:18px; height:18px; border-radius:9px;
-    background:#ef4444; color:white;
+    background:${colors.danger}; color:white;
     font-size:10px; font-weight:700;
     display:flex; align-items:center; justify-content:center;
     padding:0 4px; margin-left:auto; flex-shrink:0;
@@ -229,7 +229,7 @@ const CSS = `
   .sl-notif-dot {
     position:absolute; top:5px; right:5px;
     width:8px; height:8px; border-radius:50%;
-    background:#ef4444; border:2px solid white;
+    background:${colors.danger}; border:2px solid white;
     pointer-events:none;
   }
 
@@ -238,31 +238,31 @@ const CSS = `
     position:absolute; top:calc(100% + 10px); right:0;
     width:340px; background:white; border-radius:14px;
     box-shadow:0 8px 32px rgba(11,24,82,0.18);
-    border:1px solid #e5e7eb; z-index:500; overflow:hidden;
+    border:1px solid ${colors.borderInput}; z-index:500; overflow:hidden;
     animation: sl-drop-in .15s ease;
   }
   @keyframes sl-drop-in { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
   .sl-notif-head {
-    padding:14px 16px; border-bottom:1px solid #f1f5f9;
+    padding:14px 16px; border-bottom:1px solid ${colors.border};
     display:flex; justify-content:space-between; align-items:center;
   }
   .sl-notif-item {
     display:flex; gap:10px; padding:12px 16px;
-    border-bottom:1px solid #f9fafb;
+    border-bottom:1px solid ${colors.border};
     cursor:pointer; transition:background .12s; align-items:flex-start;
   }
-  .sl-notif-item:hover { background:#f8fafc; }
+  .sl-notif-item:hover { background:${colors.inputBg}; }
   .sl-notif-item:last-child { border-bottom:none; }
   .sl-notif-footer {
     padding:10px 16px; text-align:center;
-    border-top:1px solid #f1f5f9;
+    border-top:1px solid ${colors.border};
   }
   .sl-mark-read {
     background:none; border:none; font-size:11.5px; font-weight:600;
-    color:#6b7280; cursor:pointer; font-family:${fonts.body};
+    color:${colors.textMuted}; cursor:pointer; font-family:${fonts.body};
     padding:0; transition:color .15s;
   }
-  .sl-mark-read:hover { color:#111827; }
+  .sl-mark-read:hover { color:${colors.textPrimary}; }
 `;
 
 if (!document.getElementById('sl-css')) {
@@ -298,6 +298,8 @@ const ALL_NAV_ITEMS = [
   {
     section: 'Principal',
     items: [
+      // Tableau de bord : vue KPI d'ensemble, page d'accueil — Manager + Admin (B9 CDC)
+      { to: '/dashboard',    label: 'Tableau de bord', icon: <IconDashboard />, roles: ['admin','manager'] },
       // Support voit Applications et Étudiants en lecture — B4/B2 CDC
       { to: '/applications', label: 'Applications', icon: <IconApplications />, roles: ['admin','manager','admissions','support'] },
       { to: '/students',     label: 'Étudiants',    icon: <IconStudents />,     roles: ['admin','manager','admissions','support'] },
@@ -338,6 +340,7 @@ const ALL_NAV_ITEMS = [
 ];
 
 const PAGE_TITLES: Record<string, string> = {
+  '/dashboard':     'Tableau de bord',
   '/applications':  'Applications',
   '/students':      'Gestion des étudiants',
   '/programs':      'Programmes',
@@ -361,6 +364,9 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 /*  SVG Icons  */
+function IconDashboard() {
+  return <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>;
+}
 function IconApplications() {
   return <svg className="sl-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
 }
@@ -608,10 +614,10 @@ export default function AppLayout() {
               {notifOpen && (
                 <div className="sl-notif-drop">
                   <div className="sl-notif-head">
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: colors.textPrimary }}>
                       Notifications
                       {unreadCount > 0 && (
-                        <span style={{ marginLeft: 8, padding: '1px 7px', borderRadius: 10, background: '#fef2f2', color: '#ef4444', fontSize: 11, fontWeight: 700 }}>
+                        <span style={{ marginLeft: 8, padding: '1px 7px', borderRadius: 10, background: colors.dangerBg, color: colors.danger, fontSize: 11, fontWeight: 700 }}>
                           {unreadCount}
                         </span>
                       )}
@@ -624,7 +630,7 @@ export default function AppLayout() {
                   </div>
 
                   {notifItems.length === 0 ? (
-                    <div style={{ padding: '28px 16px', textAlign: 'center', fontSize: 13, color: '#9ca3af' }}>
+                    <div style={{ padding: '28px 16px', textAlign: 'center', fontSize: 13, color: colors.textMuted }}>
                       Aucune notification
                     </div>
                   ) : (
@@ -636,7 +642,7 @@ export default function AppLayout() {
                       >
                         <div style={{
                           width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                          background: 'rgba(37,70,204,0.10)', color: '#2546cc',
+                          background: 'rgba(37,70,204,0.10)', color: colors.blue,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 12, fontWeight: 700,
                         }}>
@@ -644,10 +650,10 @@ export default function AppLayout() {
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
-                            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#111827' }}>{n.student}</span>
-                            <span style={{ fontSize: 11, color: '#9ca3af', flexShrink: 0 }}>{fmtNotifTime(n.updatedAt)}</span>
+                            <span style={{ fontSize: 12.5, fontWeight: 700, color: colors.textPrimary }}>{n.student}</span>
+                            <span style={{ fontSize: 11, color: colors.textMuted, flexShrink: 0 }}>{fmtNotifTime(n.updatedAt)}</span>
                           </div>
-                          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {n.preview}
                           </div>
                         </div>

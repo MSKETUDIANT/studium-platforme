@@ -19,9 +19,13 @@ export const colors = {
   sidebarBg:   '#0b1852',
 
   /* Textes */
+  // textSecondary/textMuted assombris (2026-09) : les valeurs d'origine
+  // n'atteignaient pas le contraste AA (4.5:1) sur fond blanc — mesuré à
+  // ~4.3:1 et ~2.5:1 respectivement — alors qu'ils servent à du texte lu
+  // (dates, labels, compteurs), pas juste décoratif.
   textPrimary:   '#0b1852',
-  textSecondary: '#6b7a9e',
-  textMuted:     '#9ba3bc',
+  textSecondary: '#5b6b85', // ~5.4:1 sur blanc
+  textMuted:     '#64748b', // ~4.76:1 sur blanc
   textInverse:   '#ffffff',
 
   /* Bordures */
@@ -35,6 +39,10 @@ export const colors = {
   dangerBorder: '#fca5a5',
   success:      '#16a34a',
   warning:      '#d97706',
+  // 6e accent de marque de facto (statut "vérifiée", niveau master, rôle
+  // admin, score IA...) : déjà utilisé ~30 fois avant d'être officialisé ici.
+  violet:       '#7c3aed',
+  violetBg:     '#f5f3ff',
 
   /* Sidebar */
   sidebarText:        'rgba(255,255,255,0.60)',

@@ -9,7 +9,7 @@ export function initMonitoring(): void {
   if (!IS_PROD) return
 
   //  Erreurs JS non catchées 
-  window.onerror = (message, source, lineno, colno, error) => {
+  window.onerror = (message, source, lineno, _colno, error) => {
     logError({
       type:    'uncaught_error',
       message: String(message),

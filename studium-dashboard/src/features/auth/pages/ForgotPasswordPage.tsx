@@ -1,6 +1,7 @@
 import { useState, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../shared/services/supabase';
+import { colors } from '../../../shared/constants/theme';
 import stlogo from '../../../assets/stlogo.png';
 
 /*  CSS partagé (même guard que LoginPage)  */
@@ -265,11 +266,11 @@ export default function ForgotPasswordPage() {
                   }}>
                     Email envoyé !
                   </h2>
-                  <p style={{ fontSize:14, color:'#6b7a9e', lineHeight:1.7, marginBottom:28 }}>
+                  <p style={{ fontSize:14, color:colors.textSecondary, lineHeight:1.7, marginBottom:28 }}>
                     Un lien de réinitialisation a été envoyé à<br/>
                     <strong style={{ color:'#0b1852' }}>{email}</strong>
                   </p>
-                  <p style={{ fontSize:12.5, color:'#9ba3bc', marginBottom:28 }}>
+                  <p style={{ fontSize:12.5, color:colors.textMuted, marginBottom:28 }}>
                     Pensez à vérifier vos spams si vous ne le recevez pas.
                   </p>
                   <button onClick={() => navigate('/login')} className="stl-btn">
@@ -292,7 +293,7 @@ export default function ForgotPasswordPage() {
                           <polyline points="22,6 12,13 2,6"/>
                         </svg>
                       </div>
-                      <span style={{ fontSize:11.5, fontWeight:700, letterSpacing:'1px', color:'#9ba3bc', textTransform:'uppercase' }}>
+                      <span style={{ fontSize:11.5, fontWeight:700, letterSpacing:'1px', color:colors.textMuted, textTransform:'uppercase' }}>
                         Récupération de compte
                       </span>
                     </div>
@@ -303,7 +304,7 @@ export default function ForgotPasswordPage() {
                     }}>
                       Mot de passe oublié
                     </h1>
-                    <p style={{ fontSize:14.5, color:'#6b7a9e', lineHeight:1.5 }}>
+                    <p style={{ fontSize:14.5, color:colors.textSecondary, lineHeight:1.5 }}>
                       Entrez votre email pour recevoir un lien de réinitialisation.
                     </p>
                   </div>
