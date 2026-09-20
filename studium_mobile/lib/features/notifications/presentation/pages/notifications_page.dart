@@ -7,11 +7,12 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/notifications_providers.dart';
 import '../../domain/entities/app_notification.dart';
+import '../../../../core/constants/app_colors.dart';
 
-const _kNavy   = Color(0xFF1A1D2E);
-const _kBlue   = Color(0xFF4880FF);
-const _kBorder = Color(0xFFE5E7EB);
-const _kGrey   = Color(0xFF9CA3AF);
+const _kNavy   = AppColors.textPrimary;
+const _kBlue   = AppColors.blueLight;
+const _kBorder = AppColors.borderInput;
+const _kGrey   = AppColors.textMuted;
 
 class NotificationsPage extends ConsumerWidget {
   const NotificationsPage({super.key});
