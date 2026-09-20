@@ -16,4 +16,20 @@ class AmbassadorRepositoryImpl {
       _datasource.requestPayout(commissionId, amount);
 
   Future<String?> ensureReferralCode() => _datasource.ensureReferralCode();
+
+  Future<Map<String, dynamic>?> fetchPayoutInfo(String userId) =>
+      _datasource.fetchPayoutInfo(userId);
+
+  Future<void> savePayoutInfo({
+    required String userId,
+    required String method,
+    String? iban,
+    String? paypalEmail,
+  }) =>
+      _datasource.savePayoutInfo(
+        userId: userId,
+        method: method,
+        iban: iban,
+        paypalEmail: paypalEmail,
+      );
 }

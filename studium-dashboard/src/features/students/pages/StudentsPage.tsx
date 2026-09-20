@@ -5,7 +5,12 @@ import { PageHeader }     from '../../../shared/components/PageHeader';
 import { downloadCsv }   from '../../../shared/utils/export_csv';
 import { Pagination }     from '../../../shared/components/Pagination';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
+import { StatCard }       from '../../../shared/components/StatCard';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
+import { getSignedDocumentUrl, approveDocument, buildDocFileName } from '../../applications/services/applications_service';
+import { fetchAllRows } from '../../../shared/utils/fetch_all_rows';
+import { useRole } from '../../auth/hooks/useRole';
+import { can } from '../../auth/hooks/permissions';
 
 /*  Types  */
 interface Student {
@@ -88,10 +93,10 @@ const DOC_ICONS: Record<string, React.ReactElement> = {
 
 const TYPE_COLOR: Record<string, { bg: string; color: string; icon: React.ReactElement }> = {
   cv:             { bg: 'rgba(37,70,204,0.10)',   color: '#2546cc', icon: DOC_ICONS.cv             },
-  transcript:     { bg: 'rgba(124,58,237,0.10)',  color: '#7c3aed', icon: DOC_ICONS.transcript     },
+  transcript:     { bg: 'rgba(124,58,237,0.10)',  color: colors.violet, icon: DOC_ICONS.transcript     },
   recommendation: { bg: 'rgba(22,163,74,0.10)',   color: '#16a34a', icon: DOC_ICONS.recommendation },
   passport:       { bg: 'rgba(217,119,6,0.10)',   color: '#d97706', icon: DOC_ICONS.passport       },
-  other:          { bg: 'rgba(107,122,158,0.10)', color: '#6b7a9e', icon: DOC_ICONS.other          },
+  other:          { bg: 'rgba(107,122,158,0.10)', color: colors.textSecondary, icon: DOC_ICONS.other          },
 };
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -106,7 +111,7 @@ const SCORE_COLOR = (s: number) =>
 
 const AVATAR_COLORS = [
   ['#2546cc','rgba(37,70,204,0.12)'],
-  ['#7c3aed','rgba(124,58,237,0.12)'],
+  [colors.violet,'rgba(124,58,237,0.12)'],
   ['#16a34a','rgba(22,163,74,0.12)'],
   ['#d97706','rgba(217,119,6,0.12)'],
   ['#dc2626','rgba(220,38,38,0.12)'],
@@ -136,16 +141,6 @@ const CSS = `
   .sp-layout { display:grid; grid-template-columns:380px 1fr; gap:20px; align-items:start; }
   @media(max-width:1100px){ .sp-layout{ grid-template-columns:1fr; } }
 
-  .sp-stat {
-    background:white; border-radius:${radius.lg}px;
-    box-shadow:${shadows.card}; overflow:hidden;
-  }
-  .sp-stat-top  { height:3px; }
-  .sp-stat-inner { padding:16px 20px; display:flex; align-items:center; gap:14px; }
-  .sp-stat-icon {
-    width:42px; height:42px; border-radius:12px;
-    display:flex; align-items:center; justify-content:center; flex-shrink:0;
-  }
 
   .sp-panel { background:white; border-radius:${radius.lg}px; box-shadow:${shadows.card}; overflow:hidden; }
 
@@ -373,10 +368,10 @@ const CSS = `
   }
   .sp-timeline-label { flex:1; font-size:9px; text-align:center; font-weight:600; white-space:nowrap; }
 
-  .sp-grid .sp-stat:nth-child(1) { animation: ph-fade-up .35s .08s ease both; }
-  .sp-grid .sp-stat:nth-child(2) { animation: ph-fade-up .35s .16s ease both; }
-  .sp-grid .sp-stat:nth-child(3) { animation: ph-fade-up .35s .24s ease both; }
-  .sp-grid .sp-stat:nth-child(4) { animation: ph-fade-up .35s .32s ease both; }
+  .sp-grid > *:nth-child(1) { animation: ph-fade-up .35s .08s ease both; }
+  .sp-grid > *:nth-child(2) { animation: ph-fade-up .35s .16s ease both; }
+  .sp-grid > *:nth-child(3) { animation: ph-fade-up .35s .24s ease both; }
+  .sp-grid > *:nth-child(4) { animation: ph-fade-up .35s .32s ease both; }
   .sp-layout { animation: ph-fade-up .35s .42s ease both; }
 `;
 
@@ -406,20 +401,55 @@ export default function StudentsPage() {
   const [profileData,    setProfileData]    = useState<StudentProfileDetail | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [appCounts,      setAppCounts]      = useState<Record<string, number>>({});
+  const [promoting,      setPromoting]      = useState(false);
+  const [promoteMsg,     setPromoteMsg]     = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [selectedRole,   setSelectedRole]   = useState<string | null>(null);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
+  const { role } = useRole();
+
+  /* Charger le rôle du membre sélectionné (pour savoir s'il est déjà ambassadeur) */
+  useEffect(() => {
+    if (!selected) { setSelectedRole(null); return; }
+    supabase
+      .from('user_roles')
+      .select('roles(name)')
+      .eq('user_id', selected.id)
+      .maybeSingle()
+      .then(({ data }) => setSelectedRole((data?.roles as any)?.name ?? null));
+  }, [selected]);
+
+  async function promoteToAmbassador(studentId: string) {
+    if (!window.confirm('Promouvoir cet étudiant en ambassadeur ? Il obtiendra un accès parrainage sur l\'app mobile.')) return;
+    setPromoting(true);
+    setPromoteMsg(null);
+    const { error } = await supabase.rpc('promote_to_ambassador', { target_user_id: studentId });
+    setPromoting(false);
+    if (error) {
+      setPromoteMsg({ type: 'error', text: error.message });
+    } else {
+      setPromoteMsg({ type: 'success', text: 'Étudiant promu ambassadeur.' });
+      setSelectedRole('ambassador');
+    }
+  }
 
   /* Charger étudiants + comptes candidatures */
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: studs }, { data: appData }] = await Promise.all([
-        supabase
-          .from('student_profiles')
-          .select('id, first_name, last_name, photo_url, completeness_score, nationality')
-          .order('completeness_score', { ascending: false }),
-        supabase
-          .from('applications')
-          .select('student_profile_id'),
+      const [studs, appData] = await Promise.all([
+        fetchAllRows<any>((from, to) =>
+          supabase
+            .from('student_profiles')
+            .select('id, first_name, last_name, photo_url, completeness_score, nationality')
+            .order('completeness_score', { ascending: false })
+            .range(from, to)
+        ),
+        fetchAllRows<any>((from, to) =>
+          supabase
+            .from('applications')
+            .select('student_profile_id')
+            .range(from, to)
+        ),
       ]);
       setStudents(studs ?? []);
       const counts: Record<string, number> = {};
@@ -430,6 +460,9 @@ export default function StudentsPage() {
       setLoading(false);
     })();
   }, []);
+
+  /* Réinitialiser le message de promotion en changeant d'étudiant */
+  useEffect(() => { setPromoteMsg(null); }, [selected]);
 
   /* Charger documents */
   useEffect(() => {
@@ -509,17 +542,29 @@ export default function StudentsPage() {
     setNotes(prev => prev.filter(n => n.id !== id));
   };
 
+  const viewDoc = async (fileUrl: string) => {
+    try {
+      const signedUrl = await getSignedDocumentUrl(fileUrl);
+      window.open(signedUrl, '_blank', 'noreferrer');
+    } catch (e) {
+      console.error('[viewDoc]', e);
+    }
+  };
+
   const approve = async (docId: string) => {
     setActionLoading(docId);
-    const { error } = await supabase.from('documents')
-      .update({ status: 'approved', rejection_reason: null }).eq('id', docId);
-    if (error) {
-      console.error('[approve] Supabase error:', error.message, error.details);
+    const doc = docs.find(d => d.id === docId);
+    const studentName = selected ? [selected.first_name, selected.last_name].filter(Boolean).join(' ') : '';
+    const newName = doc && studentName ? buildDocFileName(studentName, doc.type, doc.file_name) : undefined;
+    try {
+      await approveDocument(docId, newName);
+    } catch (error: any) {
+      console.error('[approve] Supabase error:', error?.message, error?.details);
       setActionLoading(null);
       return;
     }
     setDocs(prev => prev.map(d =>
-      d.id === docId ? { ...d, status: 'approved', rejection_reason: null } : d));
+      d.id === docId ? { ...d, status: 'approved', rejection_reason: null, ...(newName ? { file_name: newName } : {}) } : d));
     if (selected) {
       supabase.functions.invoke('send-push-notification', {
         body: {
@@ -660,20 +705,7 @@ export default function StudentsPage() {
       {/* Stats */}
       <div className="sp-grid">
         {stats.map(s => (
-          <div key={s.label} className="sp-stat">
-            <div className="sp-stat-top" style={{ background: s.accent }} />
-            <div className="sp-stat-inner">
-              <div className="sp-stat-icon" style={{ background: s.iconBg, color: s.iconColor }}>
-                {s.icon}
-              </div>
-              <div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: s.accent, fontFamily: fonts.display, lineHeight: 1 }}>
-                  {s.value}
-                </div>
-                <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, fontWeight: 500 }}>{s.label}</div>
-              </div>
-            </div>
-          </div>
+          <StatCard key={s.label} label={s.label} value={s.value} accent={s.accent} iconBg={s.iconBg} iconColor={s.iconColor} icon={s.icon} />
         ))}
       </div>
 
@@ -681,7 +713,7 @@ export default function StudentsPage() {
 
         {/* Liste étudiants */}
         <div className="sp-panel">
-          <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, #7c3aed)` }} />
+          <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, ${colors.violet})` }} />
 
           {/* Tabs */}
           <div className="sp-tabs">
@@ -828,7 +860,7 @@ export default function StudentsPage() {
 
         {/* Panel détail */}
         <div className="sp-panel" style={{ minHeight: 400, overflow: 'hidden' }}>
-          <div style={{ height: 3, background: `linear-gradient(90deg, #7c3aed, ${colors.blue})` }} />
+          <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.violet}, ${colors.blue})` }} />
           {!selected ? (
             <div className="sp-empty">
               <div style={{
@@ -899,7 +931,32 @@ export default function StudentsPage() {
                       </div>
                     </div>
                   </div>
-                  <button
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    {can(role, 'ambassador:promote') && (
+                      selectedRole === 'ambassador' ? (
+                        <span style={{
+                          padding: '6px 12px', borderRadius: 8,
+                          background: 'rgba(124,58,237,0.10)', color: colors.violet,
+                          fontSize: 11.5, fontWeight: 700, fontFamily: fonts.body, whiteSpace: 'nowrap',
+                        }}>
+                          Déjà ambassadeur
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => promoteToAmbassador(selected.id)}
+                          disabled={promoting}
+                          style={{
+                            padding: '6px 12px', borderRadius: 8, border: `1.5px solid ${colors.borderInput}`,
+                            background: 'white', cursor: promoting ? 'not-allowed' : 'pointer',
+                            fontSize: 11.5, fontWeight: 600, color: colors.violet, fontFamily: fonts.body,
+                            opacity: promoting ? 0.6 : 1, whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {promoting ? 'Promotion...' : 'Promouvoir ambassadeur'}
+                        </button>
+                      )
+                    )}
+                    <button
                     onClick={() => setSelected(null)}
                     style={{
                       width: 28, height: 28, borderRadius: 8, flexShrink: 0,
@@ -911,7 +968,16 @@ export default function StudentsPage() {
                   >
                     <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
+                  </div>
                 </div>
+                {promoteMsg && (
+                  <div style={{
+                    marginTop: 8, fontSize: 11.5, fontWeight: 600,
+                    color: promoteMsg.type === 'success' ? colors.success : colors.danger,
+                  }}>
+                    {promoteMsg.text}
+                  </div>
+                )}
               </div>
 
               {/* Score bar */}
@@ -1019,7 +1085,7 @@ export default function StudentsPage() {
                         <div className="sp-profile-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span>Analyse IA</span>
                           {profileData?.ai_completeness_score != null && (
-                            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(124,58,237,0.10)', color: '#7c3aed', textTransform: 'none' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(124,58,237,0.10)', color: colors.violet, textTransform: 'none' }}>
                               Score IA : {profileData.ai_completeness_score}%
                             </span>
                           )}
@@ -1283,12 +1349,12 @@ export default function StudentsPage() {
                           borderTop: `1px solid ${colors.border}`,
                           background: colors.inputBg, flexWrap: 'wrap',
                         }}>
-                          <a href={doc.file_url} target="_blank" rel="noreferrer"
+                          <button onClick={() => viewDoc(doc.file_url)}
                             className="sp-btn-act sp-btn-act--view"
                             style={{ color: colors.blue }}>
                             <svg width={12} height={12} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                             Voir le fichier
-                          </a>
+                          </button>
                           {doc.status !== 'approved' && (
                             <button className="sp-btn-act sp-btn-act--approve" disabled={busy} onClick={() => approve(doc.id)}
                               style={{ color: colors.success }}>

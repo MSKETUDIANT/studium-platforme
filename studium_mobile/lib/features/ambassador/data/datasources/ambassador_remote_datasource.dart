@@ -48,13 +48,43 @@ class AmbassadorRemoteDatasource {
   }
 
   Future<void> requestPayout(String commissionId, num amount) async {
+    final userId = _client.auth.currentUser?.id;
+    final payout = userId == null ? null : await fetchPayoutInfo(userId);
+    final payoutLine = switch (payout?['payout_method']) {
+      'iban'   => 'IBAN : ${payout?['payout_iban'] ?? '(non renseigne)'}',
+      'paypal' => 'PayPal : ${payout?['payout_paypal_email'] ?? '(non renseigne)'}',
+      _        => 'Coordonnees de paiement non renseignees par l\'ambassadeur.',
+    };
     await _client.from('tasks').insert({
       'title': 'Demande de paiement — commission',
-      'description': "L'ambassadeur a demandé le versement de sa commission de $amount (statut actuel : payable).",
+      'description':
+          "L'ambassadeur a demandé le versement de sa commission de $amount (statut actuel : payable).\n$payoutLine",
       'task_type': 'manual',
       'priority': 'normal',
       'assignee_label': 'Admin',
     });
+  }
+
+  Future<Map<String, dynamic>?> fetchPayoutInfo(String userId) async {
+    final data = await _client
+        .from('student_profiles')
+        .select('payout_method, payout_iban, payout_paypal_email')
+        .eq('id', userId)
+        .maybeSingle();
+    return data;
+  }
+
+  Future<void> savePayoutInfo({
+    required String userId,
+    required String method,
+    String? iban,
+    String? paypalEmail,
+  }) async {
+    await _client.from('student_profiles').update({
+      'payout_method':        method,
+      'payout_iban':          method == 'iban' ? iban : null,
+      'payout_paypal_email':  method == 'paypal' ? paypalEmail : null,
+    }).eq('id', userId);
   }
 
   Future<String?> ensureReferralCode() async {

@@ -39,6 +39,8 @@ class AmbassadorPage extends ConsumerWidget {
           children: [
             _ReferralCodeCard(code: code),
             const SizedBox(height: 24),
+            const _PayoutInfoCard(),
+            const SizedBox(height: 24),
             _SectionTitle('Filleuls'),
             const SizedBox(height: 10),
             referralsAsync.when(
@@ -67,6 +69,14 @@ class AmbassadorPage extends ConsumerWidget {
                           .map((c) => _CommissionTile(
                                 commission: c,
                                 onRequestPayout: () async {
+                                  final payout = ref.read(payoutInfoProvider).valueOrNull;
+                                  if (payout?['payout_method'] == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text(
+                                          'Renseigne d\'abord tes coordonnées de paiement ci-dessus.')),
+                                    );
+                                    return;
+                                  }
                                   await ref.read(myCommissionsProvider.notifier).requestPayout(c);
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -169,6 +179,164 @@ class _ReferralCodeCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PayoutInfoCard extends ConsumerStatefulWidget {
+  const _PayoutInfoCard();
+
+  @override
+  ConsumerState<_PayoutInfoCard> createState() => _PayoutInfoCardState();
+}
+
+class _PayoutInfoCardState extends ConsumerState<_PayoutInfoCard> {
+  String _method = 'iban';
+  final _ibanCtrl = TextEditingController();
+  final _paypalCtrl = TextEditingController();
+  bool _saving = false;
+  bool _initialized = false;
+
+  @override
+  void dispose() {
+    _ibanCtrl.dispose();
+    _paypalCtrl.dispose();
+    super.dispose();
+  }
+
+  void _applyData(Map<String, dynamic>? data) {
+    if (_initialized || data == null) return;
+    _initialized = true;
+    _method = (data['payout_method'] as String?) ?? 'iban';
+    _ibanCtrl.text = (data['payout_iban'] as String?) ?? '';
+    _paypalCtrl.text = (data['payout_paypal_email'] as String?) ?? '';
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await ref.read(payoutInfoSaverProvider)(
+        method: _method,
+        iban: _method == 'iban' ? _ibanCtrl.text.trim() : null,
+        paypalEmail: _method == 'paypal' ? _paypalCtrl.text.trim() : null,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Coordonnées enregistrées.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(payoutInfoProvider).whenData(_applyData);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Coordonnées de paiement',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          const Text(
+            'Requises pour que l\'équipe puisse verser tes commissions.',
+            style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _MethodChip(
+                  label: 'IBAN',
+                  selected: _method == 'iban',
+                  onTap: () => setState(() => _method = 'iban'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MethodChip(
+                  label: 'PayPal',
+                  selected: _method == 'paypal',
+                  onTap: () => setState(() => _method = 'paypal'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_method == 'iban')
+            TextField(
+              controller: _ibanCtrl,
+              decoration: const InputDecoration(
+                hintText: 'FR76 XXXX XXXX XXXX XXXX XXXX XXX',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              textCapitalization: TextCapitalization.characters,
+            )
+          else
+            TextField(
+              controller: _paypalCtrl,
+              decoration: const InputDecoration(
+                hintText: 'email@paypal.com',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: _saving ? null : _save,
+              child: Text(_saving ? 'Enregistrement...' : 'Enregistrer'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MethodChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _MethodChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.navy : AppColors.inputBg,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : AppColors.textPrimary,
+          ),
+        ),
       ),
     );
   }

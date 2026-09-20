@@ -243,7 +243,7 @@ function RulesTab() {
   const [settings, setSettings] = useState<PlatformSettings>({
     uploadMaxSizeMb: 10, uploadAllowedFormats: 'pdf,doc,docx,jpg,jpeg,png',
     motivationMinWords: 300, supportEmail: 'support@studium.app',
-    platformName: 'Studium', defaultLanguage: 'fr',
+    platformName: 'Studium', defaultLanguage: 'fr', availableLanguages: 'fr,en',
     ambassadorCommissionAmount: 50,
   });
   const [saving, setSaving] = useState(false);
@@ -323,7 +323,7 @@ function GeneralTab() {
   const [settings, setSettings] = useState<PlatformSettings>({
     uploadMaxSizeMb: 10, uploadAllowedFormats: 'pdf,doc,docx,jpg,jpeg,png',
     motivationMinWords: 300, supportEmail: 'support@studium.app',
-    platformName: 'Studium', defaultLanguage: 'fr',
+    platformName: 'Studium', defaultLanguage: 'fr', availableLanguages: 'fr,en',
     ambassadorCommissionAmount: 50,
   });
   const [saving, setSaving] = useState(false);
@@ -373,6 +373,33 @@ function GeneralTab() {
             <option value="fr">Français</option>
             <option value="en">English</option>
           </select>
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <Label>Langues disponibles pour les étudiants</Label>
+          {(() => {
+            const active = settings.availableLanguages.split(',').map(s => s.trim()).filter(Boolean);
+            const toggle = (code: string) => {
+              const isOn = active.includes(code);
+              // Toujours garder au moins une langue activee.
+              if (isOn && active.length <= 1) return;
+              const next = isOn ? active.filter(c => c !== code) : [...active, code];
+              setSettings(s => ({ ...s, availableLanguages: next.join(',') }));
+            };
+            return (
+              <div style={{ display: 'flex', gap: 16 }}>
+                {[{ code: 'fr', label: 'Français' }, { code: 'en', label: 'English' }].map(({ code, label }) => (
+                  <label key={code} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13.5, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={active.includes(code)} onChange={() => toggle(code)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            );
+          })()}
+          <div style={{ fontSize: 11.5, color: colors.textMuted, marginTop: 4 }}>
+            Langues proposées dans le sélecteur de langue de l'app mobile.
+          </div>
         </div>
 
         {error && <div style={{ fontSize: 12.5, color: colors.danger, marginBottom: 12, padding: '8px 12px', background: '#fef2f2', borderRadius: 7 }}>{error}</div>}
@@ -441,9 +468,9 @@ function BtnPrimary({ children, onClick, disabled, saved, saving }: { children: 
 }
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', borderRadius: 9,
-  border: `1.5px solid #e2e8f0`, background: '#f8fafc',
-  fontFamily: fonts.body, fontSize: 13.5, color: '#0f172a',
+  width: '100%', padding: '10px 14px', borderRadius: radius.md,
+  border: `1.5px solid ${colors.borderInput}`, background: colors.inputBg,
+  fontFamily: fonts.body, fontSize: 13.5, color: colors.textPrimary,
   outline: 'none', boxSizing: 'border-box',
 };
 

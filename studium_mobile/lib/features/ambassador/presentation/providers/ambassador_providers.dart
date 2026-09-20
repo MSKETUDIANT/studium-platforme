@@ -53,3 +53,25 @@ class MyCommissionsNotifier extends AutoDisposeAsyncNotifier<List<Commission>> {
         .requestPayout(commission.id, commission.amount);
   }
 }
+
+//  Coordonnees de paiement
+
+final payoutInfoProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return null;
+  return ref.watch(ambassadorRepositoryProvider).fetchPayoutInfo(userId);
+});
+
+final payoutInfoSaverProvider = Provider.autoDispose((ref) {
+  return ({required String method, String? iban, String? paypalEmail}) async {
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+    await ref.read(ambassadorRepositoryProvider).savePayoutInfo(
+          userId: userId,
+          method: method,
+          iban: iban,
+          paypalEmail: paypalEmail,
+        );
+    ref.invalidate(payoutInfoProvider);
+  };
+});

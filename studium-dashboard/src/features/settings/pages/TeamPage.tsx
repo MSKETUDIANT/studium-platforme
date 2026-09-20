@@ -3,6 +3,7 @@ import { supabase } from '../../../shared/services/supabase';
 import { useRole } from '../../auth/hooks/useRole';
 import { PageHeader }  from '../../../shared/components/PageHeader';
 import { Pagination }  from '../../../shared/components/Pagination';
+import { StatCard }    from '../../../shared/components/StatCard';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 
 interface TeamMember {
@@ -16,7 +17,7 @@ interface TeamMember {
 type SortKey = 'email' | 'role' | 'status' | 'created_at';
 
 const ROLE_CFG: Record<string, { bg: string; color: string; label: string }> = {
-  admin:      { bg: '#ede9fe', color: '#7c3aed',  label: 'Admin'      },
+  admin:      { bg: colors.violetBg, color: colors.violet,  label: 'Admin'      },
   manager:    { bg: '#dbeafe', color: '#1d4ed8',  label: 'Manager'    },
   admissions: { bg: '#dcfce7', color: '#15803d',  label: 'Admissions' },
   support:    { bg: '#f1f5f9', color: '#475569',  label: 'Support'    },
@@ -24,7 +25,7 @@ const ROLE_CFG: Record<string, { bg: string; color: string; label: string }> = {
 
 const AVATAR_PALETTE = [
   ['#2546cc', 'rgba(37,70,204,0.12)'],
-  ['#7c3aed', 'rgba(124,58,237,0.12)'],
+  [colors.violet, 'rgba(124,58,237,0.12)'],
   ['#15803d', 'rgba(22,163,74,0.12)'],
   ['#d97706', 'rgba(217,119,6,0.12)'],
   ['#0891b2', 'rgba(8,145,178,0.12)'],
@@ -41,24 +42,6 @@ const CSS = `
   }
   @media (max-width: 700px) { .tp-stat-grid { grid-template-columns: 1fr; } }
 
-  .tp-stat {
-    background: white;
-    border-radius: ${radius.lg}px;
-    box-shadow: ${shadows.card};
-    overflow: hidden;
-  }
-  .tp-stat-inner {
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .tp-stat-icon {
-    width: 46px; height: 46px;
-    border-radius: 13px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
 
   /* Toolbar */
   .tp-toolbar {
@@ -304,9 +287,9 @@ const CSS = `
     display: flex; align-items: center; justify-content: center;
   }
 
-  .tp-stat-grid .tp-stat:nth-child(1) { animation: ph-fade-up .35s .08s ease both; }
-  .tp-stat-grid .tp-stat:nth-child(2) { animation: ph-fade-up .35s .16s ease both; }
-  .tp-stat-grid .tp-stat:nth-child(3) { animation: ph-fade-up .35s .24s ease both; }
+  .tp-stat-grid > *:nth-child(1) { animation: ph-fade-up .35s .08s ease both; }
+  .tp-stat-grid > *:nth-child(2) { animation: ph-fade-up .35s .16s ease both; }
+  .tp-stat-grid > *:nth-child(3) { animation: ph-fade-up .35s .24s ease both; }
   .tp-table-wrap { animation: ph-fade-up .35s .36s ease both; }
 `;
 
@@ -343,10 +326,20 @@ export default function TeamPage() {
     if (!email) { setError('Email requis.'); return; }
     setError(''); setSubmitting(true);
     try {
-      const { data, error: invokeError } = await supabase.functions.invoke('create-team-member', {
+      const { error: invokeError } = await supabase.functions.invoke('create-team-member', {
         body: { email, role },
       });
-      if (invokeError) throw new Error(data?.error ?? invokeError.message ?? 'Erreur inconnue');
+      if (invokeError) {
+        // Le SDK n'expose pas le corps JSON de l'erreur par defaut (juste
+        // "non-2xx status code") : il faut le relire depuis la Response
+        // brute (invokeError.context) pour avoir le vrai message.
+        let detail = invokeError.message;
+        try {
+          const body = await invokeError.context?.json();
+          if (body?.error) detail = body.error;
+        } catch (_) {}
+        throw new Error(detail ?? 'Erreur inconnue');
+      }
       setSuccess(`Invitation envoyée à ${email}.`);
       setEmail(''); setRole('admissions'); setShowForm(false);
       fetchMembers();
@@ -373,6 +366,18 @@ export default function TeamPage() {
     try {
       await supabase.rpc('update_member_status', { target_user_id: id, new_status: 'active' });
       setSuccess(`Compte ${memberEmail} réactivé.`);
+      fetchMembers();
+    } catch (e: any) {
+      setError(e.message ?? 'Erreur');
+    } finally { setActionId(null); }
+  }
+
+  async function changeRole(id: string, memberEmail: string, newRole: string) {
+    setActionId(id);
+    try {
+      const { error: rpcError } = await supabase.rpc('update_member_role', { target_user_id: id, new_role: newRole });
+      if (rpcError) throw rpcError;
+      setSuccess(`Rôle de ${memberEmail} mis à jour.`);
       fetchMembers();
     } catch (e: any) {
       setError(e.message ?? 'Erreur');
@@ -519,20 +524,7 @@ export default function TeamPage() {
             ),
           },
         ].map(s => (
-          <div key={s.label} className="tp-stat">
-            <div style={{ height: 3, background: s.accent }} />
-            <div className="tp-stat-inner">
-              <div className="tp-stat-icon" style={{ background: s.iconBg, color: s.iconColor }}>
-                {s.icon}
-              </div>
-              <div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: s.accent, fontFamily: fonts.display, lineHeight: 1 }}>
-                  {s.value}
-                </div>
-                <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 4, fontWeight: 500 }}>{s.label}</div>
-              </div>
-            </div>
-          </div>
+          <StatCard key={s.label} label={s.label} value={s.value} accent={s.accent} iconBg={s.iconBg} iconColor={s.iconColor} icon={s.icon} />
         ))}
       </div>
 
@@ -681,7 +673,7 @@ export default function TeamPage() {
 
       {/* Table */}
       <div className="tp-table-wrap">
-        <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, #7c3aed)` }} />
+        <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, ${colors.violet})` }} />
 
         {/* Results info */}
         {!loading && (
@@ -772,9 +764,22 @@ export default function TeamPage() {
                     </div>
                   </td>
                   <td>
-                    <span className="tp-badge" style={{ background: roleCfg.bg, color: roleCfg.color }}>
-                      {roleCfg.label}
-                    </span>
+                    <select
+                      value={m.role}
+                      disabled={actionId === m.id}
+                      onChange={e => changeRole(m.id, m.email, e.target.value)}
+                      className="tp-toolbar-select"
+                      title="Changer le rôle"
+                      style={{
+                        padding: '4px 26px 4px 10px', fontSize: 11.5, fontWeight: 700,
+                        backgroundColor: roleCfg.bg, color: roleCfg.color, border: 'none',
+                      }}
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="manager">Manager</option>
+                      <option value="admissions">Admissions</option>
+                      <option value="support">Support</option>
+                    </select>
                   </td>
                   <td>
                     <span className="tp-badge" style={{
