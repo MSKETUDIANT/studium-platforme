@@ -5,8 +5,10 @@ import { PageHeader }     from '../../../shared/components/PageHeader';
 import { Pagination }     from '../../../shared/components/Pagination';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
 import { EmptyState }     from '../../../shared/components/EmptyState';
+import { StatCard }       from '../../../shared/components/StatCard';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 import { downloadCsv }    from '../../../shared/utils/export_csv';
+import { fetchAllRows }   from '../../../shared/utils/fetch_all_rows';
 import { useRole }        from '../../auth/hooks/useRole';
 import { can }            from '../../auth/hooks/permissions';
 
@@ -149,7 +151,7 @@ const CURRENCIES: { symbol: string; code: string; label: string }[] = [
 
 const LEVEL_CFG: Record<string, { color: string; bg: string }> = {
   bachelor: { color: colors.blue,    bg: 'rgba(37,70,204,0.10)'   },
-  master:   { color: '#7c3aed',      bg: 'rgba(124,58,237,0.10)'  },
+  master:   { color: colors.violet,  bg: 'rgba(124,58,237,0.10)'  },
   phd:      { color: colors.success, bg: 'rgba(22,163,74,0.10)'   },
 };
 
@@ -621,33 +623,6 @@ const STAT_ICONS: Record<string, ReactNode> = {
   ),
 };
 
-function StatCard({ label, value, color, iconKey }: { label: string; value: number | string; color: string; iconKey: keyof typeof STAT_ICONS }) {
-  return (
-    <div style={{
-      background: 'white',
-      borderRadius: radius.lg,
-      boxShadow: shadows.card,
-      padding: '18px 20px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 16,
-      borderLeft: `4px solid ${color}`,
-    }}>
-      <div style={{
-        width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-        background: color + '15',
-        color,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {STAT_ICONS[iconKey]}
-      </div>
-      <div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: colors.navy, fontFamily: fonts.display, lineHeight: 1 }}>{value}</div>
-        <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 5, fontWeight: 500, letterSpacing: '.01em' }}>{label}</div>
-      </div>
-    </div>
-  );
-}
 
 /*  Detail Modal  */
 function ProgramDetailModal({ program, onClose, onEdit }: {
@@ -1007,11 +982,16 @@ export default function ProgramsPage() {
   /*  Fetch  */
   async function fetchPrograms() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('programs')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error && data) setPrograms(data as Program[]);
+    try {
+      const data = await fetchAllRows<Program>((from, to) =>
+        supabase
+          .from('programs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, to)
+      );
+      setPrograms(data);
+    } catch { /* comportement inchangé : erreur ignorée silencieusement, comme avant */ }
     setLoading(false);
   }
 
@@ -1255,10 +1235,10 @@ export default function ProgramsPage() {
 
       {/* Stats */}
       <div className="pp-stat-grid">
-        <StatCard label="Total programmes" value={total}    color={colors.blue}    iconKey="total"   />
-        <StatCard label="Actifs"           value={active}   color={colors.success} iconKey="active"  />
-        <StatCard label="Masters"          value={masters}  color="#7c3aed"        iconKey="master"  />
-        <StatCard label="Licences"         value={licences} color={colors.warning} iconKey="licence" />
+        <StatCard label="Total programmes" value={total}    accent={colors.blue}    iconBg={colors.blue    + '15'} iconColor={colors.blue}    icon={STAT_ICONS.total}   />
+        <StatCard label="Actifs"           value={active}   accent={colors.success} iconBg={colors.success + '15'} iconColor={colors.success} icon={STAT_ICONS.active}  />
+        <StatCard label="Masters"          value={masters}  accent={colors.violet}  iconBg={colors.violet  + '15'} iconColor={colors.violet}  icon={STAT_ICONS.master}  />
+        <StatCard label="Licences"         value={licences} accent={colors.warning} iconBg={colors.warning + '15'} iconColor={colors.warning} icon={STAT_ICONS.licence} />
       </div>
 
       {/* Toolbar */}

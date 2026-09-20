@@ -1,6 +1,31 @@
 import { supabase }              from '../../../shared/services/supabase';
 import { STATUS_MAP }            from '../types/application';
 import type { Application, RawStatus } from '../types/application';
+import { fetchAllRows }          from '../../../shared/utils/fetch_all_rows';
+
+const DOC_TYPE_SHORT: Record<string, string> = {
+  cv:                'CV',
+  transcript:        'Releve',
+  recommendation:    'Recommandation',
+  passport:          'Passeport',
+  motivation_letter: 'Motivation',
+  diploma:           'Diplome',
+  language_cert:     'CertifLangue',
+  financial_proof:   'JustifFinancement',
+  other:             'Autre',
+};
+
+/** Convention de nommage structurée appliquée à l'approbation d'un document,
+ * quelle que soit la page (fiche candidature ou fiche étudiant) : NOM_Prenom_Type_Date.ext */
+export function buildDocFileName(studentName: string, docType: string, originalName: string | null): string {
+  const ext      = originalName?.split('.').pop()?.toLowerCase() ?? 'pdf';
+  const parts    = studentName.trim().split(/\s+/);
+  const last     = (parts.pop() ?? '').toUpperCase().replace(/[^A-Z]/gi, '').toUpperCase();
+  const first    = (parts[0] ?? '').replace(/[^a-zA-Z]/g, '');
+  const typeSlug = DOC_TYPE_SHORT[docType] ?? docType.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  const date     = new Date().toISOString().split('T')[0];
+  return `${last}_${first}_${typeSlug}_${date}.${ext}`;
+}
 
 const SELECT = `
   id, status, submitted_at, notes, motivation_letter,
@@ -8,7 +33,7 @@ const SELECT = `
   programs!program_id                  ( id, program_name, university_name, country, level, deadline, requirements, contact_email, cc_emails, program_contacts!left ( email, cc_emails ) )
 `;
 
-function mapRow(a: any): Application {
+export function mapRow(a: any): Application {
   const contacts = Array.isArray(a.programs?.program_contacts) ? a.programs.program_contacts : [];
   return {
     id:           a.id,
@@ -82,12 +107,14 @@ export async function deleteApplicationComment(id: string): Promise<void> {
 }
 
 export async function fetchApplications(): Promise<Application[]> {
-  const { data, error } = await supabase
-    .from('applications')
-    .select(SELECT)
-    .order('submitted_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(mapRow);
+  const rows = await fetchAllRows<any>((from, to) =>
+    supabase
+      .from('applications')
+      .select(SELECT)
+      .order('submitted_at', { ascending: false })
+      .range(from, to)
+  );
+  return rows.map(mapRow);
 }
 
 const STATUS_PUSH_MESSAGES: Partial<Record<RawStatus, { title: string; body: string }>> = {
@@ -311,6 +338,55 @@ export async function fetchApplicationDocuments(studentProfileId: string): Promi
     .eq('student_profile_id', studentProfileId)
     .order('created_at', { ascending: false });
   return (data ?? []) as ApplicationDocument[];
+}
+
+// Le bucket "documents" est prive (passeports, releves, etc.) : file_url en
+// base garde le format d'URL publique historique (utile pour en extraire le
+// chemin de facon fiable), mais n'est plus directement accessible. On genere
+// une URL signee de courte duree a la demande, au moment de l'ouverture.
+export async function getSignedDocumentUrl(fileUrl: string, expiresInSeconds = 60): Promise<string> {
+  const marker = '/object/public/documents/';
+  const idx = fileUrl.indexOf(marker);
+  if (idx === -1) throw new Error('URL de document invalide');
+  const path = decodeURIComponent(fileUrl.slice(idx + marker.length));
+  const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, expiresInSeconds);
+  if (error || !data) throw error ?? new Error('Signature URL echouee');
+  return data.signedUrl;
+}
+
+export interface AcademicBackground {
+  degree:     string;
+  university: string;
+  year:       number | null;
+  average:    number | null;
+}
+
+export interface WorkExperience {
+  company:     string;
+  position:    string;
+  start_date:  string | null;
+  end_date:    string | null;
+  description: string | null;
+}
+
+// La table s'appelle "academic_backgrounds" (colonne "user_id"), pas
+// "educations" : cf. profile_remote_datasource.dart cote mobile.
+export async function fetchAcademicBackgrounds(studentProfileId: string): Promise<AcademicBackground[]> {
+  const { data } = await supabase
+    .from('academic_backgrounds')
+    .select('degree, university, year, average')
+    .eq('user_id', studentProfileId)
+    .order('year', { ascending: false });
+  return (data ?? []) as AcademicBackground[];
+}
+
+export async function fetchExperiences(studentProfileId: string): Promise<WorkExperience[]> {
+  const { data } = await supabase
+    .from('experiences')
+    .select('company, position, start_date, end_date, description')
+    .eq('student_profile_id', studentProfileId)
+    .order('start_date', { ascending: false });
+  return (data ?? []) as WorkExperience[];
 }
 
 export async function approveDocument(id: string, fileName?: string): Promise<void> {

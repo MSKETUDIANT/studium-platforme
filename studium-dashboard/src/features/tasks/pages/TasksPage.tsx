@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { colors, fonts } from '../../../shared/constants/theme';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { Button } from '../../../shared/components/Button';
@@ -38,6 +39,7 @@ const CSS = `
     border-left:3px solid transparent;
   }
   .task-card:hover { box-shadow:0 4px 16px rgba(11,24,82,0.09); }
+  .task-card.clickable { cursor:pointer; }
   .task-card.completed { opacity:.5; }
   .task-card.pri-urgent:not(.completed) { border-left-color:#dc2626; }
   .task-card.pri-faible:not(.completed)  { border-left-color:#16a34a; }
@@ -296,6 +298,7 @@ type TabType = 'all' | 'mine' | 'reminder_j7' | 'reminder_j14' | 'manual';
 
 export default function TasksPage() {
   const { role } = useRole();
+  const navigate = useNavigate();
   const [tasks,            setTasks]            = useState<Task[]>([]);
   const [loading,          setLoading]          = useState(true);
   const [loadError,        setLoadError]         = useState<string | null>(null);
@@ -554,7 +557,12 @@ export default function TasksPage() {
             const isSoon = soonDays !== null && soonDays >= 0 && soonDays <= 2 && !task.completed_at;
 
             return (
-              <div key={task.id} className={`task-card ${task.completed_at ? 'completed' : ''} pri-${pri}`}>
+              <div
+                key={task.id}
+                className={`task-card ${task.completed_at ? 'completed' : ''} pri-${pri} ${task.application_id ? 'clickable' : ''}`}
+                onClick={task.application_id ? () => navigate(`/applications?open=${task.application_id}`) : undefined}
+                title={task.application_id ? 'Ouvrir la candidature' : undefined}
+              >
                 <div className="task-status-dot" title={task.completed_at ? 'Terminée' : 'En cours'} />
 
                 <div className="task-body">
@@ -618,7 +626,7 @@ export default function TasksPage() {
                       {dueText}
                     </span>
                   )}
-                  <div className="task-actions">
+                  <div className="task-actions" onClick={e => e.stopPropagation()}>
                     {canComplete && (
                       <button
                         className="task-complete-btn"

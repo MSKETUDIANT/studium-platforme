@@ -10,6 +10,7 @@ import ProgramsPage from './features/programs/pages/ProgramsPage';
 import ApplicationsPage from './features/applications/pages/ApplicationsPage';
 import MessagingPage from './features/messaging/pages/MessagingPage';
 import ReportingPage from './features/reporting/pages/ReportingPage';
+import DashboardPage from './features/dashboard/pages/DashboardPage';
 import SettingsPage from './features/settings/pages/SettingsPage';
 import TeamPage from './features/settings/pages/TeamPage';
 import AuditPage from './features/audit/pages/AuditPage';
@@ -29,7 +30,7 @@ export default function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route index element={<Navigate to="/applications" replace />} />
+            <Route index element={<Navigate to="/dashboard" replace />} />
 
             {/* Tous les rôles internes */}
             <Route path="/applications"  element={<ApplicationsPage />} />
@@ -43,8 +44,9 @@ export default function App() {
               <Route path="/messaging" element={<MessagingPage />} />
             </Route>
 
-            {/* Rapports : admin, manager uniquement (B9 CDC) */}
+            {/* Tableau de bord + Rapports : admin, manager uniquement (B9 CDC) */}
             <Route element={<RequireRole roles={['admin', 'manager']} />}>
+              <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/reporting" element={<ReportingPage />} />
             </Route>
 

@@ -3,8 +3,8 @@ import { pdf } from '@react-pdf/renderer';
 import { colors, fonts, radius } from '../../../shared/constants/theme';
 import { RAW_STATUS_LABELS } from '../types/application';
 import type { Application, RawStatus } from '../types/application';
-import { updateApplicationStatus, updateApplicationNotes, fetchStatusHistory, sendApplicationEmail, fetchEmailLogs, logManualSend, sendCorrectionMessage, fetchApplicationDocuments, approveDocument, rejectDocument, docTypeLabel, fetchApplicationComments, addApplicationComment, deleteApplicationComment } from '../services/applications_service';
-import type { StatusHistoryEntry, EmailLog, ApplicationDocument, ApplicationComment } from '../services/applications_service';
+import { updateApplicationStatus, updateApplicationNotes, fetchStatusHistory, sendApplicationEmail, fetchEmailLogs, logManualSend, sendCorrectionMessage, fetchApplicationDocuments, approveDocument, rejectDocument, docTypeLabel, fetchApplicationComments, addApplicationComment, deleteApplicationComment, fetchAcademicBackgrounds, fetchExperiences, getSignedDocumentUrl, buildDocFileName } from '../services/applications_service';
+import type { StatusHistoryEntry, EmailLog, ApplicationDocument, ApplicationComment, AcademicBackground, WorkExperience } from '../services/applications_service';
 import ApplicationPDF from './ApplicationPDF';
 import { useRole } from '../../auth/hooks/useRole';
 import { can } from '../../auth/hooks/permissions';
@@ -24,28 +24,6 @@ const STATUS_COLORS: Record<RawStatus, { bg: string; color: string }> = {
   pending_decision: { bg: '#fefce8', color: '#b45309' },
   archived:         { bg: '#f9fafb', color: '#6b7280' },
 };
-
-const DOC_TYPE_SHORT: Record<string, string> = {
-  cv:                'CV',
-  transcript:        'Releve',
-  recommendation:    'Recommandation',
-  passport:          'Passeport',
-  motivation_letter: 'Motivation',
-  diploma:           'Diplome',
-  language_cert:     'CertifLangue',
-  financial_proof:   'JustifFinancement',
-  other:             'Autre',
-};
-
-function buildDocFileName(studentName: string, docType: string, originalName: string | null): string {
-  const ext      = originalName?.split('.').pop()?.toLowerCase() ?? 'pdf';
-  const parts    = studentName.trim().split(/\s+/);
-  const last     = (parts.pop() ?? '').toUpperCase().replace(/[^A-Z]/gi, '').toUpperCase();
-  const first    = (parts[0] ?? '').replace(/[^a-zA-Z]/g, '');
-  const typeSlug = DOC_TYPE_SHORT[docType] ?? docType.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  const date     = new Date().toISOString().split('T')[0];
-  return `${last}_${first}_${typeSlug}_${date}.${ext}`;
-}
 
 const TIMELINE_STEPS: { label: string; statuses: RawStatus[] }[] = [
   { label: 'Soumise',       statuses: ['submitted', 'needsfix', 'verified', 'sent', 'accepted', 'rejected', 'pending_decision', 'archived'] },
@@ -87,6 +65,8 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   // Documents
   const [docs,           setDocs]           = useState<ApplicationDocument[]>([]);
   const [docsLoading,    setDocsLoading]    = useState(false);
+  const [academics,      setAcademics]      = useState<AcademicBackground[]>([]);
+  const [experiences,    setExperiences]    = useState<WorkExperience[]>([]);
   const [rejectTarget,   setRejectTarget]   = useState<ApplicationDocument | null>(null);
   const [rejectReason,   setRejectReason]   = useState('');
   const [docActionId,    setDocActionId]    = useState<string | null>(null);
@@ -124,8 +104,20 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
       fetchApplicationDocuments(app.studentId)
         .then(setDocs)
         .finally(() => setDocsLoading(false));
+      fetchAcademicBackgrounds(app.studentId).then(setAcademics).catch(() => setAcademics([]));
+      fetchExperiences(app.studentId).then(setExperiences).catch(() => setExperiences([]));
     }
   }, [app]);
+
+  async function handleViewDoc(doc: ApplicationDocument) {
+    if (!doc.file_url) return;
+    try {
+      const signedUrl = await getSignedDocumentUrl(doc.file_url);
+      window.open(signedUrl, '_blank', 'noreferrer');
+    } catch (e) {
+      showToast('error', 'Impossible d\'ouvrir le document.');
+    }
+  }
 
   async function handleApproveDoc(doc: ApplicationDocument) {
     setDocActionId(doc.id);
@@ -283,7 +275,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   async function handleDownloadPdf() {
     setGeneratingPdf(true);
     try {
-      const blob = await pdf(<ApplicationPDF app={app} history={history} docs={docs} />).toBlob();
+      const blob = await pdf(<ApplicationPDF app={app} history={history} docs={docs} academics={academics} experiences={experiences} />).toBlob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href     = url;
@@ -487,18 +479,18 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                         {/* Actions */}
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
                           {doc.file_url && (
-                            <a
-                              href={doc.file_url} target="_blank" rel="noreferrer"
+                            <button
+                              onClick={() => handleViewDoc(doc)}
                               style={{
                                 height: 28, padding: '0 10px', borderRadius: 7,
                                 border: `1px solid ${colors.border}`, background: 'white',
                                 fontSize: 11.5, fontWeight: 600, color: colors.blue,
-                                display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none',
+                                display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
                               }}
                             >
                               <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                               Voir
-                            </a>
+                            </button>
                           )}
                           {!isApproved && canReviewDocs && (
                             <button
@@ -767,7 +759,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                 placeholder="Où ? (ex : portail d'admission de l'université, dépôt en personne...)"
                 style={{
                   width: '100%', padding: '10px 14px', borderRadius: 10,
-                  border: `1.5px solid #7c3aed`, background: '#f5f3ff',
+                  border: `1.5px solid ${colors.violet}`, background: colors.violetBg,
                   fontFamily: fonts.body, fontSize: 13.5, color: colors.textPrimary,
                   outline: 'none', boxSizing: 'border-box', marginBottom: 8,
                 }}
@@ -779,12 +771,12 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                 placeholder="Précisez comment ce dossier a été transmis à l'université"
                 style={{
                   width: '100%', padding: '10px 14px', borderRadius: 10,
-                  border: `1.5px solid #7c3aed`, background: '#f5f3ff',
+                  border: `1.5px solid ${colors.violet}`, background: colors.violetBg,
                   fontFamily: fonts.body, fontSize: 13.5, color: colors.textPrimary,
                   resize: 'vertical', outline: 'none', boxSizing: 'border-box',
                 }}
               />
-              <div style={{ fontSize: 11.5, color: '#7c3aed', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <div style={{ fontSize: 11.5, color: colors.violet, marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
                 <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                 Ce statut n'est pas passé par l'envoi email automatique — cette précision apparaîtra dans l'historique, marquée "Manuel", pour que l'équipe ne la confonde pas avec un vrai envoi tracé.
               </div>
@@ -915,13 +907,13 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                   return (
                   <div key={log.id} style={{
                     padding: '9px 12px', borderRadius: 8,
-                    background: isManual ? '#f5f3ff' : log.status === 'sent' ? '#f0fdf4' : '#fef2f2',
+                    background: isManual ? colors.violetBg : log.status === 'sent' ? '#f0fdf4' : '#fef2f2',
                     border: `1px solid ${isManual ? '#ddd6fe' : log.status === 'sent' ? '#bbf7d0' : '#fecaca'}`,
                     fontSize: 12.5,
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontWeight: 700, color: isManual ? '#7c3aed' : log.status === 'sent' ? colors.success : colors.danger }}>
+                        <span style={{ fontWeight: 700, color: isManual ? colors.violet : log.status === 'sent' ? colors.success : colors.danger }}>
                           {isManual ? 'Dépôt manuel' : log.status === 'sent' ? 'Envoyé' : log.status === 'failed' ? 'Échec' : 'Bounce'}
                         </span>
                         {!isManual && (
@@ -935,7 +927,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
                       </span>
                     </div>
                     <div style={{ color: colors.textSecondary, marginTop: 2 }}> {log.toEmail}</div>
-                    {isManual && log.subject && <div style={{ color: '#7c3aed', fontSize: 11.5, marginTop: 2 }}>{log.subject}</div>}
+                    {isManual && log.subject && <div style={{ color: colors.violet, fontSize: 11.5, marginTop: 2 }}>{log.subject}</div>}
                     {!isManual && log.retryCount > 0 && (
                       <div style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
                         {log.retryCount} nouvelle{log.retryCount > 1 ? 's' : ''} tentative{log.retryCount > 1 ? 's' : ''} avant {log.status === 'sent' ? 'succès' : "l'échec final"}

@@ -13,7 +13,7 @@ interface Props {
 const COL_COLORS: Record<string, { accent: string; bg: string; badge: string }> = {
   received:   { accent: colors.blue,    bg: 'rgba(37,70,204,0.06)',  badge: 'rgba(37,70,204,0.12)'  },
   correction: { accent: colors.warning, bg: 'rgba(217,119,6,0.06)', badge: 'rgba(217,119,6,0.12)'  },
-  verified:   { accent: '#7c3aed',      bg: 'rgba(124,58,237,0.06)',badge: 'rgba(124,58,237,0.12)' },
+  verified:   { accent: colors.violet,  bg: 'rgba(124,58,237,0.06)',badge: 'rgba(124,58,237,0.12)' },
   sent:       { accent: '#0891b2',      bg: 'rgba(8,145,178,0.06)', badge: 'rgba(8,145,178,0.12)'  },
   accepted:   { accent: colors.success, bg: 'rgba(22,163,74,0.06)', badge: 'rgba(22,163,74,0.12)'  },
   rejected:   { accent: colors.danger,  bg: 'rgba(220,38,38,0.06)', badge: 'rgba(220,38,38,0.12)'  },

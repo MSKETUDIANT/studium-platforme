@@ -9,17 +9,7 @@ import {
 import type { KPISummary, MonthlyCount, TopItem } from '../services/reporting_service';
 import { supabase } from '../../../shared/services/supabase';
 import ReportPDF from '../components/ReportPDF';
-
-/*  Icons  */
-const IconTotal    = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
-const IconPending  = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
-const IconSent     = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
-const IconAccepted = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
-const IconFix      = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
-const IconRate     = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
-const IconScore    = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>;
-const IconTrophy   = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3a2 2 0 0 1-2 4M7 5H4a2 2 0 0 0 2 4"/></svg>;
-const IconClock    = () => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>;
+import KpiSummaryGrid from '../components/KpiSummaryGrid';
 
 export default function ReportingPage() {
   const [kpi,       setKpi]       = useState<KPISummary | null>(null);
@@ -81,9 +71,6 @@ export default function ReportingPage() {
     } finally { setExporting(false); }
   }
 
-  const verifiedRate = kpi && kpi.totalApplications > 0
-    ? Math.round(((kpi.verified + kpi.sent + kpi.accepted) / kpi.totalApplications) * 100) : 0;
-
   return (
     <div style={{ fontFamily: fonts.body }}>
       <PageHeader
@@ -133,62 +120,7 @@ export default function ReportingPage() {
           </div>
         ) : (
           <>
-            {/* Ligne 1  4 KPIs principaux */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-              <MetricCard
-                icon={<IconTotal />}    iconBg="rgba(37,70,204,0.10)" iconColor={colors.blue} accent={colors.blue}
-                label="Total candidatures" value={kpi?.totalApplications ?? 0}
-                sub="Toutes périodes"
-              />
-              <MetricCard
-                icon={<IconPending />}  iconBg="rgba(217,119,6,0.10)" iconColor="#d97706" accent="#d97706"
-                label="En attente" value={kpi?.pendingReview ?? 0}
-                sub="Brouillons + soumises"
-              />
-              <MetricCard
-                icon={<IconSent />}     iconBg="rgba(37,70,204,0.10)" iconColor="#2546cc" accent="#0891b2"
-                label="Envoyées" value={kpi?.sent ?? 0}
-                sub="Aux universités"
-              />
-              <MetricCard
-                icon={<IconAccepted />} iconBg="rgba(22,163,74,0.10)" iconColor={colors.success} accent={colors.success}
-                label="Acceptées" value={kpi?.accepted ?? 0}
-                sub="Réponses positives"
-              />
-            </div>
-
-            {/* Ligne 2 — 3 métriques secondaires */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-              <MetricCard
-                icon={<IconFix />}   iconBg="rgba(220,38,38,0.10)" iconColor="#ef4444" accent="#ef4444"
-                label="Corrections requises" value={kpi?.needsFix ?? 0}
-                sub="Dossiers à compléter"
-              />
-              <MetricCard
-                icon={<IconRate />}  iconBg="rgba(11,24,82,0.08)" iconColor={colors.navy} accent={colors.navy}
-                label="Taux de validation" value={`${verifiedRate}%`}
-                sub="Vérifiées + envoyées + acceptées"
-              />
-              <MetricCard
-                icon={<IconScore />} iconBg="rgba(8,145,178,0.10)" iconColor="#0891b2" accent="#0891b2"
-                label="Score profil moyen" value={`${kpi?.avgCompletenessScore ?? 0}%`}
-                sub="Complétude moyenne des dossiers"
-              />
-            </div>
-
-            {/* Ligne 2bis — taux d'acceptation & délai de validation */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-              <MetricCard
-                icon={<IconTrophy />} iconBg="rgba(22,163,74,0.10)" iconColor={colors.success} accent={colors.success}
-                label="Taux d'acceptation" value={`${kpi?.acceptanceRate ?? 0}%`}
-                sub="Acceptées parmi les décisions rendues (acceptées + refusées)"
-              />
-              <MetricCard
-                icon={<IconClock />} iconBg="rgba(124,58,237,0.10)" iconColor="#7c3aed" accent="#7c3aed"
-                label="Délai moyen de validation" value={`${kpi?.avgValidationDelayDays ?? 0} j`}
-                sub="Entre soumission et 1ère validation"
-              />
-            </div>
+            <KpiSummaryGrid kpi={kpi} />
 
             {/* Ligne 3  Graphiques */}
             <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 20 }}>
@@ -215,7 +147,7 @@ export default function ReportingPage() {
                     {[
                       { label: 'Soumises',   value: kpi.pendingReview, color: '#d97706' },
                       { label: 'A corriger', value: kpi.needsFix,      color: '#ef4444' },
-                      { label: 'Verifiees',  value: kpi.verified,      color: '#7c3aed' },
+                      { label: 'Verifiees',  value: kpi.verified,      color: colors.violet },
                       { label: 'Envoyees',   value: kpi.sent,          color: colors.blue },
                       { label: 'Acceptees',  value: kpi.accepted,      color: colors.success },
                       { label: 'Refusees',   value: kpi.rejected,      color: '#9ca3af' },
@@ -258,35 +190,6 @@ export default function ReportingPage() {
 /*  Components  */
 
 const CARD_SHADOW = '0 1px 4px rgba(11,24,82,0.04), 0 8px 24px rgba(11,24,82,0.07), 0 28px 60px rgba(11,24,82,0.08)';
-
-function MetricCard({ icon, iconBg, iconColor, label, value, sub, accent }: {
-  icon: React.ReactNode; iconBg: string; iconColor: string;
-  label: string; value: number | string; sub: string; accent?: string;
-}) {
-  return (
-    <div style={{
-      background: 'white', borderRadius: 14, padding: '18px 20px',
-      boxShadow: CARD_SHADOW,
-      display: 'flex', alignItems: 'center', gap: 16,
-      borderLeft: accent ? `4px solid ${accent}` : undefined,
-    }}>
-      <div style={{
-        width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-        background: iconBg, color: iconColor,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {icon}
-      </div>
-      <div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: colors.navy, lineHeight: 1, fontFamily: fonts.display }}>
-          {value}
-        </div>
-        <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 5, fontWeight: 500 }}>{label}</div>
-        {sub && <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>{sub}</div>}
-      </div>
-    </div>
-  );
-}
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (

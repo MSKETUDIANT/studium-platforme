@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 import { PageHeader }   from '../../../shared/components/PageHeader';
 import { Pagination }   from '../../../shared/components/Pagination';
+import { StatCard }     from '../../../shared/components/StatCard';
 import { fetchAuditLogs, actionLabel, entityLabel } from '../services/audit_service';
 import type { AuditLog } from '../services/audit_service';
 import { supabase } from '../../../shared/services/supabase';
@@ -19,41 +20,11 @@ const CSS = `
   }
   @media (max-width: 700px) { .aud-stat-grid { grid-template-columns: 1fr; } }
 
-  .aud-stat {
-    background: white;
-    border-radius: ${radius.lg}px;
-    box-shadow: ${shadows.card};
-    overflow: hidden;
-  }
-  .aud-stat-inner {
-    padding: 18px 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .aud-stat-icon {
-    width: 46px; height: 46px;
-    border-radius: 13px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .aud-stat-value {
-    font-size: 26px;
-    font-family: ${fonts.display};
-    font-weight: 800;
-    color: ${colors.textPrimary};
-    line-height: 1;
-  }
-  .aud-stat-label {
-    font-size: 12px;
-    color: ${colors.textSecondary};
-    margin-top: 4px;
-  }
 
   /* Stagger animations */
-  .aud-stat-grid .aud-stat:nth-child(1) { animation: aud-fade-up .35s .06s ease both; }
-  .aud-stat-grid .aud-stat:nth-child(2) { animation: aud-fade-up .35s .14s ease both; }
-  .aud-stat-grid .aud-stat:nth-child(3) { animation: aud-fade-up .35s .22s ease both; }
+  .aud-stat-grid > *:nth-child(1) { animation: aud-fade-up .35s .06s ease both; }
+  .aud-stat-grid > *:nth-child(2) { animation: aud-fade-up .35s .14s ease both; }
+  .aud-stat-grid > *:nth-child(3) { animation: aud-fade-up .35s .22s ease both; }
   .aud-table-wrap { animation: aud-fade-up .35s .32s ease both; }
 
   /* Table card */
@@ -178,7 +149,7 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
   submitted:        { label: 'Soumise',     color: '#2563eb', bg: '#eff6ff' },
   needsfix:         { label: 'Correction',  color: '#d97706', bg: '#fffbeb' },
   verified:         { label: 'Validée',     color: '#0891b2', bg: '#ecfeff' },
-  sent:             { label: 'Envoyée',     color: '#7c3aed', bg: '#f5f3ff' },
+  sent:             { label: 'Envoyée',     color: colors.violet, bg: colors.violetBg },
   accepted:         { label: 'Acceptée',    color: '#16a34a', bg: '#f0fdf4' },
   rejected:         { label: 'Refusée',     color: '#dc2626', bg: '#fef2f2' },
   archived:         { label: 'Archivée',    color: '#6b7280', bg: '#f9fafb' },
@@ -297,55 +268,41 @@ export default function AuditPage() {
 
       {/* Stat cards */}
       <div className="aud-stat-grid">
-        <div className="aud-stat">
-          <div className="aud-stat-inner">
-            <div className="aud-stat-icon" style={{ background: 'rgba(37,70,204,0.10)' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2546cc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="8" y1="13" x2="16" y2="13"/>
-                <line x1="8" y1="17" x2="12" y2="17"/>
-              </svg>
-            </div>
-            <div>
-              <div className="aud-stat-value">{stats.total}</div>
-              <div className="aud-stat-label">Total entrées</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="aud-stat">
-          <div className="aud-stat-inner">
-            <div className="aud-stat-icon" style={{ background: 'rgba(22,163,74,0.10)' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-            <div>
-              <div className="aud-stat-value">{stats.today}</div>
-              <div className="aud-stat-label">Aujourd'hui</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="aud-stat">
-          <div className="aud-stat-inner">
-            <div className="aud-stat-icon" style={{ background: 'rgba(217,119,6,0.10)' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
-              </svg>
-            </div>
-            <div>
-              <div className="aud-stat-value">{stats.applications}</div>
-              <div className="aud-stat-label">Candidatures tracées</div>
-            </div>
-          </div>
-        </div>
+        <StatCard
+          label="Total entrées" value={stats.total}
+          accent={colors.blue} iconBg="rgba(37,70,204,0.10)" iconColor={colors.blue}
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="8" y1="13" x2="16" y2="13"/>
+              <line x1="8" y1="17" x2="12" y2="17"/>
+            </svg>
+          }
+        />
+        <StatCard
+          label="Aujourd'hui" value={stats.today}
+          accent={colors.success} iconBg="rgba(22,163,74,0.10)" iconColor={colors.success}
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          }
+        />
+        <StatCard
+          label="Candidatures tracées" value={stats.applications}
+          accent={colors.warning} iconBg="rgba(217,119,6,0.10)" iconColor={colors.warning}
+          icon={
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          }
+        />
       </div>
 
       {/* Table card */}

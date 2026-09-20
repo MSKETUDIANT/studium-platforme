@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Badge }          from '../../../shared/components/Badge';
 import { Button }         from '../../../shared/components/Button';
 import { downloadCsv }   from '../../../shared/utils/export_csv';
@@ -6,6 +7,7 @@ import { EmptyState }     from '../../../shared/components/EmptyState';
 import { LoadingSpinner } from '../../../shared/components/LoadingSpinner';
 import { PageHeader }     from '../../../shared/components/PageHeader';
 import { Pagination }     from '../../../shared/components/Pagination';
+import { StatCard }       from '../../../shared/components/StatCard';
 import { colors, fonts, radius, shadows } from '../../../shared/constants/theme';
 import type { Application }              from '../types/application';
 import { RAW_STATUS_LABELS }             from '../types/application';
@@ -28,24 +30,6 @@ const CSS = `
   @media (max-width: 900px) { .ap-stat-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 480px) { .ap-stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; } }
 
-  .ap-stat {
-    background: white;
-    border-radius: ${radius.lg}px;
-    box-shadow: ${shadows.card};
-    overflow: hidden;
-  }
-  .ap-stat-inner {
-    padding: 18px 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .ap-stat-icon {
-    width: 44px; height: 44px;
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
 
   .ap-table-card {
     background: white;
@@ -177,10 +161,10 @@ const CSS = `
   }
   .ap-view-btn:hover:not(.ap-view-btn--active) { border-color: ${colors.blue}; color: ${colors.blue}; }
 
-  .ap-stat-grid .ap-stat:nth-child(1) { animation: ph-fade-up .35s .08s ease both; }
-  .ap-stat-grid .ap-stat:nth-child(2) { animation: ph-fade-up .35s .16s ease both; }
-  .ap-stat-grid .ap-stat:nth-child(3) { animation: ph-fade-up .35s .24s ease both; }
-  .ap-stat-grid .ap-stat:nth-child(4) { animation: ph-fade-up .35s .32s ease both; }
+  .ap-stat-grid > *:nth-child(1) { animation: ph-fade-up .35s .08s ease both; }
+  .ap-stat-grid > *:nth-child(2) { animation: ph-fade-up .35s .16s ease both; }
+  .ap-stat-grid > *:nth-child(3) { animation: ph-fade-up .35s .24s ease both; }
+  .ap-stat-grid > *:nth-child(4) { animation: ph-fade-up .35s .32s ease both; }
   .ap-table-card { animation: ph-fade-up .35s .42s ease both; }
 `;
 
@@ -203,7 +187,7 @@ const STATUS_BADGE: Record<string, 'validated' | 'pending' | 'urgent' | 'info' |
 
 const AVATAR_PALETTE = [
   ['#2546cc', 'rgba(37,70,204,0.12)'],
-  ['#7c3aed', 'rgba(124,58,237,0.12)'],
+  [colors.violet, 'rgba(124,58,237,0.12)'],
   ['#15803d', 'rgba(22,163,74,0.12)'],
   ['#d97706', 'rgba(217,119,6,0.12)'],
   ['#0891b2', 'rgba(8,145,178,0.12)'],
@@ -222,25 +206,6 @@ function scoreColor(n: number) {
 
 const FILTERS: ('Tous' | UIStatus)[] = ['Tous', 'Soumise', 'Correction', 'Vérifiée', 'Envoyée', 'En attente', 'Acceptée', 'Refusée', 'Archivée'];
 
-function StatCard({ label, value, sub, accent, iconBg, iconColor, icon }: {
-  label: string; value: number; sub?: string;
-  accent: string; iconBg: string; iconColor: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="ap-stat">
-      <div style={{ height: 3, background: accent }} />
-      <div className="ap-stat-inner">
-        <div className="ap-stat-icon" style={{ background: iconBg, color: iconColor }}>{icon}</div>
-        <div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: accent, fontFamily: fonts.display, lineHeight: 1 }}>{value}</div>
-          <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 5, fontWeight: 500 }}>{label}</div>
-          {sub && <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>{sub}</div>}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function ApplicationsPage() {
   const [apps,        setApps]        = useState<Application[]>([]);
@@ -254,6 +219,7 @@ export default function ApplicationsPage() {
   const [pageSize,    setPageSize]    = useState(10);
   const [sortBy,      setSortBy]      = useState<SortKey>('date');
   const [sortDir,     setSortDir]     = useState<'asc' | 'desc'>('desc');
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const reload = useCallback(() => {
     fetchApplications()
@@ -263,6 +229,16 @@ export default function ApplicationsPage() {
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
+
+  // Deep-link depuis une autre page (ex. clic sur une tâche liée dans
+  // TasksPage) : /applications?open=<id> ouvre directement la fiche.
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (!openId || apps.length === 0) return;
+    const target = apps.find(a => a.id === openId);
+    if (target) setSelectedApp(target);
+    setSearchParams(prev => { prev.delete('open'); return prev; }, { replace: true });
+  }, [apps, searchParams, setSearchParams]);
 
   useEffect(() => {
     const channel = supabase
@@ -432,7 +408,7 @@ export default function ApplicationsPage() {
       {/* Table */}
       {view === 'table' && (
         <div className="ap-table-card">
-          <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, #7c3aed)` }} />
+          <div style={{ height: 3, background: `linear-gradient(90deg, ${colors.blue}, ${colors.violet})` }} />
 
           {/* Toolbar */}
           <div className="ap-toolbar">
