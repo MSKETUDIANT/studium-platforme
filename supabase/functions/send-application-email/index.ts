@@ -7,7 +7,7 @@ import {
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const FROM_EMAIL     = 'onboarding@resend.dev'; // TODO: remplacer par noreply@studium.app après vérification domaine
+const FROM_EMAIL     = 'admission@studium-officiel.com'; // Domaine vérifié sur Resend (studium-officiel.com)
 const FROM_NAME      = 'Studium Admissions';
 const MAX_ATTACH_MB  = 20; // Limite pièces jointes (Mo)
 
