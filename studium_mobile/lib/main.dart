@@ -89,6 +89,54 @@ class _StudiumAppState extends ConsumerState<StudiumApp> {
           );
         });
       }
+
+      // Confirmation d'inscription : studium://confirm-email
+      // (clic sur le lien reçu par email après signUp()) : échange le
+      // code contre une session complète, puis affiche un écran de
+      // bienvenue dédié (même style que EmailConfirmationScreen) plutôt
+      // qu'un atterrissage silencieux sur /home.
+      if (uri.scheme == 'studium' && uri.host == 'confirm-email') {
+        try {
+          await Supabase.instance.client.auth.getSessionFromUrl(uri);
+
+          // Rejoue l'enregistrement du parrainage laissé en attente lors
+          // de l'inscription (session absente à ce moment-là, cf.
+          // auth_remote_datasource.dart::register).
+          final pendingRefCode = CacheService.instance.get<String>(
+            CacheKeys.pendingRefCode,
+          );
+          if (pendingRefCode != null && pendingRefCode.isNotEmpty) {
+            try {
+              await Supabase.instance.client.rpc(
+                'register_referral',
+                params: {'p_code': pendingRefCode},
+              );
+            } catch (e) {
+              debugPrint('confirm-email register_referral error: $e');
+            } finally {
+              await CacheService.instance.remove(CacheKeys.pendingRefCode);
+            }
+          }
+
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(appRouterProvider).go('/email-confirmed');
+          });
+        } catch (e) {
+          debugPrint('confirm-email getSessionFromUrl error: $e');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(appRouterProvider).go('/login');
+            final context = navigatorKey.currentContext;
+            if (context != null && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Le lien de confirmation a expiré ou est invalide. Reconnectez-vous.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          });
+        }
+      }
     });
   }
 

@@ -12,6 +12,7 @@ import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/screens/onboarding_wizard.dart';
 import '../features/auth/presentation/screens/register_screen.dart';
 import '../features/auth/presentation/screens/email_confirmation_screen.dart';
+import '../features/auth/presentation/screens/email_confirmed_screen.dart';
 import '../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../features/auth/presentation/screens/reset_password_screen.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
@@ -135,6 +136,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final email = state.uri.queryParameters['email'] ?? '';
           return EmailConfirmationScreen(email: email);
         },
+      ),
+      GoRoute(
+        path: '/email-confirmed',
+        parentNavigatorKey: navigatorKey,
+        builder: (_, __) => const EmailConfirmedScreen(),
       ),
       GoRoute(path: '/forgot-password',
           builder: (_, __) => const ForgotPasswordScreen()),

@@ -71,4 +71,5 @@ abstract class CacheKeys {
   static const documents       = 'cache_documents';
   static const applications    = 'cache_applications';
   static const notifications   = 'cache_notifications';
+  static const pendingRefCode  = 'cache_pending_ref_code';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/errors/app_exception.dart';
+import '../../../core/services/cache_service.dart';
 import 'models/user_model.dart';
 
 class AuthRemoteDatasource {
@@ -90,6 +91,10 @@ class AuthRemoteDatasource {
         // ultérieur dans ce cas). Google/Apple n'ont pas cette garantie
         // amont -> gérés séparément par l'écran d'interstitiel /accept-terms.
         data: {'terms_accepted': true},
+        // Deep link natif plutôt que localhost:5173 (inatteignable hors de
+        // la machine de dev) : le clic sur le lien de confirmation ouvre
+        // directement l'app et finalise la session (cf. main.dart).
+        emailRedirectTo: 'studium://confirm-email',
       );
     } on AuthException catch (e) {
       if (e.message.contains('already registered') ||
@@ -101,20 +106,31 @@ class AuthRemoteDatasource {
 
     if (response.user == null) throw const AppException("Échec de l'inscription");
 
-    try {
-      await _client.from('user_roles').insert({
-        'user_id': response.user!.id,
-        'role_id': '6c61f080-50bd-4160-859d-902bc3110f34',
-      });
-    } catch (e) {
-      debugPrint('=== INSERT ROLE ERROR: $e');
-    }
+    // Le rôle par défaut est attribué côté serveur par le trigger
+    // assign_default_role() (AFTER INSERT sur auth.users) : un insert
+    // client ici échouerait systématiquement (RLS, auth.uid() vide tant
+    // que l'email n'est pas confirmé) et serait de toute façon redondant.
 
     if (refCode != null && refCode.isNotEmpty) {
-      try {
-        await _client.rpc('register_referral', params: {'p_code': refCode});
-      } catch (e) {
-        debugPrint('=== REGISTER REFERRAL ERROR: $e');
+      if (response.session != null) {
+        // Session déjà active (cas où la confirmation email ne serait pas
+        // exigée) : on peut appeler le RPC tout de suite.
+        try {
+          await _client.rpc('register_referral', params: {'p_code': refCode});
+        } catch (e) {
+          debugPrint('=== REGISTER REFERRAL ERROR: $e');
+        }
+      } else {
+        // Confirmation email requise -> pas de session, donc auth.uid()
+        // est vide et le RPC (SECURITY DEFINER mais basé sur auth.uid())
+        // échouerait silencieusement. On mémorise le code pour le
+        // rejouer une fois la session établie (cf. main.dart, deep link
+        // studium://confirm-email).
+        await CacheService.instance.set(
+          CacheKeys.pendingRefCode,
+          refCode,
+          ttl: const Duration(days: 7),
+        );
       }
     }
 
