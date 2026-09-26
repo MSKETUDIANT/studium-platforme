@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode, type ChangeEvent } from 'react';
 import { supabase }       from '../../../shared/services/supabase';
 import { Button }         from '../../../shared/components/Button';
 import { PageHeader }     from '../../../shared/components/PageHeader';
@@ -32,6 +32,7 @@ interface Program {
   created_at:      string | null;
   min_average:             number | null;
   required_language_level: string | null;
+  photo_url:       string | null;
 }
 
 type FormData = Omit<Program, 'id' | 'created_at'>;
@@ -53,6 +54,7 @@ const EMPTY_FORM: FormData = {
   is_active:       true,
   min_average:             null,
   required_language_level: '',
+  photo_url:       null,
 };
 
 // Niveaux CECR — s'applique a la langue du programme (champ "Langue")
@@ -725,6 +727,8 @@ function ProgramModal({
   const [form, setForm] = useState<FormData>(initial);
   const [submitted, setSubmitted] = useState(false);
   const [costCurrency, setCostCurrency] = useState('EUR');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const set = (k: keyof FormData, v: unknown) => setForm(f => ({ ...f, [k]: v }));
   const isGratuit = form.cost === 0;
   const isEdit = !!initial.program_name;
@@ -737,6 +741,28 @@ function ProgramModal({
     setSubmitted(true);
     if (!valid) return;
     onSave(form);
+  }
+
+  async function handlePhotoChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoError(null);
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split('.').pop() ?? 'jpg';
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('program-photos')
+        .upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from('program-photos').getPublicUrl(path);
+      set('photo_url', data.publicUrl);
+    } catch (err: any) {
+      setPhotoError(err?.message ?? "Echec de l'upload");
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   return (
@@ -794,6 +820,45 @@ function ProgramModal({
               onChange={e => set('university_name', e.target.value)}
             />
             {submitted && univEmpty && <span className="pp-field-error">Ce champ est obligatoire</span>}
+          </div>
+
+          {/* Photo du programme */}
+          <div className="pp-field pp-form-full">
+            <label className="pp-label">Photo du programme</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{
+                width: 84, height: 64, borderRadius: radius.md, overflow: 'hidden',
+                background: colors.inputBg, border: `1.5px solid ${colors.borderInput}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                {form.photo_url ? (
+                  <img src={form.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <svg width={22} height={22} fill="none" viewBox="0 0 24 24" stroke={colors.textMuted} strokeWidth={1.5}>
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>
+                  </svg>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{
+                  fontSize: 13, fontWeight: 600, color: colors.blue, cursor: uploadingPhoto ? 'default' : 'pointer',
+                  opacity: uploadingPhoto ? 0.6 : 1,
+                }}>
+                  {uploadingPhoto ? 'Envoi en cours...' : form.photo_url ? 'Changer la photo' : 'Ajouter une photo'}
+                  <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploadingPhoto} style={{ display: 'none' }} />
+                </label>
+                {form.photo_url && !uploadingPhoto && (
+                  <button type="button" onClick={() => set('photo_url', null)}
+                    style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: colors.textMuted, cursor: 'pointer', textAlign: 'left' }}>
+                    Retirer la photo
+                  </button>
+                )}
+                <span style={{ fontSize: 11, color: colors.textMuted }}>
+                  Optionnel — sans photo, un visuel par defaut est affiche cote mobile.
+                </span>
+                {photoError && <span className="pp-field-error">{photoError}</span>}
+              </div>
+            </div>
           </div>
 
           {/* Niveau / Pays */}
@@ -1054,6 +1119,7 @@ export default function ProgramsPage() {
       is_active:       form.is_active,
       min_average:             form.min_average ?? null,
       required_language_level: form.required_language_level || null,
+      photo_url:       form.photo_url || null,
     };
 
     let error;
@@ -1481,6 +1547,7 @@ export default function ProgramsPage() {
                 is_active:       modal.program.is_active,
                 min_average:             modal.program.min_average,
                 required_language_level: modal.program.required_language_level,
+                photo_url:       modal.program.photo_url,
               }
             : EMPTY_FORM
           }

@@ -75,15 +75,46 @@ class ProgramDetailPage extends ConsumerWidget {
               systemOverlayStyle: SystemUiOverlayStyle.light,
               flexibleSpace: FlexibleSpaceBar(
                 collapseMode: CollapseMode.pin,
-                background: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [_accentColor, _accentDark],
-                    ),
-                  ),
-                  child: SafeArea(
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (program.photoUrl != null && program.photoUrl!.isNotEmpty) ...[
+                      Image.network(
+                        program.photoUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [_accentColor, _accentDark],
+                            ),
+                          ),
+                        ),
+                      ),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.25),
+                              Colors.black.withValues(alpha: 0.55),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ] else
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [_accentColor, _accentDark],
+                          ),
+                        ),
+                      ),
+                    SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 56, 20, 24),
                       child: Column(
@@ -145,11 +176,12 @@ class ProgramDetailPage extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  ],
                 ),
               ),
             ),
 
-            //  Content 
+            //  Content
             SliverPadding(
               padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPad),
               sliver: SliverList(

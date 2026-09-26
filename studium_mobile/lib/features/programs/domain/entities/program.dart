@@ -16,6 +16,7 @@ class Program {
   final DateTime? createdAt;
   final double? minAverage;
   final String? requiredLanguageLevel;
+  final String? photoUrl;
 
   const Program({
     required this.id,
@@ -35,6 +36,7 @@ class Program {
     this.createdAt,
     this.minAverage,
     this.requiredLanguageLevel,
+    this.photoUrl,
   });
 
   String get levelLabel => switch (level) {

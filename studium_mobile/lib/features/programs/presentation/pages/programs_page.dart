@@ -869,53 +869,95 @@ class _ProgramCard extends ConsumerWidget {
                 width: double.infinity,
                 child: Stack(
                   children: [
-                    // Gradient
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: _bannerGradient(program.level),
-                      ),
-                    ),
-                    // Décors géométriques
-                    Positioned(
-                      right: -20, top: -20,
-                      child: _GeoShape(size: 130, opacity: 0.10),
-                    ),
-                    Positioned(
-                      left: -10, bottom: -10,
-                      child: _GeoShape(size: 90, opacity: 0.07),
-                    ),
-                    Positioned(
-                      right: 40, bottom: -30,
-                      child: _GeoShape(size: 60, opacity: 0.05),
-                    ),
-                    // Icône + nom université centré
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 52, height: 52,
+                    if (program.photoUrl != null && program.photoUrl!.isNotEmpty) ...[
+                      // Photo du programme (ajoutee depuis le tableau de bord)
+                      Positioned.fill(
+                        child: Image.network(
+                          program.photoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(14),
+                              gradient: _bannerGradient(program.level),
                             ),
-                            child: const Icon(Icons.account_balance_rounded,
-                                size: 26, color: Colors.white70),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            program.universityName.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.4,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.05),
+                                Colors.black.withValues(alpha: 0.35),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 12, bottom: 10,
+                        child: Text(
+                          program.universityName.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.4,
+                            shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      // Gradient
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: _bannerGradient(program.level),
+                        ),
+                      ),
+                      // Décors géométriques
+                      Positioned(
+                        right: -20, top: -20,
+                        child: _GeoShape(size: 130, opacity: 0.10),
+                      ),
+                      Positioned(
+                        left: -10, bottom: -10,
+                        child: _GeoShape(size: 90, opacity: 0.07),
+                      ),
+                      Positioned(
+                        right: 40, bottom: -30,
+                        child: _GeoShape(size: 60, opacity: 0.05),
+                      ),
+                      // Icône + nom université centré
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 52, height: 52,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.account_balance_rounded,
+                                  size: 26, color: Colors.white70),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              program.universityName.toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.4,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     // Favori
                     Positioned(
                       top: 8, right: 8,

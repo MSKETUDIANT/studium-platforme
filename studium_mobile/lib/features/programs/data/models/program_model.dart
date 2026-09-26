@@ -19,6 +19,7 @@ class ProgramModel extends Program {
     super.createdAt,
     super.minAverage,
     super.requiredLanguageLevel,
+    super.photoUrl,
   });
 
   factory ProgramModel.fromJson(Map<String, dynamic> json) => ProgramModel(
@@ -45,5 +46,6 @@ class ProgramModel extends Program {
             : null,
         minAverage:             (json['min_average'] as num?)?.toDouble(),
         requiredLanguageLevel:  json['required_language_level'] as String?,
+        photoUrl:               json['photo_url'] as String?,
       );
 }
