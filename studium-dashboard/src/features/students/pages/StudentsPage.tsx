@@ -390,6 +390,7 @@ export default function StudentsPage() {
   const [previewDoc,     setPreviewDoc]     = useState<{ url: string; name: string } | null>(null);
   const [rejectReason,   setRejectReason]   = useState('');
   const [actionLoading,  setActionLoading]  = useState<string | null>(null);
+  const [actionError,    setActionError]    = useState<string | null>(null);
   const [studentPage,    setStudentPage]    = useState(1);
   const [pageSize,       setPageSize]       = useState(10);
   const [detailTab,      setDetailTab]      = useState<'profile'|'docs'|'notes'|'apps'>('docs');
@@ -544,16 +545,19 @@ export default function StudentsPage() {
   };
 
   const viewDoc = async (fileUrl: string, fileName: string) => {
+    setActionError(null);
     try {
       const signedUrl = await getSignedDocumentUrl(fileUrl);
       setPreviewDoc({ url: signedUrl, name: fileName });
-    } catch (e) {
+    } catch (e: any) {
       console.error('[viewDoc]', e);
+      setActionError("Impossible d'ouvrir ce document. Réessayez.");
     }
   };
 
   const approve = async (docId: string) => {
     setActionLoading(docId);
+    setActionError(null);
     const doc = docs.find(d => d.id === docId);
     const studentName = selected ? [selected.first_name, selected.last_name].filter(Boolean).join(' ') : '';
     const newName = doc && studentName ? buildDocFileName(studentName, doc.type, doc.file_name) : undefined;
@@ -561,6 +565,7 @@ export default function StudentsPage() {
       await approveDocument(docId, newName);
     } catch (error: any) {
       console.error('[approve] Supabase error:', error?.message, error?.details);
+      setActionError("L'approbation a échoué. Réessayez.");
       setActionLoading(null);
       return;
     }
@@ -582,15 +587,17 @@ export default function StudentsPage() {
   const confirmReject = async () => {
     if (!rejectTarget || !rejectReason.trim()) return;
     setActionLoading(rejectTarget.id);
+    setActionError(null);
     const reason = rejectReason.trim();
     const { error } = await supabase.from('documents')
       .update({ status: 'rejected', rejection_reason: reason })
       .eq('id', rejectTarget.id);
     if (error) {
       console.error('[confirmReject] Supabase error:', error.message, error.details);
+      // Modale gardee ouverte (motif conserve) : l'agent voit l'erreur et peut
+      // retenter, plutot que de croire le rejet enregistre a tort.
+      setActionError('Le rejet a échoué. Réessayez.');
       setActionLoading(null);
-      setRejectTarget(null);
-      setRejectReason('');
       return;
     }
     setDocs(prev => prev.map(d =>
@@ -1304,6 +1311,15 @@ export default function StudentsPage() {
                 </div>
               ) : detailTab === 'docs' ? (
                 <div style={{ overflowY: 'auto', maxHeight: 560, paddingBottom: 14 }}>
+                  {actionError && !rejectTarget && (
+                    <div style={{
+                      margin: '0 15px 12px', padding: '8px 12px', borderRadius: 8,
+                      background: 'rgba(220,38,38,0.08)', color: colors.danger,
+                      fontSize: 12.5, fontWeight: 600,
+                    }}>
+                      {actionError}
+                    </div>
+                  )}
                   {docs.map(doc => {
                     const cfg  = STATUS_CFG[doc.status] ?? STATUS_CFG.uploaded;
                     const tc   = TYPE_COLOR[doc.type]   ?? TYPE_COLOR.other;
@@ -1407,6 +1423,11 @@ export default function StudentsPage() {
               rows={4}
               autoFocus
             />
+            {actionError && (
+              <div style={{ fontSize: 12.5, color: colors.danger, marginTop: 8 }}>
+                {actionError}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
               <Button variant="secondary" size="sm" onClick={() => { setRejectTarget(null); setRejectReason(''); }}>
                 Annuler
