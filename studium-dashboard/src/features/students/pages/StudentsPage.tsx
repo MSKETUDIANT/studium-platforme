@@ -387,6 +387,7 @@ export default function StudentsPage() {
   const [docs,           setDocs]           = useState<StudentDoc[]>([]);
   const [docsLoading,    setDocsLoading]    = useState(false);
   const [rejectTarget,   setRejectTarget]   = useState<{ id: string; fileName: string } | null>(null);
+  const [previewDoc,     setPreviewDoc]     = useState<{ url: string; name: string } | null>(null);
   const [rejectReason,   setRejectReason]   = useState('');
   const [actionLoading,  setActionLoading]  = useState<string | null>(null);
   const [studentPage,    setStudentPage]    = useState(1);
@@ -542,10 +543,10 @@ export default function StudentsPage() {
     setNotes(prev => prev.filter(n => n.id !== id));
   };
 
-  const viewDoc = async (fileUrl: string) => {
+  const viewDoc = async (fileUrl: string, fileName: string) => {
     try {
       const signedUrl = await getSignedDocumentUrl(fileUrl);
-      window.open(signedUrl, '_blank', 'noreferrer');
+      setPreviewDoc({ url: signedUrl, name: fileName });
     } catch (e) {
       console.error('[viewDoc]', e);
     }
@@ -1349,7 +1350,7 @@ export default function StudentsPage() {
                           borderTop: `1px solid ${colors.border}`,
                           background: colors.inputBg, flexWrap: 'wrap',
                         }}>
-                          <button onClick={() => viewDoc(doc.file_url)}
+                          <button onClick={() => viewDoc(doc.file_url, doc.file_name)}
                             className="sp-btn-act sp-btn-act--view"
                             style={{ color: colors.blue }}>
                             <svg width={12} height={12} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -1418,6 +1419,53 @@ export default function StudentsPage() {
               >
                 Confirmer le rejet
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal aperçu de document */}
+      {previewDoc && (
+        <div className="sp-overlay" onClick={() => setPreviewDoc(null)}>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'white', borderRadius: radius.xl,
+              width: '96vw', maxWidth: 1400, height: '96vh',
+              boxShadow: '0 24px 60px rgba(11,24,82,0.2)',
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            }}
+          >
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '14px 18px', borderBottom: `1px solid ${colors.border}`,
+            }}>
+              <span style={{ fontWeight: 700, fontSize: 14, color: colors.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {previewDoc.name}
+              </span>
+              <button
+                onClick={() => setPreviewDoc(null)}
+                style={{
+                  border: 'none', background: colors.inputBg, borderRadius: radius.full,
+                  width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0, marginLeft: 12,
+                }}
+              >
+                <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke={colors.textMuted} strokeWidth={2.5}><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, background: '#525659' }}>
+              {/\.(png|jpe?g|gif|webp)$/i.test(previewDoc.name) ? (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto' }}>
+                  <img src={previewDoc.url} alt={previewDoc.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                </div>
+              ) : (
+                <iframe
+                  src={previewDoc.url}
+                  title={previewDoc.name}
+                  style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+                />
+              )}
             </div>
           </div>
         </div>

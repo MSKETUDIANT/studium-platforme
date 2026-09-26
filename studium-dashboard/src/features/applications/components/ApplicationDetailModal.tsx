@@ -68,6 +68,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
   const [academics,      setAcademics]      = useState<AcademicBackground[]>([]);
   const [experiences,    setExperiences]    = useState<WorkExperience[]>([]);
   const [rejectTarget,   setRejectTarget]   = useState<ApplicationDocument | null>(null);
+  const [previewDoc,     setPreviewDoc]     = useState<{ url: string; name: string } | null>(null);
   const [rejectReason,   setRejectReason]   = useState('');
   const [docActionId,    setDocActionId]    = useState<string | null>(null);
 
@@ -113,7 +114,7 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
     if (!doc.file_url) return;
     try {
       const signedUrl = await getSignedDocumentUrl(doc.file_url);
-      window.open(signedUrl, '_blank', 'noreferrer');
+      setPreviewDoc({ url: signedUrl, name: doc.file_name || 'document' });
     } catch (e) {
       showToast('error', 'Impossible d\'ouvrir le document.');
     }
@@ -1141,6 +1142,62 @@ export default function ApplicationDetailModal({ app, onClose, onUpdate }: Props
         </div>
       </div>
     </div>
+
+    {/* Modal aperçu de document */}
+    {previewDoc && (
+      <div
+        onClick={() => setPreviewDoc(null)}
+        style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(10,14,40,0.55)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1100, padding: 16,
+        }}
+      >
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            background: 'white', borderRadius: radius.xl,
+            width: '96vw', maxWidth: 1400, height: '96vh',
+            boxShadow: '0 24px 60px rgba(11,24,82,0.2)',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          }}
+        >
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '14px 18px', borderBottom: `1px solid ${colors.border}`,
+          }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: colors.navy, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {previewDoc.name}
+            </span>
+            <button
+              onClick={() => setPreviewDoc(null)}
+              style={{
+                border: 'none', background: colors.inputBg, borderRadius: radius.full,
+                width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0, marginLeft: 12,
+              }}
+            >
+              <svg width={14} height={14} fill="none" viewBox="0 0 24 24" stroke={colors.textMuted} strokeWidth={2.5}><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, background: '#525659' }}>
+            {/\.(png|jpe?g|gif|webp)$/i.test(previewDoc.name) ? (
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto' }}>
+                <img src={previewDoc.url} alt={previewDoc.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              </div>
+            ) : (
+              <iframe
+                src={previewDoc.url}
+                title={previewDoc.name}
+                style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }
