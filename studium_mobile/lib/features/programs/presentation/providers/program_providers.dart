@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/datasources/program_remote_datasource.dart';
 import '../../data/repositories/program_repository_impl.dart';
 import '../../domain/entities/program.dart';
 import '../../domain/repositories/program_repository.dart';
+import '../../../../core/services/cache_service.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../profile/domain/entities/student_profile.dart';
 import '../../../profile/domain/entities/academic_background.dart';
@@ -18,7 +20,28 @@ final programRepositoryProvider = Provider<ProgramRepository>(
   (ref) => ProgramRepositoryImpl(ref.watch(programDatasourceProvider)),
 );
 
-final programsProvider = FutureProvider.autoDispose<List<Program>>((ref) {
+final programsProvider = FutureProvider.autoDispose<List<Program>>((ref) async {
+  final client = ref.watch(supabaseClientProvider);
+
+  // Ecoute temps reel : un ajout/modification/suppression de programme cote
+  // tableau de bord vide le cache local et redeclenche le chargement, sans
+  // attendre le TTL de 6h ni geste manuel (pull-to-refresh reste disponible
+  // en secours).
+  final channel = client
+      .channel('programs-changes')
+      .onPostgresChanges(
+        event:  PostgresChangeEvent.all,
+        schema: 'public',
+        table:  'programs',
+        callback: (_) async {
+          await CacheService.instance.remove(CacheKeys.programs);
+          ref.invalidateSelf();
+        },
+      )
+      .subscribe();
+
+  ref.onDispose(() => client.removeChannel(channel));
+
   return ref.read(programRepositoryProvider).getPrograms();
 });
 
