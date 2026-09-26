@@ -65,28 +65,40 @@ Deno.serve(async (req) => {
 
     const userId = invited.user.id;
 
-    // inviteUserByEmail peut reussir (renvoi d'invitation) sur un compte
-    // deja existant avec un role (ex. un etudiant) : sans cette verification,
-    // l'insertion suivante creerait un 2e role pour le meme utilisateur —
-    // constate en test, casse useRole() cote client (.maybeSingle() sur
-    // plusieurs lignes).
-    const { data: existingRole } = await supabase
-      .from('user_roles')
-      .select('roles!role_id(name)')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (existingRole) {
-      const currentRoleName = (existingRole.roles as any)?.name ?? 'inconnu';
-      return jsonError(
-        `Cet email est déjà associé à un compte existant (rôle actuel : ${currentRoleName}). ` +
-        `Utilisez "Changer le rôle" sur ce membre au lieu de l'inviter à nouveau.`,
-        409,
-      );
+    // Le trigger assign_default_role() attribue "student" par defaut a la
+    // creation du compte auth (avant que invited_at ne soit renseigne par
+    // un appel separe juste apres) : un compte fraichement cree par CET
+    // appel a donc toujours un role "student" a ce stade, sans que ce soit
+    // un vrai conflit. On ne bloque que si le compte existait deja AVANT
+    // cet appel (cree il y a plus de quelques secondes).
+    const isFreshlyCreated =
+      Date.now() - new Date(invited.user.created_at).getTime() < 5000;
+
+    if (!isFreshlyCreated) {
+      // inviteUserByEmail peut reussir (renvoi d'invitation) sur un compte
+      // deja existant avec un role (ex. un etudiant) : sans cette verification,
+      // l'insertion suivante creerait un 2e role pour le meme utilisateur —
+      // constate en test, casse useRole() cote client (.maybeSingle() sur
+      // plusieurs lignes).
+      const { data: existingRole } = await supabase
+        .from('user_roles')
+        .select('roles!role_id(name)')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (existingRole) {
+        const currentRoleName = (existingRole.roles as any)?.name ?? 'inconnu';
+        return jsonError(
+          `Cet email est déjà associé à un compte existant (rôle actuel : ${currentRoleName}). ` +
+          `Utilisez "Changer le rôle" sur ce membre au lieu de l'inviter à nouveau.`,
+          409,
+        );
+      }
     }
 
-    const { error: roleInsertErr } = await supabase.from('user_roles').insert({
-      user_id: userId, role_id: roleRow.id, status: 'active',
-    });
+    // upsert plutot qu'insert : ecrase le role "student" assigne par
+    // defaut par le trigger sur ce compte fraichement cree.
+    const { error: roleInsertErr } = await supabase.from('user_roles')
+      .upsert({ user_id: userId, role_id: roleRow.id, status: 'active' }, { onConflict: 'user_id' });
     if (roleInsertErr) return jsonError(`Compte créé mais rôle non attribué : ${roleInsertErr.message}`, 500);
 
     const { error: memberInsertErr } = await supabase.from('team_members').insert({
