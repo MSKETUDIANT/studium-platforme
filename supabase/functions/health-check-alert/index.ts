@@ -10,7 +10,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const FROM_EMAIL      = 'onboarding@resend.dev'; // même expéditeur que send-application-email
+const FROM_EMAIL      = 'admin@studium-officiel.com'; // Domaine vérifié sur Resend (studium-officiel.com) — onboarding@resend.dev ne livre qu'au propriétaire du compte Resend, jamais aux autres destinataires
 const FROM_NAME        = 'Studium Monitoring';
 const COOLDOWN_MS      = 60 * 60 * 1000; // 1h entre deux alertes pendant une panne prolongée
 const ALERT_COOLDOWN_KEY = 'last_health_alert_at';

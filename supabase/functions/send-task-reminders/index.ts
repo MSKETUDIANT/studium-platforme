@@ -5,7 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const FROM_EMAIL     = 'onboarding@resend.dev'; // TODO: noreply@studium.app après vérification domaine
+const FROM_EMAIL     = 'admin@studium-officiel.com'; // Domaine vérifié sur Resend (studium-officiel.com) — onboarding@resend.dev ne livre qu'au propriétaire du compte Resend, jamais aux autres membres de l'équipe
 const FROM_NAME      = 'Studium';
 
 const corsHeaders = () => ({
