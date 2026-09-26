@@ -195,6 +195,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isWide    = MediaQuery.sizeOf(context).width > 700;
     return Scaffold(
       backgroundColor: AppColors.pageBg,
+      // Même correctif que register_screen.dart : évite que l'ouverture du
+      // clavier compresse l'en-tête flex (_MobileHeader) jusqu'au débordement.
+      resizeToAvoidBottomInset: false,
       body: isWide ? _WideLayout(buildForm: _buildForm(isLoading))
                    : _MobileLayout(buildForm: _buildForm(isLoading)),
     );

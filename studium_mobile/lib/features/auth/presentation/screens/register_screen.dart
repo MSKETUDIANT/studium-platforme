@@ -151,6 +151,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.pageBg,
+      // Sans ce réglage, l'ouverture du clavier réduit la hauteur du corps
+      // et compresse d'autant l'en-tête (flex), au point de faire déborder
+      // son logo/texte sur les petits écrans. Le formulaire garde son
+      // propre SingleChildScrollView pour rester accessible sous le clavier.
+      resizeToAvoidBottomInset: false,
       body: Column(children: [
         Expanded(flex: headerFlex, child: const _BrandedHeader()),
         Expanded(flex: formFlex, child: SingleChildScrollView(
